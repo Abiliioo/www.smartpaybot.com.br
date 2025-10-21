@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Criar conta — SmartPayBot{% endblock %}
+{% block navbar %}{% include "navbar.html" %}{% endblock %}
+{% block content %}
+<h2>Criar conta</h2>
+<form method="post">
+  {{ form.hidden_tag() }}
+
+  <div>
+    <label>Usuário</label>
+    {{ form.username(class="form-control") }}
+    {% for e in form.username.errors %}
+      <small style="color:#b00;">{{ e }}</small>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:10px;">
+    <label>Email</label>
+    {{ form.email(class="form-control") }}
+    {% for e in form.email.errors %}
+      <small style="color:#b00;">{{ e }}</small>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:10px;">
+    <label>Senha</label>
+    {{ form.password(class="form-control") }}
+    {% for e in form.password.errors %}
+      <small style="color:#b00;">{{ e }}</small>
+    {% endfor %}
+    <small>Mínimo de 8 caracteres.</small>
+  </div>
+
+  <div style="margin-top:12px;">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
+{% endblock %}
+{% block footer %}{% include "footer.html" %}{% endblock %}

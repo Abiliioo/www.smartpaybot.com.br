@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Entrar — SmartPayBot{% endblock %}
+{% block navbar %}{% include "navbar.html" %}{% endblock %}
+
+{% block content %}
+<main class="container relative min-h-[70vh] flex items-center justify-center py-12">
+
+  {# Spotlight suave atrás do card para destacar o bloco #}
+  <div class="absolute inset-0 -z-10 grid place-items-center pointer-events-none">
+    <div class="w-[28rem] h-[28rem] rounded-full bg-brand/12 blur-3xl"></div>
+  </div>
+
+  <section class="w-full max-w-md rounded-2xl p-8
+                  bg-[#0f172a] border border-[#223055] shadow-spb">
+
+    <!-- Logo centralizada, maior e limpa -->
+    <header class="mb-6 text-center">
+      <img
+        src="{{ url_for('static', filename='images/logo.svg') }}"
+        alt="SmartPayBot"
+        class="h-16 mx-auto mb-1 select-none"
+        draggable="false"
+      />
+      <h1 class="sr-only">Entrar no SmartPayBot</h1>
+    </header>
+
+    <form method="post" class="space-y-4">
+      {{ form.hidden_tag() }}
+
+      <!-- Usuário -->
+      <div>
+        <label class="block text-sm font-medium text-ink mb-1.5">Usuário</label>
+        {{ form.username(
+          class="w-full rounded-xl border border-[#223055] bg-[#0e1a33] px-4 py-3 text-[15px] text-ink placeholder-[#8ea4cd] outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand",
+          placeholder="seu usuário"
+        ) }}
+        {% for e in form.username.errors %}
+          <small class="block mt-1 text-danger">{{ e }}</small>
+        {% endfor %}
+      </div>
+
+      <!-- Senha -->
+      <div>
+        <label class="block text-sm font-medium text-ink mb-1.5">Senha</label>
+        {{ form.password(
+          class="w-full rounded-xl border border-[#223055] bg-[#0e1a33] px-4 py-3 text-[15px] text-ink placeholder-[#8ea4cd] outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand",
+          placeholder="••••••••"
+        ) }}
+        {% for e in form.password.errors %}
+          <small class="block mt-1 text-danger">{{ e }}</small>
+        {% endfor %}
+      </div>
+
+      <!-- Ações -->
+      <div class="pt-1.5 flex items-center justify-between">
+        <a href="{{ url_for('auth.register') }}" class="text-sm text-brand hover:underline">Criar conta</a>
+        {{ form.submit(class="btn primary !rounded-xl !px-5 !py-2.5 !text-[15px] !shadow-spb") }}
+      </div>
+    </form>
+
+    <!-- Flashes -->
+    <div class="flashes mt-4">
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}
+          {% for cat, msg in msgs %}
+            <div class="flash {{ cat }} mt-2">{{ msg }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
+
+  </section>
+</main>
+{% endblock %}
+
+{% block footer %}{% include "footer.html" %}{% endblock %}

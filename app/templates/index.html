@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}SmartPayBot — Início{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>SmartPayBot</h1>
+  <p class="help">
+    Alertas de novos projetos do 99Freelas, com casamento por palavras-chave e envio via Telegram.
+  </p>
+
+  <div class="row" style="margin-top:8px;">
+    {% if current_user.is_authenticated %}
+      <a class="btn primary" href="{{ url_for('dashboard.home') }}">Ir para o Dashboard</a>
+    {% else %}
+      <a class="btn primary" href="{{ url_for('auth.login') }}">Entrar</a>
+      <a class="btn ghost" href="{{ url_for('auth.register') }}">Criar conta</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card">
+  <h3>Como funciona</h3>
+  <ol>
+    <li>Cadastre suas <strong>palavras-chave</strong> no dashboard.</li>
+    <li>Vincule seu <strong>Telegram</strong> com um clique (deep-link) ou enviando <span class="code">/start &lt;código&gt;</span> ao bot.</li>
+    <li>Receba <strong>alertas</strong> assim que novos projetos aparecerem.</li>
+  </ol>
+  <p class="help">Você controla o bot (ligar/desligar) direto no dashboard.</p>
+</section>
+{% endblock %}

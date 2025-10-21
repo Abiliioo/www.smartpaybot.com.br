@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Meus projetos · SmartPayBot{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Meus projetos</h1>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <div class="help">Últimos projetos casados com suas palavras-chave.</div>
+    <a class="btn pill" href="{{ url_for('dashboard.home') }}">⟵ Voltar ao dashboard</a>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+<thead>
+  <tr>
+    <th>Título</th>
+    <th>Match</th>
+    <th>Criado</th>
+    <th>Status</th>
+    <th>Valor (R$)</th>
+    <th>Ações</th>
+  </tr>
+</thead>
+
+    <tbody id="proj-body">
+    {% for p in items %}
+    <tr data-id="{{ p.id }}">
+        <td>
+        <div class="title-ellipsis" title="{{ p.title }}">{{ p.title }}</div>
+        </td>
+
+        <td>
+        <span class="chip chip--blue no-wrap">
+            <span class="chip-text no-wrap">{{ p.matched_keyword }}</span>
+        </span>
+        </td>
+
+        <td>{{ p.created_at|fmt_br }}</td>
+
+        <td class="status-cell">
+        {% if p.won %}<span class="badge">Ganho</span>{% else %}<span class="help">Em aberto</span>{% endif %}
+        </td>
+
+        <td>
+        <input type="text" class="input won-val compact"
+                value="{{ ('%.2f' % (p.won_cents/100)).replace('.', ',') if p.won_cents else '' }}"
+                placeholder="0,00">
+        </td>
+
+        <td class="actions-cell">
+        <div class="row">
+            <a class="btn pill" target="_blank" href="{{ p.link }}">Abrir</a>
+            {% if p.won %}
+            <button class="btn ghost pill btn-unwin">Desmarcar</button>
+            {% else %}
+            <button class="btn success pill btn-win">Marcar ganho</button>
+            {% endif %}
+        </div>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="help">Nenhum projeto por enquanto.</td></tr>
+    {% endfor %}
+    </tbody>
+
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a class="btn pill{% if not has_prev %} disabled{% endif %}"
+       href="{{ url_for('dashboard.my_projects', page=page-1) }}"
+       {% if not has_prev %}aria-disabled="true" tabindex="-1"{% endif %}>← Anterior</a>
+
+    <div class="pages">
+      {% for p in page_numbers %}
+        {% if p is none %}
+          <span class="gap">…</span>
+        {% elif p == page %}
+          <span class="page current">{{ p }}</span>
+        {% else %}
+          <a class="page" href="{{ url_for('dashboard.my_projects', page=p) }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <a class="btn pill{% if not has_next %} disabled{% endif %}"
+       href="{{ url_for('dashboard.my_projects', page=page+1) }}"
+       {% if not has_next %}aria-disabled="true" tabindex="-1"{% endif %}>Próxima →</a>
+  </div>
+
+  <p class="help" style="margin-top:8px">
+    Mostrando {{ (page-1)*page_size + 1 }}–{{ (page-1)*page_size + items|length }} de {{ total }} projeto(s).
+  </p>
+</div>
+{% endblock %}

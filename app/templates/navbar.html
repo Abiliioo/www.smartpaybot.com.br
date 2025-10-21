@@ -1,0 +1,53 @@
+<header class="header" role="banner">
+  <nav class="nav container" aria-label="Navegação principal">
+    <!-- Marca -->
+    <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('auth.login') }}"
+       class="brand" aria-label="SmartPayBot — início">
+      SmartPay<b>Bot</b>
+    </a>
+
+    {% set is_dash = request.endpoint and request.endpoint.startswith('dashboard.') %}
+    {% set is_login = request.endpoint == 'auth.login' %}
+    {% set is_register = request.endpoint == 'auth.register' %}
+
+    {% if current_user.is_authenticated %}
+      <!-- Links quando logado -->
+      {% if not is_dash %}
+        <a href="{{ url_for('dashboard.home') }}" {% if is_dash %}aria-current="page"{% endif %}>
+          Dashboard
+        </a>
+      {% endif %}
+
+      <span class="ml-auto"></span>
+
+      <span class="help">Olá, {{ current_user.username }}</span>
+      <a class="btn ghost pill" href="{{ url_for('auth.logout') }}">Sair</a>
+
+    {% else %}
+      <!-- Ações quando anônimo -->
+      <span class="ml-auto"></span>
+
+      {% if is_login %}
+        <!-- Já está na tela de login: mostre só Criar conta -->
+        <a class="btn ghost pill" href="{{ url_for('auth.register') }}" aria-label="Ir para criar conta">
+          Criar conta
+        </a>
+      {% elif is_register %}
+        <!-- Já está na tela de cadastro: mostre só Entrar -->
+        <a class="btn primary pill" href="{{ url_for('auth.login') }}" aria-label="Ir para login">
+          Entrar
+        </a>
+      {% else %}
+        <!-- Qualquer outra página anônima: mostre ambos -->
+        <a class="btn primary pill" href="{{ url_for('auth.login') }}"
+           {% if is_login %}aria-current="page"{% endif %}>
+          Entrar
+        </a>
+        <a class="btn ghost pill" href="{{ url_for('auth.register') }}"
+           {% if is_register %}aria-current="page"{% endif %}>
+          Criar conta
+        </a>
+      {% endif %}
+    {% endif %}
+  </nav>
+</header>

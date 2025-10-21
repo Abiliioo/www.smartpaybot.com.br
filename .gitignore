@@ -1,0 +1,94 @@
+# ======================================
+# SmartPayBot - .gitignore
+# ======================================
+
+# --- Ambientes virtuais ---
+.venv/
+venv/
+env/
+ENV/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.pdb
+
+# --- Banco de dados local ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Logs e temporários ---
+*.log
+logs/
+tmp/
+temp/
+*.pid
+*.bak
+*.swp
+
+# --- Configuração e variáveis de ambiente ---
+.env
+.env.*
+!env.example
+
+# --- Compilações / builds ---
+build/
+dist/
+*.egg-info/
+.eggs/
+*.manifest
+*.spec
+
+# --- Cache / metadados ---
+.cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# --- Sistema ---
+.DS_Store
+Thumbs.db
+
+# --- Testes e relatórios ---
+tests/__pycache__/
+test-results/
+reports/
+coverage/
+
+# --- Docker / Container ---
+docker-compose.override.yml
+*.tar
+*.img
+
+# --- Node / frontend (se aplicável) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# --- Backup e exportações ---
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.old
+*.orig
+
+# --- Deploy / runtime ---
+instance/
+run/
+uploads/
+sessions/

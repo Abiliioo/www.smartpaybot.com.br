@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — SmartPayBot{% endblock %}
+
+{% block content %}
+<h2 class="page-title">Dashboard</h2>
+
+<div class="grid">
+  <!-- Coluna Esquerda -->
+  <div class="stack">
+    <!-- Projetos - KPIs -->
+    <section class="card">
+      <h3>Projetos recebidos</h3>
+
+      <div class="stats-grid clean">
+        <div class="stat-hero">
+          <div class="label">Hoje</div>
+          <div class="disc"><div class="num" id="count-today">0</div></div>
+        </div>
+
+        <div class="kpis kpis-clean">
+          <div class="kpi">
+            <div class="kpi-label">Ontem</div>
+            <div class="kpi-num" id="count-yesterday">0</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Últimos&nbsp;7&nbsp;dias</div>
+            <div class="kpi-num" id="count-week">0</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Total&nbsp;geral</div>
+            <div class="kpi-num projects-count" id="count-total">{{ projects_count or 0 }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-footer">
+        <p class="help">Contagem de projetos coletados.</p>
+        <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todos os projetos</a>
+      </div>
+    </section>
+
+ <!-- Resultados (14 dias) -->
+<section class="card">
+  <h3>Resultados — últimos 14 dias</h3>
+
+  <div class="row" style="justify-content:space-between; align-items:flex-end">
+    <canvas id="rev-chart" width="680" height="180" style="max-width:100%"></canvas>
+    <div>
+      <div class="kpi-label">Conversão</div>
+      <div class="kpi-num" id="mini-conv">0%</div>
+      <div class="kpi-label" style="margin-top:8px">Ticket médio</div>
+      <div class="kpi-num" id="mini-avg">R$ 0</div>
+    </div>
+  </div>
+
+  <div class="kpi-footer">
+    <p class="help">Receita diária (R$) e contagem de ganhos.</p>
+    <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver projetos</a>
+  </div>
+</section>
+
+
+    <!-- Adicionar Palavras-chave -->
+    <section class="card">
+      <h3>Adicione Palavras-chave</h3>
+      <form id="keywords-form" class="form-inline" method="post" action="{{ url_for('dashboard.save_keywords') }}">
+        {{ form.hidden_tag() }}
+        {{ form.keywords(class="input", id="keywords", placeholder="Ex.: Excel, vba, JavaScript") }}
+        {{ form.submit(class="btn primary pill", value="Salvar") }}
+      </form>
+    </section>
+
+    <!-- Suas Palavras-chave (chips) -->
+    <section class="card">
+      <h3>Suas Palavras-chave</h3>
+
+      <div id="keywords-empty" {% if keywords and keywords|length > 0 %}style="display:none"{% endif %}>
+        <p class="help">Nenhuma palavra-chave cadastrada.</p>
+      </div>
+
+      <!-- removido style inline -->
+      <ul id="keywords-list" class="chips">
+        {% for k in keywords %}
+          <li
+            class="chip {{ loop.cycle('chip--blue','chip--red','chip--green','chip--amber','chip--pink','chip--indigo','chip--purple','chip--teal','chip--cyan') }}"
+            data-kw="{{ k|e }}"
+          >
+            <span class="chip-text">{{ k }}</span>
+            <button type="button" class="chip-x" data-kw="{{ k|e }}" aria-label="Remover {{ k }}">×</button>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <!-- Coluna Direita -->
+  <div class="stack">
+    <!-- ID do Telegram / Vínculo -->
+    <section class="card">
+      <h3>ID do Telegram</h3>
+
+      {% if is_linked %}
+        <p><span class="code">{{ chat_id }}</span></p>
+        <p class="help">Para trocar o chat, gere um novo código e vincule novamente.</p>
+      {% else %}
+        {% if deep_link %}
+          <p class="row">
+            <a class="btn primary pill" href="{{ deep_link }}">Vincular no Telegram</a>
+            <span class="help">Bot: @{{ bot_username }}</span>
+          </p>
+          <p class="help">Ou envie: <span class="code">/start {{ link_code }}</span></p>
+        {% else %}
+          <p>Envie: <span class="code">/start {{ link_code }}</span></p>
+          <p class="help">Defina <span class="code">TELEGRAM_BOT_USERNAME</span> para habilitar o botão.</p>
+        {% endif %}
+
+        <form class="row" method="post" action="{{ url_for('dashboard.regen_code') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn ghost pill">Gerar novo código</button>
+        </form>
+      {% endif %}
+    </section>
+
+    <!-- Controle do Bot -->
+    <section class="card">
+      <h3>Controle do Bot</h3>
+      <div class="row">
+        <label class="switch" title="Ligar/Desligar pipeline">
+          <input id="bot-toggle" type="checkbox"
+                 {% if bot_running %}checked{% endif %}
+                 {% if not is_linked %}disabled{% endif %}>
+          <span class="slider"></span>
+        </label>
+        <span id="bot-status">{{ 'Ativado' if bot_running else 'Parado' }}</span>
+      </div>
+      {% if not is_linked %}
+        <p class="help">Vincule seu Telegram para habilitar o controle.</p>
+      {% else %}
+        <p class="help">Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}
