@@ -5,34 +5,42 @@ Em produção o Telegram entrega updates via POST ao endpoint /webhook/telegram.
 Em dev, esse endpoint não é acessível externamente (localhost), então este
 script usa getUpdates para buscar updates e processar com a mesma lógica.
 
-Uso:
+Uso (a partir da raiz do projeto):
     .venv\\Scripts\\python.exe scripts\\telegram_poll.py
 
 Interrompa com Ctrl+C.
 """
 from __future__ import annotations
 
-import time
-import sys
 import os
+import sys
+import time
 
-# Garante que o root do projeto está no path antes de qualquer import local
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Garante que a raiz do projeto está no sys.path quando o script é executado
+# diretamente com: .venv\Scripts\python.exe scripts\telegram_poll.py
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import httpx
+import requests
 from sqlalchemy import select
 
-from config import settings
+from infrastructure.config import get_settings
 from infrastructure.db import SessionLocal
-from infrastructure.logging import get_logger
+from infrastructure.logging import configure_logging, get_logger
 from infrastructure.telegram import send_message
 from domain.models import User
 from domain.repositories import get_user_by_telegram_code, save_chat_binding
 
 log = get_logger("telegram_poll")
 
-POLL_INTERVAL = 2  # segundos entre chamadas a getUpdates
-TIMEOUT_SEC = 30   # long-poll timeout para a API do Telegram
+_TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
+
+POLL_TIMEOUT = 30   # long-poll: segundos que a API do Telegram aguarda antes de retornar vazio
+RETRY_SLEEP = 5     # segundos de espera após erro de rede
+
+
+def _masked_token(token: str) -> str:
+    """Exibe só os primeiros 8 caracteres do token para debug seguro."""
+    return token[:8] + "..." if len(token) > 8 else "***"
 
 
 def _send(chat_id: int | str, text: str) -> None:
@@ -45,17 +53,23 @@ def _send(chat_id: int | str, text: str) -> None:
 def _process_message(message: dict) -> None:
     text: str = (message.get("text") or "").strip()
     chat_id: int | None = (message.get("chat") or {}).get("id")
+    from_user: str = ((message.get("from") or {}).get("username") or "desconhecido")
 
     if not text or not chat_id:
+        log.debug("Mensagem sem texto ou chat_id — ignorada")
         return
 
     if not text.startswith("/start"):
+        log.debug("chat_id=%s enviou %r — ignorado (não é /start)", chat_id, text[:30])
         return
+
+    log.info("Processando /start de chat_id=%s (@%s)", chat_id, from_user)
 
     parts = text.split(maxsplit=1)
     code = parts[1].strip() if len(parts) == 2 else ""
 
     if not code:
+        log.warning("chat_id=%s enviou /start sem código", chat_id)
         _send(
             chat_id,
             "👋 Olá! Para vincular sua conta SmartPayBot, abra o dashboard, "
@@ -70,9 +84,13 @@ def _process_message(message: dict) -> None:
             select(User).where(User.chat_id == str(chat_id))
         )
         if already_owner:
+            log.warning(
+                "chat_id=%s já vinculado ao user_id=%s (%s)",
+                chat_id, already_owner.id, already_owner.username,
+            )
             _send(
                 chat_id,
-                "⚠️ Este chat já está vinculado à conta *{}*.\n"
+                "⚠️ Este chat já está vinculado à conta <b>{}</b>.\n"
                 "Se quiser vincular a outra conta, desvincule primeiro no dashboard.".format(
                     already_owner.username
                 ),
@@ -81,6 +99,7 @@ def _process_message(message: dict) -> None:
 
         user = get_user_by_telegram_code(db, code)
         if not user:
+            log.warning("chat_id=%s usou código inválido/expirado: %r", chat_id, code)
             _send(
                 chat_id,
                 "❌ Código inválido ou expirado.\n"
@@ -89,67 +108,105 @@ def _process_message(message: dict) -> None:
             return
 
         save_chat_binding(db, user, str(chat_id))
+        log.info(
+            "Vínculo Telegram ok: user_id=%s username=%s chat_id=%s",
+            user.id, user.username, chat_id,
+        )
         _send(
             chat_id,
-            "✅ Tudo certo! Sua conta *{}* foi vinculada com sucesso.\n"
+            "✅ Tudo certo! Sua conta <b>{}</b> foi vinculada com sucesso.\n"
             "A partir de agora você receberá alertas de novos projetos aqui. 🚀".format(
                 user.username
             ),
         )
-        log.info("Vínculo Telegram ok via polling: user_id=%s chat_id=%s", user.id, chat_id)
 
 
 def run_polling() -> None:
+    settings = get_settings()
+    configure_logging(settings.LOG_LEVEL)
+
     token = settings.TELEGRAM_TOKEN
     if not token:
-        log.error("TELEGRAM_TOKEN não configurado no .env. Abortando.")
+        print("ERRO: TELEGRAM_TOKEN não configurado no .env. Abortando.", flush=True)
         sys.exit(1)
 
-    base_url = f"https://api.telegram.org/bot{token}"
+    bot_name = f"@{settings.TELEGRAM_BOT_USERNAME}" if settings.TELEGRAM_BOT_USERNAME else "(bot_username não definido)"
+
+    print("", flush=True)
+    print("=" * 50, flush=True)
+    print("  SmartPayBot — Telegram Polling (dev)", flush=True)
+    print(f"  Bot     : {bot_name}", flush=True)
+    print(f"  Token   : {_masked_token(token)}", flush=True)
+    print(f"  Timeout : {POLL_TIMEOUT}s por ciclo", flush=True)
+    print("=" * 50, flush=True)
+    print("  Abra o bot no Telegram e envie:", flush=True)
+    print("  /start <codigo>", flush=True)
+    print("  (o código aparece no dashboard > card Telegram)", flush=True)
+    print("=" * 50, flush=True)
+    print("  Ctrl+C para parar", flush=True)
+    print("", flush=True)
+
+    base_url = _TELEGRAM_API.format(token=token, method="{method}")
     offset: int | None = None
 
-    log.info("Polling Telegram iniciado (Ctrl+C para parar)...")
-
-    with httpx.Client(timeout=TIMEOUT_SEC + 5) as client:
+    session = requests.Session()
+    try:
         while True:
-            try:
-                params: dict = {"timeout": TIMEOUT_SEC, "allowed_updates": ["message"]}
-                if offset is not None:
-                    params["offset"] = offset
+            params: dict = {
+                "timeout": POLL_TIMEOUT,
+                "allowed_updates": ["message"],
+            }
+            if offset is not None:
+                params["offset"] = offset
 
-                resp = client.get(f"{base_url}/getUpdates", params=params)
+            log.debug("getUpdates (offset=%s, timeout=%ds)...", offset, POLL_TIMEOUT)
+
+            try:
+                resp = session.get(
+                    base_url.format(method="getUpdates"),
+                    params=params,
+                    timeout=POLL_TIMEOUT + 10,  # margem acima do long-poll
+                )
                 resp.raise_for_status()
                 data = resp.json()
 
                 if not data.get("ok"):
                     log.warning("getUpdates retornou ok=false: %s", data)
-                    time.sleep(POLL_INTERVAL)
+                    time.sleep(RETRY_SLEEP)
                     continue
 
                 updates: list[dict] = data.get("result") or []
+
+                if updates:
+                    log.info("Recebidos %d update(s)", len(updates))
+
                 for update in updates:
                     update_id: int = update["update_id"]
-                    offset = update_id + 1  # marca como processado
+                    offset = update_id + 1
 
                     message = update.get("message")
-                    if message:
-                        try:
-                            _process_message(message)
-                        except Exception:
-                            log.exception("Erro ao processar update_id=%s", update_id)
+                    if not message:
+                        log.debug("update_id=%s sem campo 'message' — ignorado", update_id)
+                        continue
 
-                if not updates:
-                    time.sleep(POLL_INTERVAL)
+                    try:
+                        _process_message(message)
+                    except Exception:
+                        log.exception("Erro ao processar update_id=%s", update_id)
 
-            except httpx.TimeoutException:
-                # Long-poll expirou sem updates — normal
+            except requests.Timeout:
+                # Long-poll expirou sem updates — comportamento normal
+                log.debug("Long-poll expirou sem updates — aguardando próximo ciclo")
                 continue
-            except KeyboardInterrupt:
-                log.info("Polling encerrado pelo usuário.")
-                break
-            except Exception:
-                log.exception("Erro no loop de polling. Aguardando %ds...", POLL_INTERVAL * 5)
-                time.sleep(POLL_INTERVAL * 5)
+            except requests.RequestException as e:
+                log.error("Erro de rede: %s. Aguardando %ds...", e, RETRY_SLEEP)
+                time.sleep(RETRY_SLEEP)
+
+    except KeyboardInterrupt:
+        print("\nPolling encerrado.", flush=True)
+        log.info("Polling encerrado pelo usuário.")
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":
