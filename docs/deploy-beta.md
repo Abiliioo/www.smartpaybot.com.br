@@ -3,6 +3,11 @@
 Checklist operacional para o primeiro deploy público.
 Baseado na auditoria de produção realizada em 2026-06.
 
+**Estratégia de branch:**
+- `main` é a branch de produção. Todo deploy parte de `main`.
+- `dev` é a branch de desenvolvimento. Nunca fazer deploy direto de `dev`.
+- Fluxo: `dev` → PR → merge → `main` → deploy na VPS.
+
 **Legenda:**
 - `[OBRIG]` — bloqueia o deploy. Não subir sem isso.
 - `[RECOM]` — não bloqueia, mas risco real se omitido.
@@ -34,6 +39,15 @@ Baseado na auditoria de produção realizada em 2026-06.
   Ambos devem retornar vazio. Se não, seguir `rules/seguranca.md`.  
   ⏱ 2 min
 
+- [ ] `[OBRIG]` **Confirmar que o deploy parte da branch `main`**  
+  ```powershell
+  git checkout main
+  git status          # deve estar limpo (nothing to commit)
+  git log --oneline -3
+  ```
+  A VPS sempre clona e atualiza a partir de `main`. Nunca fazer deploy de `dev`.  
+  ⏱ 1 min
+
 ---
 
 ## Fase 1 — Provisionar o VPS
@@ -54,7 +68,7 @@ Baseado na auditoria de produção realizada em 2026-06.
 
 - [ ] `[OBRIG]` **Clonar o projeto e criar virtualenv**  
   ```bash
-  git clone <repositório> /var/www/smartpaybot
+  git clone --branch main <repositório> /var/www/smartpaybot
   cd /var/www/smartpaybot
   python3.11 -m venv .venv
   .venv/bin/pip install --upgrade pip
@@ -421,7 +435,7 @@ with SessionLocal() as db:
 ```bash
 cd /var/www/smartpaybot
 
-# Ver os últimos commits para identificar o estado estável
+# Ver os últimos commits de main para identificar o estado estável
 git log --oneline -10
 
 # Reverter para o commit anterior ao deploy com problema
@@ -430,6 +444,11 @@ git checkout <hash-do-commit-estavel>
 # Reinstalar dependências (caso o requirements.txt tenha mudado)
 .venv/bin/pip install -r requirements.txt
 ```
+
+> Após corrigir o problema no código local (`dev`), fazer merge em `main` e atualizar a VPS com:
+> ```bash
+> git checkout main && git pull origin main
+> ```
 
 ### Passo 5 — Reiniciar o serviço
 
