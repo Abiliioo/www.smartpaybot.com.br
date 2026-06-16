@@ -1,39 +1,93 @@
 {% extends "base.html" %}
 {% block title %}Criar conta — SmartPayBot{% endblock %}
 {% block navbar %}{% include "navbar.html" %}{% endblock %}
+
 {% block content %}
-<h2>Criar conta</h2>
-<form method="post">
-  {{ form.hidden_tag() }}
+<main class="container relative min-h-[70vh] flex items-center justify-center py-12">
 
-  <div>
-    <label>Usuário</label>
-    {{ form.username(class="form-control") }}
-    {% for e in form.username.errors %}
-      <small style="color:#b00;">{{ e }}</small>
-    {% endfor %}
+  <div class="absolute inset-0 -z-10 grid place-items-center pointer-events-none">
+    <div class="w-[28rem] h-[28rem] rounded-full bg-brand/12 blur-3xl"></div>
   </div>
 
-  <div style="margin-top:10px;">
-    <label>Email</label>
-    {{ form.email(class="form-control") }}
-    {% for e in form.email.errors %}
-      <small style="color:#b00;">{{ e }}</small>
-    {% endfor %}
-  </div>
+  <section class="w-full max-w-md rounded-2xl p-8
+                  bg-[#0f172a] border border-[#223055] shadow-spb">
 
-  <div style="margin-top:10px;">
-    <label>Senha</label>
-    {{ form.password(class="form-control") }}
-    {% for e in form.password.errors %}
-      <small style="color:#b00;">{{ e }}</small>
-    {% endfor %}
-    <small>Mínimo de 8 caracteres.</small>
-  </div>
+    <header class="mb-6 text-center">
+      <img
+        src="{{ url_for('static', filename='images/logo.svg') }}"
+        alt="SmartPayBot"
+        class="h-16 mx-auto mb-3 select-none"
+        draggable="false"
+      />
+      <p class="text-[#8ea4cd] text-sm leading-snug">
+        Crie sua conta e comece a receber<br>alertas de novos freelas.
+      </p>
+    </header>
 
-  <div style="margin-top:12px;">
-    {{ form.submit(class="btn btn-primary") }}
-  </div>
-</form>
+    <form method="post" class="space-y-4">
+      {{ form.hidden_tag() }}
+
+      <!-- Usuário -->
+      <div>
+        <label class="block text-sm font-medium text-ink mb-1.5">Usuário</label>
+        {{ form.username(
+          class="w-full rounded-xl border border-[#223055] bg-[#0e1a33] px-4 py-3 text-[15px] text-ink placeholder-[#8ea4cd] outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand",
+          placeholder="escolha um nome de usuário"
+        ) }}
+        {% for e in form.username.errors %}
+          <small class="block mt-1 text-danger">{{ e }}</small>
+        {% endfor %}
+      </div>
+
+      <!-- E-mail -->
+      <div>
+        <label class="block text-sm font-medium text-ink mb-1.5">E-mail</label>
+        {{ form.email(
+          class="w-full rounded-xl border border-[#223055] bg-[#0e1a33] px-4 py-3 text-[15px] text-ink placeholder-[#8ea4cd] outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand",
+          placeholder="seu@email.com"
+        ) }}
+        {% for e in form.email.errors %}
+          <small class="block mt-1 text-danger">{{ e }}</small>
+        {% endfor %}
+      </div>
+
+      <!-- Senha -->
+      <div>
+        <label class="block text-sm font-medium text-ink mb-1.5">Senha</label>
+        {{ form.password(
+          class="w-full rounded-xl border border-[#223055] bg-[#0e1a33] px-4 py-3 text-[15px] text-ink placeholder-[#8ea4cd] outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand",
+          placeholder="mínimo 8 caracteres"
+        ) }}
+        {% for e in form.password.errors %}
+          <small class="block mt-1 text-danger">{{ e }}</small>
+        {% endfor %}
+      </div>
+
+      <!-- Ações -->
+      <div class="pt-2 flex items-center justify-between">
+        <a href="{{ url_for('auth.login') }}" class="text-sm text-brand hover:underline">
+          Já tenho conta
+        </a>
+        {{ form.submit(
+          class="btn primary !rounded-xl !px-5 !py-2.5 !text-[15px] !shadow-spb",
+          value="Criar conta"
+        ) }}
+      </div>
+    </form>
+
+    <!-- Flashes -->
+    <div class="flashes mt-4">
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}
+          {% for cat, msg in msgs %}
+            <div class="flash {{ cat }} mt-2">{{ msg }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
+
+  </section>
+</main>
 {% endblock %}
+
 {% block footer %}{% include "footer.html" %}{% endblock %}

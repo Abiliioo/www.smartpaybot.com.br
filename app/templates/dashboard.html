@@ -96,6 +96,24 @@
     <section class="card">
       <h3>Suas Palavras-chave</h3>
 
+      {# Banner de excesso de keywords após downgrade Pro → Free #}
+      {% if plan and not plan.is_pro and plan.max_keywords > 0 and keywords|length > plan.max_keywords %}
+        <div style="background:#431407; border:1px solid #9a3412; border-radius:10px;
+                    padding:10px 14px; margin-bottom:14px; display:flex; gap:10px; align-items:flex-start">
+          <span style="color:#f97316; font-size:1rem; flex-shrink:0; margin-top:1px">⚠</span>
+          <div>
+            <p style="margin:0 0 4px; font-weight:600; color:#fed7aa; font-size:.9rem">
+              Você tem {{ keywords|length }} keywords — o plano Gratuito permite {{ plan.max_keywords }}
+            </p>
+            <p style="margin:0; font-size:.82rem; color:#fdba74; line-height:1.4">
+              As keywords extras <strong>não serão monitoradas</strong> até você remover o excedente
+              ou fazer upgrade para o Pro.
+              Remova as keywords menos importantes usando o ×.
+            </p>
+          </div>
+        </div>
+      {% endif %}
+
       <div id="keywords-empty" {% if keywords and keywords|length > 0 %}style="display:none"{% endif %}>
         <p class="help">Nenhuma palavra-chave cadastrada.</p>
       </div>
@@ -117,29 +135,104 @@
 
   <!-- Coluna Direita -->
   <div class="stack">
-    <!-- ID do Telegram / Vínculo -->
+    <!-- Vínculo Telegram -->
     <section class="card">
-      <h3>ID do Telegram</h3>
+      <h3>Telegram</h3>
 
       {% if is_linked %}
-        <p><span class="code">{{ chat_id }}</span></p>
-        <p class="help">Para trocar o chat, gere um novo código e vincule novamente.</p>
-      {% else %}
-        {% if deep_link %}
-          <p class="row">
-            <a class="btn primary pill" href="{{ deep_link }}">Vincular no Telegram</a>
-            <span class="help">Bot: @{{ bot_username }}</span>
-          </p>
-          <p class="help">Ou envie: <span class="code">/start {{ link_code }}</span></p>
-        {% else %}
-          <p>Envie: <span class="code">/start {{ link_code }}</span></p>
-          <p class="help">Defina <span class="code">TELEGRAM_BOT_USERNAME</span> para habilitar o botão.</p>
-        {% endif %}
-
-        <form class="row" method="post" action="{{ url_for('dashboard.regen_code') }}">
+        {# ── Estado: VINCULADO ── #}
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
+          <span style="color:var(--success); font-size:1.1rem">✓</span>
+          <span style="font-weight:600; color:var(--success)">Vinculado</span>
+        </div>
+        <p class="help" style="margin-bottom:6px">
+          Chat ID: <span class="code" style="font-size:.82rem">{{ chat_id }}</span>
+        </p>
+        <p class="help" style="margin-bottom:14px">
+          Você receberá alertas nesse chat assim que novos projetos forem encontrados.
+        </p>
+        <form method="post" action="{{ url_for('dashboard.unlink') }}"
+              style="margin-top:4px">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn ghost pill">Gerar novo código</button>
+          <button type="submit" class="btn ghost pill"
+                  style="font-size:.82rem"
+                  onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
+            Desvincular Telegram
+          </button>
         </form>
+
+      {% else %}
+        {# ── Estado: NÃO VINCULADO ── #}
+        <p class="help" style="margin-bottom:16px">
+          Siga os passos abaixo para começar a receber alertas no Telegram:
+        </p>
+
+        {# Passo 1 #}
+        <div style="display:flex; gap:12px; margin-bottom:14px; align-items:flex-start">
+          <span style="background:var(--brand); color:#fff; border-radius:50%;
+                       width:22px; height:22px; display:flex; align-items:center;
+                       justify-content:center; font-size:.78rem; font-weight:700;
+                       flex-shrink:0; margin-top:2px">1</span>
+          <div>
+            <p style="margin:0 0 6px; font-weight:600">Abra o bot no Telegram</p>
+            {% if deep_link %}
+              <a class="btn primary pill" href="{{ deep_link }}" target="_blank"
+                 style="font-size:.9rem">
+                Abrir @{{ bot_username }}
+              </a>
+            {% else %}
+              <p class="help" style="margin:0">
+                Pesquise <span class="code" style="font-size:.8rem">@{{ bot_username or 'O_Freela_bot' }}</span>
+                no Telegram ou defina <code>TELEGRAM_BOT_USERNAME</code> no <code>.env</code>
+                para habilitar o botão.
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Passo 2 #}
+        <div style="display:flex; gap:12px; margin-bottom:14px; align-items:flex-start">
+          <span style="background:var(--brand); color:#fff; border-radius:50%;
+                       width:22px; height:22px; display:flex; align-items:center;
+                       justify-content:center; font-size:.78rem; font-weight:700;
+                       flex-shrink:0; margin-top:2px">2</span>
+          <div>
+            <p style="margin:0 0 6px; font-weight:600">Envie este comando ao bot</p>
+            <span class="code" style="font-size:.88rem; letter-spacing:.3px">
+              /start {{ link_code }}
+            </span>
+            <p class="help" style="margin:6px 0 0; font-size:.82rem">
+              Copie e cole exatamente como está acima.
+            </p>
+          </div>
+        </div>
+
+        {# Passo 3 #}
+        <div style="display:flex; gap:12px; margin-bottom:18px; align-items:flex-start">
+          <span style="background:#1e293b; color:var(--muted); border-radius:50%;
+                       width:22px; height:22px; display:flex; align-items:center;
+                       justify-content:center; font-size:.78rem; font-weight:700;
+                       flex-shrink:0; margin-top:2px">3</span>
+          <div>
+            <p style="margin:0; font-weight:600; color:var(--muted)">Pronto!</p>
+            <p class="help" style="margin:4px 0 0; font-size:.82rem">
+              O bot confirmará o vínculo e você começará a receber alertas.
+            </p>
+          </div>
+        </div>
+
+        {# Código expirado / novo código #}
+        <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px">
+          <p class="help" style="font-size:.82rem; margin-bottom:8px">
+            O código acima é de uso único. Se não funcionar, gere um novo:
+          </p>
+          <form method="post" action="{{ url_for('dashboard.regen_code') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn ghost pill" style="font-size:.82rem">
+              Gerar novo código
+            </button>
+          </form>
+        </div>
       {% endif %}
     </section>
 
