@@ -296,20 +296,9 @@ Baseado na auditoria de produção realizada em 2026-06.
   Instalar `flask-limiter` e limitar `/auth/login` (10/min) e `/auth/register` (5/hora).  
   ⏱ 30 min (requer implementação de código)
 
-- [ ] `[RECOM]` **Configurar cookies de sessão seguros**  
-  Adicionar ao `.env`:
-  ```ini
-  SESSION_COOKIE_SECURE=true
-  SESSION_COOKIE_HTTPONLY=true
-  SESSION_COOKIE_SAMESITE=Lax
-  ```
-  E em `app/__init__.py`, após `app.config["SECRET_KEY"]`:
-  ```python
-  app.config["SESSION_COOKIE_SECURE"] = settings.FLASK_ENV == "production"
-  app.config["SESSION_COOKIE_HTTPONLY"] = True
-  app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-  ```
-  ⏱ 15 min
+- [x] ~~`[RECOM]` **Cookies de sessão seguros**~~ — implementado em `app/__init__.py`.  
+  `SECURE=True` quando `FLASK_ENV=production` (requer HTTPS); `HTTPONLY` e `SAMESITE=Lax` sempre ativos.  
+  Nenhuma variável de ambiente adicional necessária.
 
 - [ ] `[FUTURO]` Configurar logrotate para `/var/log/smartpaybot/`
 - [ ] `[FUTURO]` Backup diário do `app.db` via cron

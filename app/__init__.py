@@ -30,6 +30,11 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = settings.SECRET_KEY
     app.config["WTF_CSRF_ENABLED"] = settings.CSRF_ENABLED
 
+    # Sessão segura — SECURE só em prod (HTTPS); HTTPONLY e SAMESITE sempre
+    app.config["SESSION_COOKIE_SECURE"] = settings.FLASK_ENV == "production"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
     # CSRF
     csrf.init_app(app)
     app.jinja_env.globals["csrf_token"] = generate_csrf
