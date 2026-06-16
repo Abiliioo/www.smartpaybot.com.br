@@ -1,14 +1,14 @@
 # domain/repositories.py
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Dict, Iterable, List, Optional
+from datetime import date, datetime, timezone
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import select, func, and_, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .models import User, UserKeyword, ProjectGlobal, ProjectPerUser
+from .models import Plan, Subscription, User, UserAlertDaily, UserKeyword, ProjectGlobal, ProjectPerUser
 
 
 # ---------------------------
@@ -219,3 +219,90 @@ def mark_project_won(db, ppu_id: int, user_id: int, won: bool, won_cents: int) -
     db.add(ppu)
     db.commit()
     return True
+
+
+# ---------------------------
+# Plans
+# ---------------------------
+
+def get_plan_by_slug(db: Session, slug: str) -> Optional[Plan]:
+    return db.execute(select(Plan).where(Plan.slug == slug)).scalar_one_or_none()
+
+
+def list_plans(db: Session) -> List[Plan]:
+    return list(db.execute(select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.id)).scalars())
+
+
+# ---------------------------
+# Subscriptions
+# ---------------------------
+
+def get_subscription_by_user(db: Session, user_id: int) -> Optional[Subscription]:
+    return db.execute(
+        select(Subscription).where(Subscription.user_id == user_id)
+    ).scalar_one_or_none()
+
+
+def upsert_subscription(db: Session, user_id: int, plan: Plan, status: str = "active") -> Subscription:
+    sub = get_subscription_by_user(db, user_id)
+    if sub:
+        sub.plan_id = plan.id
+        sub.status = status
+    else:
+        sub = Subscription(user_id=user_id, plan_id=plan.id, status=status)
+        db.add(sub)
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+
+# ---------------------------
+# Daily alert counter
+# ---------------------------
+
+def get_alert_count_today(db: Session, user_id: int) -> int:
+    today = date.today()
+    row = db.execute(
+        select(UserAlertDaily).where(
+            UserAlertDaily.user_id == user_id,
+            UserAlertDaily.date == today,
+        )
+    ).scalar_one_or_none()
+    return row.alerts_sent if row else 0
+
+
+def increment_alert_daily(db: Session, user_id: int) -> None:
+    today = date.today()
+    row = db.execute(
+        select(UserAlertDaily).where(
+            UserAlertDaily.user_id == user_id,
+            UserAlertDaily.date == today,
+        )
+    ).scalar_one_or_none()
+    if row:
+        row.alerts_sent += 1
+        db.add(row)
+    else:
+        db.add(UserAlertDaily(user_id=user_id, date=today, alerts_sent=1))
+    db.commit()
+
+
+# ---------------------------
+# Admin helpers
+# ---------------------------
+
+def list_users_with_plans(db: Session) -> List[Tuple[User, Optional[Plan]]]:
+    """
+    Retorna (User, Plan|None) para todos os usuários.
+    Plan=None significa Free implícito (sem subscription).
+    """
+    rows = db.execute(
+        select(User).order_by(User.id)
+    ).scalars().all()
+
+    result: List[Tuple[User, Optional[Plan]]] = []
+    for user in rows:
+        sub = get_subscription_by_user(db, user.id)
+        plan = sub.plan if (sub and sub.status == "active") else None
+        result.append((user, plan))
+    return result

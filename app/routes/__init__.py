@@ -5,6 +5,7 @@ from flask import Blueprint, Flask, render_template
 from .webhook_telegram import bp as webhook_bp
 from .auth import bp as auth_bp
 from .dashboard import bp as dashboard_bp
+from .admin import bp as admin_bp
 
 bp_main = Blueprint("main", __name__)
 
@@ -21,3 +22,4 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(webhook_bp, url_prefix="/webhook")
+    app.register_blueprint(admin_bp)

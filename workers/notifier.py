@@ -13,6 +13,7 @@ from domain.repositories import (
     mark_project_notified,
     increment_notify_attempts,
 )
+from domain.services.plan_service import can_receive_alert_today, increment_alert_count
 
 # Enriquecimento (detalhe + fallback listagem)
 try:
@@ -252,6 +253,15 @@ def notify_pending(max_batch: int = 100) -> int:
                 increment_notify_attempts(db, ppu)
                 continue
 
+            # Verifica limite diário do plano antes de enviar
+            if not can_receive_alert_today(db, ppu.user_id):
+                logger.info(
+                    "[notifier] user_id=%s atingiu limite diário de alertas do plano. "
+                    "Notificação adiada para amanhã.",
+                    ppu.user_id,
+                )
+                continue  # mantém pendente; será reprocessado no próximo ciclo/dia
+
             text = _build_message_for_project(ppu)
             ok = send_message(
                 chat_id=chat_id,
@@ -263,6 +273,7 @@ def notify_pending(max_batch: int = 100) -> int:
 
             if ok:
                 mark_project_notified(db, ppu)
+                increment_alert_count(db, ppu.user_id)
                 sent += 1
             else:
                 increment_notify_attempts(db, ppu)

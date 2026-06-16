@@ -20,6 +20,9 @@
 
       <span class="ml-auto"></span>
 
+      {% if current_user.is_admin %}
+        <a href="{{ url_for('admin.index') }}" style="font-size:.85rem; color:var(--muted)">Admin</a>
+      {% endif %}
       <span class="help">Olá, {{ current_user.username }}</span>
       <a class="btn ghost pill" href="{{ url_for('auth.logout') }}">Sair</a>
 

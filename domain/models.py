@@ -1,11 +1,12 @@
 # domain/models.py
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -49,6 +50,9 @@ class User(Base):
     )
     user_projects: Mapped[list["ProjectPerUser"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    subscription: Mapped[Optional["Subscription"]] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -141,3 +145,82 @@ class ProjectPerUser(Base):
             f"<ProjectPerUser id={self.id} user_id={self.user_id} "
             f"global_project_id={self.global_project_id} link={self.link!r}>"
         )
+
+
+class Plan(Base):
+    """
+    Catálogo de planos disponíveis (Free, Pro, …).
+    max_keywords = -1  → ilimitado
+    max_alerts_day = -1 → ilimitado
+    """
+    __tablename__ = "plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    max_keywords: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    max_alerts_day: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    subscriptions: Mapped[list["Subscription"]] = relationship(back_populates="plan")
+
+    def __repr__(self) -> str:
+        return f"<Plan slug={self.slug!r} max_kw={self.max_keywords} max_alerts={self.max_alerts_day}>"
+
+
+class Subscription(Base):
+    """
+    Uma assinatura por usuário (UNIQUE user_id).
+    status: 'active' | 'canceled' | 'trialing'
+    Sem registro = plano Free implícito.
+    """
+    __tablename__ = "subscriptions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    plan_id: Mapped[int] = mapped_column(
+        ForeignKey("plans.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    # reservado para integração futura com Stripe
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="subscription")
+    plan: Mapped["Plan"] = relationship(back_populates="subscriptions")
+
+    def __repr__(self) -> str:
+        return f"<Subscription user_id={self.user_id} plan_id={self.plan_id} status={self.status!r}>"
+
+
+class UserAlertDaily(Base):
+    """
+    Contador diário de alertas enviados por usuário.
+    Usado para enforçar o limite do plano Free (max_alerts_day).
+    """
+    __tablename__ = "user_alerts_daily"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    alerts_sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_user_alert_daily"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserAlertDaily user_id={self.user_id} date={self.date} sent={self.alerts_sent}>"

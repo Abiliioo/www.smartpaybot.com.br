@@ -15,6 +15,7 @@ from infrastructure.telegram import get_webhook_info, set_webhook, delete_webhoo
 from domain.models import User, UserKeyword, ProjectPerUser
 from domain.services.telegram_link_service import ensure_link_code
 from domain.services.keywords_service import parse_keywords_input, clean_keyword
+from domain.services.plan_service import can_add_keyword, get_plan_display, get_user_plan
 from domain.repositories import (
     list_user_projects, delete_user_keyword,
     list_user_projects_paginated, mark_project_won
@@ -84,7 +85,10 @@ def home():
 
     form = KeywordsForm()
     projects_count = len(projects)
-    bot_running = sched_is_running()  # <- estado atual do scheduler
+    bot_running = sched_is_running()
+
+    with SessionLocal() as db:
+        plan_info = get_plan_display(db, int(current_user.id))
 
     return render_template(
         "dashboard.html",
@@ -102,7 +106,8 @@ def home():
         webhook_pending=wh_pending,
         webhook_last_error=wh_last_err,
         webhook_default=_default_webhook_url(),
-        bot_running=bot_running,  # <- enviado para o template
+        bot_running=bot_running,
+        plan=plan_info,
     )
 
 @bp.get("/projects")
@@ -223,13 +228,32 @@ def save_keywords():
         with SessionLocal() as db:
             user = db.get(User, int(current_user.id))
             existing = {k.keyword for k in user.keywords}
+
+            plan = get_user_plan(db, user.id)
+            max_kw = plan.max_keywords
+
+            # Rejeita se já está no limite
+            if max_kw != -1 and len(existing) >= max_kw:
+                return jsonify({
+                    "ok": False,
+                    "error": "limit_reached",
+                    "max": max_kw,
+                    "plan": plan.slug,
+                    "message": (
+                        f"Limite de {max_kw} keyword(s) atingido no plano {plan.name}. "
+                        "Faça upgrade para o plano Pro."
+                    ),
+                }), 403
+
             for kw in kws:
                 if kw not in existing:
+                    # Para cada nova keyword, verifica se ainda há espaço
+                    if max_kw != -1 and (len(existing) + saved) >= max_kw:
+                        break
                     db.add(UserKeyword(user_id=user.id, keyword=kw))
                     saved += 1
             db.commit()
 
-            # recarrega para refletir as inserções
             fresh = db.get(User, int(current_user.id))
             new_list = [k.keyword for k in fresh.keywords]
 
@@ -249,8 +273,22 @@ def save_keywords():
     with SessionLocal() as db:
         user = db.get(User, int(current_user.id))
         existing = {k.keyword for k in user.keywords}
+
+        plan = get_user_plan(db, user.id)
+        max_kw = plan.max_keywords
+
+        if max_kw != -1 and len(existing) >= max_kw:
+            flash(
+                f"Limite de {max_kw} keyword(s) atingido no plano {plan.name}. "
+                "Faça upgrade para o plano Pro.",
+                "warning",
+            )
+            return redirect(url_for("dashboard.home"))
+
         for kw in kws:
             if kw not in existing:
+                if max_kw != -1 and (len(existing) + saved) >= max_kw:
+                    break
                 db.add(UserKeyword(user_id=user.id, keyword=kw))
                 saved += 1
         db.commit()

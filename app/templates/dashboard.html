@@ -2,7 +2,29 @@
 {% block title %}Dashboard — SmartPayBot{% endblock %}
 
 {% block content %}
-<h2 class="page-title">Dashboard</h2>
+<div style="display:flex; align-items:center; justify-content:space-between; margin:18px 0 10px; flex-wrap:wrap; gap:8px">
+  <h2 class="page-title" style="margin:0">Dashboard</h2>
+
+  <div style="display:flex; align-items:center; gap:10px">
+    {% if plan and plan.is_pro %}
+      <span style="background:#713f12; color:#fef08a; border:1px solid #a16207;
+                   border-radius:999px; padding:4px 14px; font-size:.82rem; font-weight:700;
+                   letter-spacing:.5px">
+        ⭐ PRO
+      </span>
+    {% else %}
+      <span style="background:#1e293b; color:#94a3b8; border:1px solid #334155;
+                   border-radius:999px; padding:4px 12px; font-size:.82rem">
+        Plano Gratuito
+      </span>
+    {% endif %}
+
+    {% if current_user.is_admin %}
+      <a class="btn ghost pill" href="{{ url_for('admin.index') }}"
+         style="font-size:.82rem; padding:4px 12px">Admin</a>
+    {% endif %}
+  </div>
+</div>
 
 <div class="grid">
   <!-- Coluna Esquerda -->
@@ -139,6 +161,75 @@
         <p class="help">Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.</p>
       {% endif %}
     </section>
+
+    <!-- Seu Plano -->
+    {% if plan %}
+    <section class="card">
+      <h3>Seu Plano</h3>
+
+      {% if plan.is_pro %}
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
+          <span style="background:#713f12; color:#fef08a; border:1px solid #a16207;
+                       border-radius:999px; padding:4px 14px; font-weight:700; font-size:.9rem">
+            ⭐ PRO
+          </span>
+          <span class="help">Keywords e alertas ilimitados</span>
+        </div>
+      {% else %}
+        <div style="margin-bottom:14px">
+          <span style="background:#1e293b; color:#94a3b8; border:1px solid #334155;
+                       border-radius:999px; padding:4px 12px; font-size:.85rem">
+            Gratuito
+          </span>
+        </div>
+
+        {# Barra de uso de keywords #}
+        {% set kw_used = keywords | length %}
+        {% set kw_max  = plan.max_keywords %}
+        {% set kw_pct  = ((kw_used / kw_max) * 100) | int if kw_max > 0 else 0 %}
+        <div style="margin-bottom:12px">
+          <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px">
+            <span class="help">Keywords</span>
+            <span style="color:{% if kw_used >= kw_max %}var(--danger){% else %}var(--ink){% endif %}; font-weight:600">
+              {{ kw_used }}&nbsp;/&nbsp;{{ kw_max }}
+            </span>
+          </div>
+          <div style="height:6px; background:#1e293b; border-radius:999px; overflow:hidden">
+            <div style="height:100%; width:{{ kw_pct }}%; border-radius:999px;
+                        background:{% if kw_pct >= 100 %}var(--danger){% elif kw_pct >= 67 %}#f59e0b{% else %}var(--brand){% endif %};
+                        transition:width .3s ease">
+            </div>
+          </div>
+        </div>
+
+        {# Barra de uso de alertas diários #}
+        {% set al_used = plan.alerts_today %}
+        {% set al_max  = plan.max_alerts_day %}
+        {% set al_pct  = ((al_used / al_max) * 100) | int if al_max > 0 else 0 %}
+        <div style="margin-bottom:14px">
+          <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px">
+            <span class="help">Alertas hoje</span>
+            <span style="color:{% if al_used >= al_max %}var(--danger){% else %}var(--ink){% endif %}; font-weight:600">
+              {{ al_used }}&nbsp;/&nbsp;{{ al_max }}
+            </span>
+          </div>
+          <div style="height:6px; background:#1e293b; border-radius:999px; overflow:hidden">
+            <div style="height:100%; width:{{ al_pct }}%; border-radius:999px;
+                        background:{% if al_pct >= 100 %}var(--danger){% elif al_pct >= 67 %}#f59e0b{% else %}var(--success){% endif %};
+                        transition:width .3s ease">
+            </div>
+          </div>
+        </div>
+
+        <p class="help" style="font-size:.82rem">
+          Quer keywords e alertas ilimitados?
+          <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro"
+             style="color:var(--brand)">Fale com a gente para fazer upgrade.</a>
+        </p>
+      {% endif %}
+    </section>
+    {% endif %}
+
   </div>
 </div>
 {% endblock %}
