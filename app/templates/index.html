@@ -1,31 +1,540 @@
 {% extends "base.html" %}
-
-{% block title %}SmartPayBot — Início{% endblock %}
+{% block title %}SmartPayBot — Alertas de freelas no Telegram{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>SmartPayBot</h1>
-  <p class="help">
-    Alertas de novos projetos do 99Freelas, com casamento por palavras-chave e envio via Telegram.
-  </p>
 
-  <div class="row" style="margin-top:8px;">
-    {% if current_user.is_authenticated %}
-      <a class="btn primary" href="{{ url_for('dashboard.home') }}">Ir para o Dashboard</a>
-    {% else %}
-      <a class="btn primary" href="{{ url_for('auth.login') }}">Entrar</a>
-      <a class="btn ghost" href="{{ url_for('auth.register') }}">Criar conta</a>
-    {% endif %}
+{# ═══════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════ #}
+<section style="padding:64px 0 52px; text-align:center; position:relative; overflow:hidden">
+
+  {# Glow de fundo #}
+  <div style="position:absolute;inset:0;pointer-events:none;z-index:0;
+              background:radial-gradient(ellipse 700px 320px at 50% 0%,
+                rgba(59,130,246,.11) 0%, transparent 70%)"></div>
+
+  <div style="position:relative;z-index:1">
+
+    {# Badge #}
+    <span style="display:inline-block;background:#0e1a33;border:1px solid #2a4a8a;
+                 color:#60a5fa;border-radius:999px;padding:5px 16px;
+                 font-size:.8rem;font-weight:700;letter-spacing:.5px;margin-bottom:28px">
+      🤖 Bot para 99Freelas · Beta aberto
+    </span>
+
+    <h1 style="font-size:clamp(1.9rem,5vw,3.1rem);font-weight:900;line-height:1.12;
+               max-width:680px;margin:0 auto 20px">
+      Seja o <span style="color:var(--brand)">primeiro a ver</span> o freela<br>
+      — e o primeiro a propor.
+    </h1>
+
+    <p style="font-size:clamp(.98rem,2.5vw,1.15rem);color:var(--muted);
+              max-width:520px;margin:0 auto 36px;line-height:1.65">
+      O SmartPayBot monitora o 99Freelas 24/7 e te avisa no Telegram
+      em minutos quando aparece um projeto na sua área.
+    </p>
+
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+      {% if current_user.is_authenticated %}
+        <a class="btn primary pill" href="{{ url_for('dashboard.home') }}"
+           style="font-size:1rem;padding:14px 30px;font-weight:700">
+          Ir para o Dashboard
+        </a>
+      {% else %}
+        <a class="btn primary pill" href="{{ url_for('auth.register') }}"
+           style="font-size:1rem;padding:14px 30px;font-weight:700">
+          Criar conta grátis
+        </a>
+        <a class="btn ghost pill" href="{{ url_for('auth.login') }}"
+           style="font-size:1rem;padding:14px 26px">
+          Já tenho conta
+        </a>
+      {% endif %}
+    </div>
+
+    <p style="color:var(--muted);font-size:.8rem;margin:0">
+      Sem cartão de crédito&nbsp;·&nbsp;Plano gratuito disponível
+    </p>
   </div>
 </section>
 
-<section class="card">
-  <h3>Como funciona</h3>
-  <ol>
-    <li>Cadastre suas <strong>palavras-chave</strong> no dashboard.</li>
-    <li>Vincule seu <strong>Telegram</strong> com um clique (deep-link) ou enviando <span class="code">/start &lt;código&gt;</span> ao bot.</li>
-    <li>Receba <strong>alertas</strong> assim que novos projetos aparecerem.</li>
-  </ol>
-  <p class="help">Você controla o bot (ligar/desligar) direto no dashboard.</p>
+
+{# ═══════════════════════════════════════════════════════
+   PROBLEMA
+═══════════════════════════════════════════════════════ #}
+<section style="padding:44px 0">
+
+  <p style="text-align:center;color:var(--muted);font-size:.78rem;text-transform:uppercase;
+            letter-spacing:1.2px;font-weight:700;margin-bottom:28px">
+    Isso soa familiar?
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px">
+
+    <div class="card" style="margin:0;background:#130d0d;border-color:#3b1515">
+      <div style="font-size:1.7rem;margin-bottom:10px">😓</div>
+      <h3 style="font-size:.97rem;color:#fca5a5;margin-bottom:6px">
+        Você monitora manualmente
+      </h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Fica abrindo o 99Freelas o dia todo enquanto deveria estar
+        entregando os projetos que já tem.
+      </p>
+    </div>
+
+    <div class="card" style="margin:0;background:#130d0d;border-color:#3b1515">
+      <div style="font-size:1.7rem;margin-bottom:10px">⏱️</div>
+      <h3 style="font-size:.97rem;color:#fca5a5;margin-bottom:6px">
+        Sempre chega tarde
+      </h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Quando vê a vaga já tem 10, 15 propostas.
+        O cliente mal lê a sua.
+      </p>
+    </div>
+
+    <div class="card" style="margin:0;background:#130d0d;border-color:#3b1515">
+      <div style="font-size:1.7rem;margin-bottom:10px">🔕</div>
+      <h3 style="font-size:.97rem;color:#fca5a5;margin-bottom:6px">
+        Alertas sem filtro
+      </h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        As notificações da plataforma mandam tudo, sem critério.
+        Você perde tempo triando vagas que não têm nada a ver.
+      </p>
+    </div>
+
+  </div>
 </section>
+
+
+{# ═══════════════════════════════════════════════════════
+   BENEFÍCIOS
+═══════════════════════════════════════════════════════ #}
+<section style="padding:44px 0">
+
+  <h2 style="text-align:center;margin-bottom:6px">A solução</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:36px">
+    Configure uma vez. Funciona enquanto você trabalha.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px">
+
+    <div class="card" style="margin:0;text-align:center">
+      <div style="width:50px;height:50px;border-radius:14px;
+                  background:linear-gradient(135deg,#1e3a8a,#3b82f6);
+                  display:grid;place-items:center;margin:0 auto 14px;font-size:1.4rem">
+        ⚡
+      </div>
+      <h3 style="margin-bottom:8px;font-size:1rem">Alertas em minutos</h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Não em horas. O bot varre o 99Freelas continuamente e te avisa
+        logo após a publicação do projeto.
+      </p>
+    </div>
+
+    <div class="card" style="margin:0;text-align:center">
+      <div style="width:50px;height:50px;border-radius:14px;
+                  background:linear-gradient(135deg,#064e3b,#10b981);
+                  display:grid;place-items:center;margin:0 auto 14px;font-size:1.4rem">
+        🎯
+      </div>
+      <h3 style="margin-bottom:8px;font-size:1rem">Só o que é seu</h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Você define as keywords. Python, Excel, WordPress, design —
+        só chega o que você realmente faz.
+      </p>
+    </div>
+
+    <div class="card" style="margin:0;text-align:center">
+      <div style="width:50px;height:50px;border-radius:14px;
+                  background:linear-gradient(135deg,#3b0764,#8b5cf6);
+                  display:grid;place-items:center;margin:0 auto 14px;font-size:1.4rem">
+        🤖
+      </div>
+      <h3 style="margin-bottom:8px;font-size:1rem">100% automático</h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Sem abrir site, sem checar. Você está entregando um projeto
+        e o alerta chega no seu celular.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   COMO FUNCIONA
+═══════════════════════════════════════════════════════ #}
+<section style="padding:44px 0">
+
+  <h2 style="text-align:center;margin-bottom:6px">Como funciona</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:44px">
+    Pronto em menos de 2 minutos.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+              gap:28px;max-width:860px;margin:0 auto">
+
+    {# Passo 1 #}
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--brand);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.1rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(59,130,246,.15)">
+        1
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Crie sua conta</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        Cadastro em segundos, sem cartão de crédito.
+      </p>
+    </div>
+
+    {# Passo 2 #}
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--brand);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.1rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(59,130,246,.15)">
+        2
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Adicione keywords</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        Informe o que você faz: "Python", "Excel", "design de logo".
+      </p>
+    </div>
+
+    {# Passo 3 #}
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--brand);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.1rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(59,130,246,.15)">
+        3
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Vincule o Telegram</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        Um clique abre o bot. Envie o código e pronto.
+      </p>
+    </div>
+
+    {# Passo 4 #}
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--success);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.2rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(34,197,94,.15)">
+        ✓
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Receba alertas</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        Projetos chegam no Telegram em tempo real. É só propor.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   DEMO TELEGRAM
+═══════════════════════════════════════════════════════ #}
+<section style="padding:44px 0">
+
+  <h2 style="text-align:center;margin-bottom:6px">Veja como chega o alerta</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:36px">
+    Assim que um projeto bater com sua keyword, isso aparece no seu celular:
+  </p>
+
+  <div style="max-width:420px;margin:0 auto">
+
+    {# Mockup Telegram #}
+    <div style="background:#1e2d3e;border-radius:20px;padding:18px 16px;
+                box-shadow:0 24px 64px rgba(0,0,0,.55)">
+
+      {# Header do chat #}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;
+                  padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.07)">
+        <div style="width:38px;height:38px;background:var(--brand);border-radius:50%;
+                    display:grid;place-items:center;font-size:1.1rem;flex-shrink:0">
+          🤖
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:.88rem;color:#e8eefc">SmartPayBot</div>
+          <div style="font-size:.72rem;color:#6c8591">bot</div>
+        </div>
+        <div style="margin-left:auto;font-size:.72rem;color:#6c8591">agora</div>
+      </div>
+
+      {# Balão da mensagem #}
+      <div style="background:#182533;border-radius:12px 12px 12px 2px;
+                  padding:12px 14px;font-size:.86rem;line-height:1.55">
+
+        <div style="font-weight:700;color:#5dbeff;margin-bottom:8px;font-size:.88rem">
+          🔔 Novo projeto encontrado!
+        </div>
+
+        <div style="color:#e8eefc;font-weight:600;margin-bottom:12px;line-height:1.35">
+          Planilha Excel com automação VBA para controle de estoque
+        </div>
+
+        <div style="display:grid;gap:5px;font-size:.8rem;color:#a0bfcf">
+          <div>📋 <span style="color:#c8dae4">Propostas:</span> 3 enviadas</div>
+          <div>⭐ <span style="color:#c8dae4">Cliente:</span> 4.8 ★ · 22 contratações</div>
+          <div>🕐 <span style="color:#c8dae4">Publicado:</span> há 4 minutos</div>
+        </div>
+
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+          <span style="display:inline-block;background:#1a4a9b;color:#c8dde8;
+                       border-radius:8px;padding:6px 14px;font-size:.8rem;
+                       font-weight:600">
+            Ver projeto →
+          </span>
+        </div>
+      </div>
+
+      {# Keyword matched #}
+      <div style="margin-top:10px;text-align:right">
+        <span style="background:#0a1633;border:1px solid #1d2e57;color:#60a5fa;
+                     border-radius:999px;padding:3px 10px;font-size:.73rem">
+          keyword: Excel
+        </span>
+      </div>
+    </div>
+
+    <p class="help" style="text-align:center;margin-top:14px;font-size:.82rem">
+      Exemplo de alerta real enviado pelo bot.
+    </p>
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   PLANOS
+═══════════════════════════════════════════════════════ #}
+<section style="padding:44px 0" id="planos">
+
+  <h2 style="text-align:center;margin-bottom:6px">Planos</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:36px">
+    Comece grátis. Faça upgrade quando sentir o valor.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
+              gap:18px;max-width:660px;margin:0 auto">
+
+    {# ─── Free ─── #}
+    <div class="card" style="margin:0;display:flex;flex-direction:column">
+      <div style="margin-bottom:20px">
+        <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;
+                    letter-spacing:.9px;font-weight:700;margin-bottom:8px">
+          Gratuito
+        </div>
+        <div style="font-size:2.3rem;font-weight:900;line-height:1">R$ 0</div>
+        <div style="color:var(--muted);font-size:.83rem;margin-top:4px">para sempre</div>
+      </div>
+
+      <ul style="list-style:none;padding:0;margin:0 0 24px;display:grid;gap:10px;flex:1">
+        {% set free_items = [
+          ("✓", "3 palavras-chave", true),
+          ("✓", "10 alertas por dia", true),
+          ("✓", "Dashboard com KPIs", true),
+          ("✓", "Rastreamento de ganhos", true),
+          ("✓", "Sem cartão de crédito", true),
+        ] %}
+        {% for icon, label, ok in free_items %}
+          <li style="display:flex;gap:10px;align-items:flex-start;font-size:.9rem">
+            <span style="color:{{ 'var(--success)' if ok else 'var(--muted)' }};flex-shrink:0;margin-top:2px">{{ icon }}</span>
+            <span>{{ label }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+
+      {% if current_user.is_authenticated %}
+        <a class="btn ghost pill" href="{{ url_for('dashboard.home') }}"
+           style="text-align:center;display:block">
+          Ir para o Dashboard
+        </a>
+      {% else %}
+        <a class="btn ghost pill" href="{{ url_for('auth.register') }}"
+           style="text-align:center;display:block">
+          Criar conta grátis
+        </a>
+      {% endif %}
+    </div>
+
+    {# ─── Pro ─── #}
+    <div class="card" style="margin:0;display:flex;flex-direction:column;
+                              border-color:var(--brand);position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;right:0;background:var(--brand);color:#fff;
+                  font-size:.7rem;font-weight:700;padding:5px 14px;letter-spacing:.6px;
+                  border-radius:0 14px 0 10px">
+        MAIS POPULAR
+      </div>
+
+      <div style="margin-bottom:20px;margin-top:4px">
+        <div style="font-size:.75rem;color:#60a5fa;text-transform:uppercase;
+                    letter-spacing:.9px;font-weight:700;margin-bottom:8px">
+          Pro
+        </div>
+        <div style="font-size:2.3rem;font-weight:900;line-height:1">R$ 47</div>
+        <div style="color:var(--muted);font-size:.83rem;margin-top:4px">por mês</div>
+      </div>
+
+      <ul style="list-style:none;padding:0;margin:0 0 24px;display:grid;gap:10px;flex:1">
+        {% set pro_items = [
+          "Keywords ilimitadas",
+          "Alertas ilimitados por dia",
+          "Dashboard com KPIs",
+          "Rastreamento de ganhos",
+          "Suporte prioritário",
+        ] %}
+        {% for label in pro_items %}
+          <li style="display:flex;gap:10px;align-items:flex-start;font-size:.9rem">
+            <span style="color:var(--success);flex-shrink:0;margin-top:2px">✓</span>
+            <span>{% if loop.index <= 2 %}<strong>{{ label }}</strong>{% else %}{{ label }}{% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <a class="btn primary pill"
+         href="mailto:joseiltonjass@hotmail.com?subject=Upgrade%20SmartPayBot%20Pro"
+         style="text-align:center;display:block;font-weight:700">
+        Quero o Pro
+      </a>
+      <p style="text-align:center;font-size:.76rem;color:var(--muted);margin:8px 0 0">
+        Ativação via Pix · Resposta em até 24h
+      </p>
+    </div>
+  </div>
+
+  {# Argumento de valor #}
+  <div style="max-width:540px;margin:24px auto 0;text-align:center;
+              background:var(--card);border:1px solid var(--border);
+              border-radius:14px;padding:18px 20px">
+    <p style="margin:0;color:var(--muted);font-size:.9rem;line-height:1.6">
+      💡 <strong style="color:var(--ink)">Se você fechar um freela a mais por mês,
+      o Pro já se pagou.</strong><br>
+      Ticket médio no 99Freelas: R$ 300–2.000.
+    </p>
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   FAQ
+═══════════════════════════════════════════════════════ #}
+<section style="padding:44px 0;max-width:680px;margin:0 auto" id="faq">
+
+  <h2 style="text-align:center;margin-bottom:6px">Dúvidas frequentes</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:32px">
+    Respostas rápidas para o que mais perguntam.
+  </p>
+
+  <div id="faq-list" style="display:grid;gap:10px">
+
+    {% set faqs = [
+      (
+        "O que é o SmartPayBot?",
+        "Um bot que monitora o site 99Freelas automaticamente e te avisa no Telegram quando aparece uma vaga que bate com as suas palavras-chave. Você configura uma vez e ele trabalha enquanto você dorme."
+      ),
+      (
+        "De quanto em quanto tempo o bot verifica o 99Freelas?",
+        "O pipeline roda continuamente durante o dia e a noite. O objetivo é detectar projetos em minutos após a publicação — não horas."
+      ),
+      (
+        "Preciso deixar o computador ligado?",
+        "Não. O SmartPayBot roda em servidor. Você só precisa do aplicativo Telegram no celular para receber os alertas."
+      ),
+      (
+        "É seguro vincular meu Telegram?",
+        "Sim. A vinculação usa um código único gerado pelo seu dashboard. O bot não acessa suas mensagens privadas — ele apenas te envia alertas de projetos."
+      ),
+      (
+        "Qual a diferença entre Free e Pro na prática?",
+        "No Free você monitora até 3 palavras-chave e recebe no máximo 10 alertas por dia. No Pro, keywords e alertas são ilimitados — ideal para quem atua em várias áreas ou recebe muitas vagas por dia."
+      ),
+      (
+        "Como faço o upgrade para Pro?",
+        'Por enquanto o upgrade é manual: clique em "Quero o Pro" acima ou envie um e-mail para joseiltonjass@hotmail.com. Você receberá as instruções de pagamento via Pix e o acesso é ativado em até 24h.'
+      ),
+    ] %}
+
+    {% for pergunta, resposta in faqs %}
+      <details class="card faq-item" style="margin:0;cursor:pointer" {% if loop.first %}open{% endif %}>
+        <summary style="font-weight:600;list-style:none;display:flex;
+                        justify-content:space-between;align-items:center;
+                        cursor:pointer;user-select:none">
+          {{ pergunta }}
+          <span class="faq-icon" style="color:var(--muted);font-size:1.1rem;
+                                        flex-shrink:0;margin-left:12px;
+                                        transition:transform .2s">
+            {{ "−" if loop.first else "+" }}
+          </span>
+        </summary>
+        <p class="help" style="margin:12px 0 0;line-height:1.6">
+          {{ resposta }}
+        </p>
+      </details>
+    {% endfor %}
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   CTA FINAL
+═══════════════════════════════════════════════════════ #}
+<section style="padding:52px 0 60px;text-align:center">
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;
+              padding:48px 32px;max-width:540px;margin:0 auto;position:relative;overflow:hidden">
+
+    <div style="position:absolute;top:-80px;left:50%;transform:translateX(-50%);
+                width:480px;height:240px;pointer-events:none;
+                background:radial-gradient(ellipse at center,
+                  rgba(59,130,246,.1) 0%, transparent 70%)"></div>
+
+    <div style="position:relative;z-index:1">
+      <div style="font-size:2.2rem;margin-bottom:14px">🚀</div>
+      <h2 style="font-size:1.55rem;margin-bottom:12px">
+        Comece agora — é grátis
+      </h2>
+      <p class="help" style="margin:0 0 28px;line-height:1.65;max-width:380px;margin-left:auto;margin-right:auto">
+        Crie sua conta em segundos, adicione suas palavras-chave e
+        comece a chegar primeiro nas vagas que importam.
+      </p>
+
+      {% if current_user.is_authenticated %}
+        <a class="btn primary pill" href="{{ url_for('dashboard.home') }}"
+           style="font-size:1rem;padding:14px 32px;font-weight:700;display:inline-block">
+          Ir para o Dashboard
+        </a>
+      {% else %}
+        <a class="btn primary pill" href="{{ url_for('auth.register') }}"
+           style="font-size:1rem;padding:14px 32px;font-weight:700;display:inline-block">
+          Criar conta grátis
+        </a>
+        <p style="color:var(--muted);font-size:.8rem;margin:14px 0 0">
+          Já tem conta? <a href="{{ url_for('auth.login') }}">Entre aqui</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+(function () {
+  // ── FAQ accordion: alterna ícone + / − ──
+  document.querySelectorAll('#faq-list details.faq-item').forEach(function (el) {
+    var icon = el.querySelector('.faq-icon');
+    el.addEventListener('toggle', function () {
+      if (icon) icon.textContent = el.open ? '−' : '+';
+    });
+  });
+}());
+</script>
 {% endblock %}
