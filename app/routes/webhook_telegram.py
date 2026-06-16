@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import select
 
 from app import csrf
+from infrastructure.config import get_settings
 from infrastructure.logging import get_logger
 from infrastructure.db import SessionLocal
 from infrastructure.telegram import send_message
@@ -14,6 +15,9 @@ from domain.repositories import get_user_by_telegram_code, save_chat_binding
 bp = Blueprint("webhook", __name__)
 log = get_logger(__name__)
 
+# Evita logar o aviso de "sem secret" em toda requisição
+_no_secret_warned = False
+
 
 def _send(chat_id: int | str, text: str) -> None:
     try:
@@ -22,9 +26,35 @@ def _send(chat_id: int | str, text: str) -> None:
         log.exception("Falha ao enviar mensagem Telegram para chat_id=%s", chat_id)
 
 
+def _check_secret() -> bool:
+    """
+    Valida X-Telegram-Bot-Api-Secret-Token quando TELEGRAM_WEBHOOK_SECRET está configurado.
+    Retorna True se a requisição pode prosseguir, False se deve ser rejeitada.
+    """
+    global _no_secret_warned
+    expected = get_settings().TELEGRAM_WEBHOOK_SECRET
+    if expected:
+        incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if incoming != expected:
+            log.warning("Webhook Telegram rejeitado: secret inválido ou ausente")
+            return False
+        return True
+    # Sem secret configurado: permitir, mas avisar uma vez
+    if not _no_secret_warned:
+        log.warning(
+            "TELEGRAM_WEBHOOK_SECRET não configurado — webhook aceita requisições sem autenticação. "
+            "Configure em produção via .env."
+        )
+        _no_secret_warned = True
+    return True
+
+
 @bp.post("/telegram")
 @csrf.exempt  # Telegram não envia CSRF; precisamos isentar
 def telegram_webhook():
+    if not _check_secret():
+        return jsonify({"status": "forbidden"}), 403
+
     data = request.get_json(silent=True) or {}
     message = data.get("message") or {}
     text = (message.get("text") or "").strip()

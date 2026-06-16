@@ -69,13 +69,25 @@ def get_webhook_info(token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         logger.error("getWebhookInfo falhou: %s", e)
         return None
 
-def set_webhook(webhook_url: str, *, token: Optional[str] = None, drop_pending: bool = False) -> bool:
+def set_webhook(
+    webhook_url: str,
+    *,
+    token: Optional[str] = None,
+    drop_pending: bool = False,
+    secret_token: Optional[str] = None,
+) -> bool:
     token = token or settings.TELEGRAM_TOKEN
     if not token:
         raise RuntimeError("TELEGRAM_TOKEN não configurado.")
     try:
         url = _TELEGRAM_API.format(token=token, method="setWebhook")
-        r = requests.post(url, data={"url": webhook_url, "drop_pending_updates": str(drop_pending).lower()}, timeout=15)
+        data: Dict[str, Any] = {
+            "url": webhook_url,
+            "drop_pending_updates": str(drop_pending).lower(),
+        }
+        if secret_token:
+            data["secret_token"] = secret_token
+        r = requests.post(url, data=data, timeout=15)
         ok = r.ok and r.json().get("ok", False)
         if not ok:
             logger.error("setWebhook falhou: %s", r.text)
