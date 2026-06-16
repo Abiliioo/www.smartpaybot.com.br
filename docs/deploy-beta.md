@@ -346,6 +346,8 @@ Baseado na auditoria de produção realizada em 2026-06.
 | `FLASK_ENV` | Modo da aplicação | `production` |
 | `SECRET_KEY` | Assinatura de sessão | 64 hex chars, único, secreto |
 | `TELEGRAM_TOKEN` | Token do bot | Gerado pelo @BotFather |
+| `TELEGRAM_WEBHOOK_SECRET` | Autenticação do webhook | 64 hex chars — ver Fase 5 |
+| `TELEGRAM_BOT_USERNAME` | Username do bot (sem @) | deep links no dashboard |
 | `DATABASE_URL` | URL do banco | `sqlite:////var/www/smartpaybot/app.db` |
 | `SCHEDULER` | Ligar pipeline | `1` |
 | `SCAN_MIN_SECONDS` | Intervalo entre ciclos | `180` (3 min mínimo) |
@@ -363,6 +365,105 @@ Baseado na auditoria de produção realizada em 2026-06.
 | SQLite sob escrita concorrente (APScheduler + Flask) | Médio | Aceito para beta pequeno |
 | Sem rate limiting em `/auth/login` | Médio | Aberto — fase 6 pendente |
 | Sem rotação de logs | Baixo | Aceito para beta curto |
+
+---
+
+## Rollback — Procedimento de emergência
+
+Use quando o deploy falhar, o app travar ou os usuários não conseguirem acessar.
+
+### Passo 1 — Parar o serviço imediatamente
+
+```bash
+sudo systemctl stop smartpaybot
+sudo systemctl status smartpaybot   # confirmar: "inactive (dead)"
+```
+
+### Passo 2 — Identificar o problema
+
+```bash
+# Últimas 100 linhas do log da aplicação
+sudo journalctl -u smartpaybot -n 100 --no-pager
+
+# Log de acesso Nginx (ver se o erro está no proxy ou no app)
+sudo tail -50 /var/log/smartpaybot/error.log
+sudo tail -50 /var/log/nginx/error.log
+```
+
+### Passo 3 — Restaurar backup do banco (se banco corrompido)
+
+```bash
+# Verificar backups disponíveis
+ls -lh /var/www/smartpaybot/app.db*
+
+# Parar serviço (já parado no Passo 1)
+# Substituir banco corrompido pelo backup
+cp /var/www/smartpaybot/app.db /var/www/smartpaybot/app.db.broken
+cp /var/www/smartpaybot/app.db.bak /var/www/smartpaybot/app.db
+
+# Verificar integridade do banco restaurado
+.venv/bin/python -c "
+from infrastructure.db import SessionLocal
+from domain.models import User
+with SessionLocal() as db:
+    print('Usuários:', db.query(User).count())
+"
+```
+
+> **Nota:** até que o backup automático seja configurado (ver `[FUTURO]` na Fase 6),
+> fazer backup manual antes de qualquer deploy:
+> ```bash
+> cp /var/www/smartpaybot/app.db /var/www/smartpaybot/app.db.bak
+> ```
+
+### Passo 4 — Reverter para o commit anterior
+
+```bash
+cd /var/www/smartpaybot
+
+# Ver os últimos commits para identificar o estado estável
+git log --oneline -10
+
+# Reverter para o commit anterior ao deploy com problema
+git checkout <hash-do-commit-estavel>
+
+# Reinstalar dependências (caso o requirements.txt tenha mudado)
+.venv/bin/pip install -r requirements.txt
+```
+
+### Passo 5 — Reiniciar o serviço
+
+```bash
+sudo systemctl start smartpaybot
+sudo systemctl status smartpaybot   # confirmar: "active (running)"
+
+# Acompanhar os logs por 1–2 minutos para confirmar estabilidade
+sudo journalctl -u smartpaybot -f
+```
+
+### Passo 6 — Verificar que o app voltou
+
+```bash
+curl https://seudominio.com.br/healthz
+# Esperado: {"status": "ok"}
+
+curl -I https://seudominio.com.br/
+# Esperado: HTTP/2 200
+```
+
+---
+
+### Referência rápida — comandos systemd
+
+| Ação | Comando |
+|---|---|
+| Parar | `sudo systemctl stop smartpaybot` |
+| Iniciar | `sudo systemctl start smartpaybot` |
+| Reiniciar | `sudo systemctl restart smartpaybot` |
+| Status | `sudo systemctl status smartpaybot` |
+| Logs em tempo real | `sudo journalctl -u smartpaybot -f` |
+| Últimas N linhas | `sudo journalctl -u smartpaybot -n 100 --no-pager` |
+| Recarregar config systemd | `sudo systemctl daemon-reload` |
 
 ---
 
