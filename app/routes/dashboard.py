@@ -440,6 +440,7 @@ def api_summary():
         },
         "keywords": keywords,
         "linked": is_linked,
+        "chat_id": user.chat_id,
     })
 
 

@@ -136,8 +136,9 @@
   <!-- Coluna Direita -->
   <div class="stack">
     <!-- Vínculo Telegram -->
-    <section class="card">
+    <section class="card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}">
       <h3>Telegram</h3>
+      <div id="tg-card-body">
 
       {% if is_linked %}
         {# ── Estado: VINCULADO ── #}
@@ -198,11 +199,16 @@
                        flex-shrink:0; margin-top:2px">2</span>
           <div>
             <p style="margin:0 0 6px; font-weight:600">Envie este comando ao bot</p>
-            <span class="code" style="font-size:.88rem; letter-spacing:.3px">
-              /start {{ link_code }}
-            </span>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+              <span id="tg-link-code" class="code" data-code="{{ link_code }}"
+                    style="font-size:.88rem; letter-spacing:.3px">/start {{ link_code }}</span>
+              <button type="button" id="tg-copy-btn" data-code="{{ link_code }}"
+                      class="btn ghost pill" style="font-size:.75rem; padding:3px 10px">
+                Copiar código
+              </button>
+            </div>
             <p class="help" style="margin:6px 0 0; font-size:.82rem">
-              Copie e cole exatamente como está acima.
+              Copie e envie exatamente como está acima.
             </p>
           </div>
         </div>
@@ -234,6 +240,7 @@
           </form>
         </div>
       {% endif %}
+      </div>
     </section>
 
     <!-- Controle do Bot -->
@@ -325,4 +332,75 @@
 
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  // ── Botão copiar código ──────────────────────────────────────────────
+  var copyBtn = document.getElementById('tg-copy-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      var code = this.dataset.code;
+      navigator.clipboard.writeText('/start ' + code).then(function () {
+        copyBtn.textContent = '✓ Copiado!';
+        copyBtn.style.color = '#22c55e';
+        setTimeout(function () {
+          copyBtn.textContent = 'Copiar código';
+          copyBtn.style.color = '';
+        }, 2000);
+      }).catch(function () {
+        copyBtn.textContent = 'Copie manualmente';
+      });
+    });
+  }
+
+  // ── Polling de vínculo Telegram (só roda enquanto não vinculado) ─────
+  var tgCard = document.getElementById('tg-card');
+  if (!tgCard || tgCard.dataset.linked === 'true') return;
+
+  var tgCardBody = document.getElementById('tg-card-body');
+  var pollTimer = setInterval(function () {
+    fetch('/dashboard/api/summary', {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
+    })
+    .then(function (resp) { return resp.ok ? resp.json() : null; })
+    .then(function (data) {
+      if (!data || !data.ok || !data.linked) return;
+      clearInterval(pollTimer);
+      tgCard.dataset.linked = 'true';
+      tgCardBody.innerHTML = buildLinkedHtml(data.chat_id || '');
+    })
+    .catch(function () { /* ignora erros de rede */ });
+  }, 5000);
+
+  function buildLinkedHtml(chatId) {
+    var csrf = '';
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) csrf = meta.getAttribute('content');
+
+    return (
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
+        '<span style="color:#22c55e;font-size:1.1rem">&#10003;</span>' +
+        '<span style="font-weight:600;color:#22c55e">Vinculado</span>' +
+      '</div>' +
+      '<p class="help" style="margin-bottom:6px">' +
+        'Chat ID: <span class="code" style="font-size:.82rem">' + chatId + '</span>' +
+      '</p>' +
+      '<p class="help" style="margin-bottom:14px">' +
+        'Você receberá alertas nesse chat assim que novos projetos forem encontrados.' +
+      '</p>' +
+      '<form method="post" action="/dashboard/unlink" style="margin-top:4px">' +
+        '<input type="hidden" name="csrf_token" value="' + csrf + '">' +
+        '<button type="submit" class="btn ghost pill" style="font-size:.82rem"' +
+          ' onclick="return confirm(\'Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.\')">' +
+          'Desvincular Telegram' +
+        '</button>' +
+      '</form>'
+    );
+  }
+}());
+</script>
 {% endblock %}
