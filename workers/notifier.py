@@ -1,8 +1,8 @@
-
 # workers/notifier.py
 from __future__ import annotations
 
 import html as py_html
+import re
 from typing import Dict, Optional
 
 from infrastructure.logging import get_logger
@@ -14,12 +14,17 @@ from domain.repositories import (
     increment_notify_attempts,
 )
 
-# >>> importa do módulo certo (alinhado com infrastructure/scraping.py)
+# Enriquecimento (detalhe + fallback listagem)
 try:
-    from infrastructure.scraping import fetch_html, scrape_99freelas_detail  # type: ignore
+    from infrastructure.scraping import (
+        fetch_html,
+        scrape_99freelas_detail,
+        enrich_from_list_pages,
+    )  # type: ignore
 except Exception:  # pragma: no cover
     fetch_html = None
     scrape_99freelas_detail = None
+    enrich_from_list_pages = None
 
 logger = get_logger(__name__)
 MAX_ATTEMPTS = 5
@@ -28,154 +33,211 @@ MAX_ATTEMPTS = 5
 # ===================== helpers =====================
 
 def esc(s: Optional[str]) -> str:
-    """Escape seguro para HTML do Telegram."""
     return py_html.escape((s or "").strip())
 
-def priority_label(age_min: Optional[int], proposals: Optional[int]) -> Optional[str]:
-    """
-    Regra simples de prioridade:
-      🔥 Alta  => publicado <= 60 min  e propostas <= 2
-      🟡 Média => publicado <= 6 h    e propostas <= 5
-      ⚪ Baixa => demais casos
-    """
-    if age_min is None and proposals is None:
-        return None
+def _plural(n: int, sing: str, plur: str) -> str:
+    return sing if n == 1 else plur
 
-    age = age_min if age_min is not None else 999999
-    prop = proposals if proposals is not None else 999
-
-    if age <= 60 and prop <= 2:
-        return "🔥 Alta prioridade"
-    if age <= 6 * 60 and prop <= 5:
-        return "🟡 Prioridade média"
-    return "⚪ Prioridade baixa"
-
-def human_age_from_minutes(age_min: Optional[int]) -> Optional[str]:
+def human_ago_from_minutes(age_min: Optional[int]) -> Optional[str]:
     if age_min is None:
         return None
     if age_min < 60:
-        return f"{age_min} min"
+        return f"há {age_min} {_plural(age_min, 'minuto', 'minutos')}"
     if age_min < 24 * 60:
-        return f"{age_min // 60} h"
-    return f"{age_min // (60 * 24)} d"
+        h = age_min // 60
+        return f"há {h} {_plural(h, 'hora', 'horas')}"
+    d = age_min // (60 * 24)
+    return f"há {d} {_plural(d, 'dia', 'dias')}"
+
+def priority_label_by_proposals(proposals: Optional[int]) -> Optional[str]:
+    """
+    Priorização 100% baseada em propostas (sem usar idade):
+      - 0            => 🚀 Zero propostas até agora — Seja o primeiro a enviar!
+      - 1..2         => 🟡 Alta chance — Poucos ainda aplicaram
+      - 3..5         => ⚪ Moderada — Alguns freelancers aplicaram
+      - >5           => ⚫ Baixa — Vaga disputada
+    """
+    if proposals is None:
+        return None
+    if proposals == 0:
+        return "🚀 Zero propostas até agora — seja o primeiro a enviar!"
+    if proposals <= 2:
+        return "🟡 Pouca concorrência — ainda dá para se destacar"
+    if proposals <= 5:
+        return "⚪ Moderada — algumas propostas já enviadas"
+    return "⚫ Baixa — vaga disputada"
 
 def _button_open(link: str) -> dict:
-    """InlineKeyboardMarkup simples com 1 botão."""
     label = "🌐 Abrir no 99Freelas" if "99freelas" in (link or "").lower() else "🌐 Abrir"
     return {"inline_keyboard": [[{"text": label, "url": link}]]}
 
+def _project_id_from_link(link: str) -> Optional[int]:
+    if not link:
+        return None
+    m = re.search(r"(\d+)(?:\D*$|$)", link)
+    try:
+        return int(m.group(1)) if m else None
+    except Exception:
+        return None
 
-# ===================== renderização do card =====================
+def _first_non_empty(*vals):
+    for v in vals:
+        if v not in (None, "", {}):
+            return v
+    return None
+
+def _merge_enrich(detail: Dict[str, object] | None, listed: Dict[str, object] | None) -> Dict[str, object] | None:
+    """Mescla campos, preferindo 'detail' e completando com 'listed'."""
+    d = detail or {}
+    l = listed or {}
+    if not d and not l:
+        return None
+
+    keys = (
+        "category", "level",
+        "age_minutes",
+        "proposals", "interested",
+        "client_name", "client_rating", "client_reviews",
+    )
+    out: Dict[str, object] = {}
+    for k in keys:
+        out[k] = _first_non_empty(d.get(k), l.get(k))
+    return out
+
+
+# ===================== renderização =====================
+
+def _render_status_block(
+    *, age_min: Optional[int], proposals: Optional[int], interested: Optional[int],
+    category: Optional[str], level: Optional[str]
+) -> list[str]:
+    lines: list[str] = []
+    lines.append("<b>📊 Status</b>")
+
+    meta_top: list[str] = []
+    if category:
+        meta_top.append(f"Categoria: <b>{esc(category)}</b>")
+    if level:
+        meta_top.append(f"Nível: <b>{esc(level)}</b>")
+    if meta_top:
+        lines.append("• " + " • ".join(meta_top))
+
+    ago = human_ago_from_minutes(age_min)
+    if ago:
+        lines.append(f"Publicado: <b>{esc(ago)}</b>")
+    if proposals is not None:
+        lines.append(f"Propostas: <b>{proposals}</b>")
+    if interested is not None:
+        lines.append(f"Interessados: <b>{interested}</b>")
+    return lines
+
+def _render_rating_block(*, rating: Optional[float], reviews: Optional[int]) -> list[str]:
+    if rating is None and reviews in (None, 0):
+        return []
+    row = []
+    if rating is not None:
+        row.append(f"⭐ <b>{float(rating):.1f}</b>")
+    if isinstance(reviews, int) and reviews >= 0:
+        if reviews == 0:
+            row.append("(Sem feedback)")
+        elif reviews == 1:
+            row.append("(1 avaliação)")
+        else:
+            row.append(f"({reviews} avaliações)")
+    return ["<b>⭐ Reputação do cliente</b>", " ".join(row).strip()]
 
 def _render_rich_message(
-    *,
-    title: str,
-    link: str,
-    matched_kw: str,
-    extra: Dict[str, object] | None,
+    *, title: str, link: str, matched_kw: str, extra: Dict[str, object] | None,
 ) -> str:
-    """
-    Card enriquecido com:
-      - prioridade
-      - status (categoria, nível, publicado, propostas, interessados)
-      - cliente (nome, rating, #reviews)
-    """
     extra = extra or {}
-    cat = extra.get("category") or None
-    level = extra.get("level") or None
+
     age_min = extra.get("age_minutes") if isinstance(extra.get("age_minutes"), int) else None
     proposals = extra.get("proposals") if isinstance(extra.get("proposals"), int) else None
     interested = extra.get("interested") if isinstance(extra.get("interested"), int) else None
-    client_name = extra.get("client_name") or None
+    category = (extra.get("category") or None) and str(extra.get("category"))
+    level = (extra.get("level") or None) and str(extra.get("level"))
     client_rating = extra.get("client_rating") if isinstance(extra.get("client_rating"), (int, float)) else None
     client_reviews = extra.get("client_reviews") if isinstance(extra.get("client_reviews"), int) else None
 
-    prio = priority_label(age_min, proposals)
-    prio_line = f"  <b>{prio}</b>" if prio else ""
+    prio = priority_label_by_proposals(proposals)
 
     parts: list[str] = []
-    parts.append(f"🆕 <b>Projeto encontrado</b>{prio_line}\n")
+    header = "💼 <b>Novo projeto disponível!</b>"
+    if prio:
+        header += f"\n{prio}"
+    parts.append(header + "\n")
+
     parts.append(f"🎯 <b>Match:</b> <code>{esc(matched_kw)}</code>")
     parts.append(f"🧾 <b>Título:</b> {esc(title)}\n")
 
-    status_lines: list[str] = []
-    meta1: list[str] = []
-    if cat:
-        meta1.append(f"Categoria: <b>{esc(str(cat))}</b>")
-    if level:
-        meta1.append(f"Nível: <b>{esc(str(level))}</b>")
-    if meta1:
-        status_lines.append("• " + " • ".join(meta1))
-
-    meta2: list[str] = []
-    age_h = human_age_from_minutes(age_min)
-    if age_h:
-        meta2.append(f"Publicado: <b>{age_h}</b>")
-    if proposals is not None:
-        meta2.append(f"Propostas: <b>{proposals}</b>")
-    if interested is not None:
-        meta2.append(f"Interessados: <b>{interested}</b>")
-    if meta2:
-        status_lines.append("• " + " • ".join(meta2))
-
-    if status_lines:
-        parts.append("<b>📊 Status</b>")
+    status_lines = _render_status_block(
+        age_min=age_min, proposals=proposals, interested=interested, category=category, level=level
+    )
+    if len(status_lines) > 1:
         parts.extend(status_lines)
-        parts.append("")  # linha em branco
+        parts.append("")
 
-    client_bits: list[str] = []
-    if client_name:
-        client_bits.append(esc(str(client_name)))
-    if client_rating is not None:
-        star = f"⭐ <b>{float(client_rating):.1f}</b>"
-        if client_reviews:
-            star += f" ({client_reviews} avaliações)"
-        client_bits.append(star)
-    if client_bits:
-        parts.append("<b>👤 Cliente</b>")
-        parts.append("• " + " — ".join(client_bits))
+    rating_lines = _render_rating_block(rating=client_rating, reviews=client_reviews)
+    if rating_lines:
+        parts.extend(rating_lines)
         parts.append("")
 
     parts.append("👉 Toque no botão abaixo para abrir:")
     return "\n".join(parts).strip()
 
 def _render_basic_message(title: str, matched_kw: str) -> str:
-    """Fallback simples (usado se não conseguirmos extrair extras)."""
     return (
-        "🆕 <b>Projeto encontrado</b>\n\n"
+        "💼 <b>Novo projeto disponível!</b>\n\n"
         f"🎯 <b>Match:</b> <code>{esc(matched_kw)}</code>\n"
         f"🧾 <b>Título:</b> {esc(title)}\n\n"
         "👉 Toque no botão abaixo para abrir:"
     )
 
 
-# ===================== fluxo principal =====================
+# ===================== enriquecimento =====================
 
-def _build_message_for_project(ppu) -> str:
-    """Decide se enriquece (99Freelas) e monta o card."""
-    title = ppu.title or "Projeto"
-    link = ppu.link or ""
-    matched_kw = ppu.matched_keyword or ""
+def _enrich_project(link: str) -> Dict[str, object] | None:
+    """Tenta detalhe e listagem e mescla resultados."""
+    is_99 = "99freelas" in (link or "").lower()
+    detail_extra: Dict[str, object] | None = None
+    list_extra: Dict[str, object] | None = None
 
-    # Enriquecimento apenas para 99Freelas
-    is_99 = "99freelas.com" in (link or "").lower()
     if is_99 and fetch_html and scrape_99freelas_detail:
         try:
             html = fetch_html(link)  # type: ignore[misc]
             if html:
-                extra = scrape_99freelas_detail(html)  # type: ignore[misc]
-                return _render_rich_message(title=title, link=link, matched_kw=matched_kw, extra=extra)
-        except Exception as e:  # robusto: falhou o enrichment, segue o básico
-            logger.warning("[notifier] enrich falhou para link=%s: %s", link, e)
+                detail_extra = scrape_99freelas_detail(html)  # type: ignore[misc]
+        except Exception as e:
+            logger.info("[notifier] enrich detalhe falhou para link=%s: %s", link, e)
 
-    # fallback básico
+    if is_99 and enrich_from_list_pages:
+        try:
+            pid = _project_id_from_link(link)
+            if pid:
+                list_extra = enrich_from_list_pages(pid, pages=6)  # type: ignore[misc]
+        except Exception as e:
+            logger.info("[notifier] enrich listagem falhou para link=%s: %s", link, e)
+
+    merged = _merge_enrich(detail_extra, list_extra)
+    if merged and any(v not in (None, "", {}) for v in merged.values()):
+        logger.debug("[notifier] enrich merged=%s", merged)
+        return merged
+    return None
+
+
+# ===================== fluxo principal =====================
+
+def _build_message_for_project(ppu) -> str:
+    title = ppu.title or "Projeto"
+    link = ppu.link or ""
+    matched_kw = ppu.matched_keyword or ""
+
+    extra = _enrich_project(link)
+    if extra:
+        return _render_rich_message(title=title, link=link, matched_kw=matched_kw, extra=extra)
     return _render_basic_message(title, matched_kw)
 
 def notify_pending(max_batch: int = 100) -> int:
-    """
-    Envia mensagens pendentes aos usuários.
-    Retorna quantidade enviada com sucesso.
-    """
     sent = 0
     with SessionLocal() as db:
         pendings = get_unnotified_user_projects(db, limit=max_batch)
@@ -195,7 +257,7 @@ def notify_pending(max_batch: int = 100) -> int:
                 chat_id=chat_id,
                 text=text,
                 parse_mode="HTML",
-                disable_web_page_preview=True,  # mantém o visual enxuto
+                disable_web_page_preview=True,
                 reply_markup=_button_open(ppu.link),
             )
 

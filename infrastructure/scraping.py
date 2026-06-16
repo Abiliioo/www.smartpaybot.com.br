@@ -1,10 +1,11 @@
-
 # infrastructure/scraping.py
 from __future__ import annotations
 
 import asyncio
 import re
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
+from urllib.parse import urljoin
 
 import aiohttp
 import requests
@@ -88,19 +89,18 @@ def fetch_html(url: str, timeout: Optional[int] = None) -> Optional[str]:
 
 
 # ============================================================
-# 3) Parsing de detalhes do 99Freelas
+# 3) Helpers de parsing
 # ============================================================
 
 def _clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").strip())
 
-
 def parse_age_to_minutes(text: str) -> Optional[int]:
     """
-    Converte 'Publicado: 31 minutos atrás' / '2 horas atrás' / '3 dias' em minutos.
+    Converte 'Publicado: 31 minutos atrás' / '2 horas' / '3 dias' em minutos.
     """
     t = (text or "").lower()
-    m = re.search(r"(\d+)\s*(minuto|minutos|hora|horas|dia|dias)", t)
+    m = re.search(r"(?:há\s*)?(\d+)\s*(minuto|minutos|hora|horas|dia|dias)", t)
     if not m:
         return None
     n = int(m.group(1))
@@ -114,33 +114,36 @@ def parse_age_to_minutes(text: str) -> Optional[int]:
     return None
 
 
+# ============================================================
+# 4) Detalhe (best-effort)  — pode falhar sem sessão
+# ============================================================
+
 def scrape_99freelas_detail(html: str) -> Dict[str, object]:
     """
-    Extrai campos adicionais de uma página de projeto do 99Freelas.
-    Tolerante a mudanças de layout — usa regex sobre o texto geral.
-    Campos retornados:
-      - category (str)         - level (str)
-      - age_minutes (int)      - proposals (int)
-      - interested (int)       - client_name (str)
-      - client_rating (float)  - client_reviews (int)
+    Extrai campos adicionais de uma página de projeto do 99Freelas (detalhe).
+    Robusto por regex, mas pode não achar nada se o site entregar HTML “capado”.
+    Retorna:
+      - category, level
+      - age_minutes
+      - proposals, interested
+      - client_rating, client_reviews
+    (nome do cliente propositalmente ignorado)
     """
     soup = BeautifulSoup(html or "", "html.parser")
-
-    # Texto "achatado" para regex (robus­tez)
     flat = _clean_text(soup.get_text(" ", strip=True))
 
-    # Categoria | Nível (ex.: "Web, Mobile & Software | Intermediário")
+    # Categoria | Nível
     category = None
     level = None
     m_meta = re.search(
-        r"([A-Za-zÀ-ÿ0-9,\s&/\-\+]+?)\s*\|\s*(Júnior|Pleno|Intermediário|Sênior|Senior|Avançado)",
+        r"([A-Za-zÀ-ÿ0-9,\s&/\-\+]+?)\s*\|\s*(Júnior|Pleno|Intermediário|Sênior|Senior|Iniciante|Especialista|Avançado)",
         flat, re.I
     )
     if m_meta:
         category = _clean_text(m_meta.group(1))
         level = _clean_text(m_meta.group(2).capitalize())
 
-    # Publicado: ...
+    # Publicado
     age_minutes = None
     m_pub = re.search(r"(Publicado\s*:\s*[^|•\n\r]+)", flat, re.I)
     if m_pub:
@@ -150,24 +153,15 @@ def scrape_99freelas_detail(html: str) -> Dict[str, object]:
     def _extract_int(label: str) -> Optional[int]:
         m = re.search(rf"{label}\s*:\s*(\d+)", flat, re.I)
         return int(m.group(1)) if m else None
-
     proposals = _extract_int("Propostas")
     interested = _extract_int("Interessados")
 
-    # Cliente
-    client_name = None
-    m_client = re.search(r"Cliente\s*:\s*([A-Za-zÀ-ÿ\.\s]+)", flat, re.I)
-    if m_client:
-        client_name = _clean_text(m_client.group(1))
-
-    # Avaliações: "(105 avaliações)"
+    # Rating / reviews (nome do cliente ignorado)
     client_reviews = None
     m_rev = re.search(r"\((\d+)\s+avalia", flat, re.I)
     if m_rev:
         client_reviews = int(m_rev.group(1))
 
-    # Rating aproximado por ícones de estrela (quando houver)
-    # Tenta capturar ícones sólidos; se não houver, fica None.
     filled = len(soup.select("i.fas.fa-star, i.fa.fa-star.text-warning, span.fa-star.text-warning"))
     half = len(soup.select("i.fas.fa-star-half, i.fa.fa-star-half"))
     client_rating: Optional[float] = None
@@ -180,15 +174,153 @@ def scrape_99freelas_detail(html: str) -> Dict[str, object]:
         "age_minutes": age_minutes,
         "proposals": proposals,
         "interested": interested,
-        "client_name": client_name,
         "client_rating": client_rating,
         "client_reviews": client_reviews,
     }
+
+
+# ============================================================
+# 5) Listagem (confiável, sem sessão)
+# ============================================================
+
+def _to_int_or_none(s: str) -> Optional[int]:
+    m = re.search(r"(\d+)", s or "")
+    return int(m.group(1)) if m else None
+
+def _to_float_or_none(s: str) -> Optional[float]:
+    m = re.search(r"(\d+(?:[.,]\d+)?)", s or "")
+    return float(m.group(1).replace(",", ".")) if m else None
+
+def scrape_99freelas_list_items(html_text: str) -> List[Dict[str, Any]]:
+    """
+    Extrai os campos por item de /projects:
+      project_id, title, link, category, level, published_ms,
+      proposals, interested, client_rating, client_reviews
+    (sem nome do cliente).
+    """
+    from lxml import html as lx
+    tree = lx.fromstring(html_text)
+    items: List[Dict[str, Any]] = []
+
+    lis = tree.xpath("//ul[contains(@class,'result-list')]/li[contains(@class,'result-item')]")
+    for li in lis:
+        try:
+            pid = (li.get("data-id") or "").strip()
+            pid_int = int(pid) if pid.isdigit() else None
+
+            a = li.xpath(".//h1[@class='title']/a | .//h2[@class='title']/a")
+            title = (a[0].text or "").strip() if a else ""
+            href = a[0].get("href") if a else ""
+            link = urljoin("https://www.99freelas.com.br", href) if href else ""
+
+            info_p = li.xpath(".//p[contains(@class,'item-text') and contains(@class,'information')]")
+            info_text = " ".join(info_p[0].text_content().split()) if info_p else ""
+
+            # categoria | nível (antes de "Publicado")
+            category = level = None
+            if "Publicado" in info_text:
+                before = info_text.split("Publicado", 1)[0]
+                tokens = [t.strip() for t in before.split("|") if t.strip()]
+                if tokens:
+                    category = tokens[0]
+                if len(tokens) >= 2:
+                    level = tokens[1]
+
+            # publicado (epoch ms)
+            pub_ms = None
+            dt_b = li.xpath(".//p[contains(@class,'item-text')][contains(@class,'information')]//b[@class='datetime'][@cp-datetime]")
+            if dt_b:
+                try:
+                    pub_ms = int(dt_b[0].get("cp-datetime"))
+                except Exception:
+                    pub_ms = None
+
+            # propostas / interessados
+            proposals = None
+            prop_b = li.xpath("( .//p[contains(@class,'item-text')][contains(@class,'information')]//text()[contains(.,'Propostas')] )[1]/following::b[1]")
+            if prop_b:
+                proposals = _to_int_or_none(prop_b[0].text_content())
+            interested = None
+            int_b = li.xpath("( .//p[contains(@class,'item-text')][contains(@class,'information')]//text()[contains(.,'Interessados')] )[1]/following::b[1]")
+            if int_b:
+                interested = _to_int_or_none(int_b[0].text_content())
+
+            # rating + reviews (sem nome)
+            client_rating = None
+            star = li.xpath(".//span[contains(@class,'avaliacoes-star')][@data-score]")
+            if star:
+                client_rating = _to_float_or_none(star[0].get("data-score"))
+            client_reviews = None
+            rev = li.xpath(".//span[contains(@class,'avaliacoes-text')]")
+            if rev:
+                txt = " ".join(rev[0].text_content().split()).lower()
+                if "sem feedback" in txt:
+                    client_reviews = 0
+                else:
+                    client_reviews = _to_int_or_none(txt)
+
+            items.append({
+                "project_id": pid_int,
+                "title": title,
+                "link": link,
+                "category": category,
+                "level": level,
+                "published_ms": pub_ms,
+                "proposals": proposals,
+                "interested": interested,
+                "client_rating": client_rating,
+                "client_reviews": client_reviews,
+            })
+        except Exception:
+            continue
+
+    return items
+
+def enrich_from_list_pages(project_id: int, pages: int = 5, timeout: int = 12) -> Dict[str, Any] | None:
+    """
+    Busca o item correspondente ao project_id nas primeiras N páginas de /projects
+    e retorna o dicionário de campos padronizado (com age_minutes).
+    """
+    for p in range(1, max(1, pages) + 1):
+        url = f"https://www.99freelas.com.br/projects?page={p}"
+        try:
+            r = requests.get(url, headers=_DEFAULT_HEADERS, timeout=timeout, allow_redirects=True)
+            r.raise_for_status()
+        except Exception as e:
+            logger.info("[scraping] list page %s falhou: %s", p, e)
+            continue
+
+        items = scrape_99freelas_list_items(r.text)
+        for it in items:
+            if it.get("project_id") == project_id:
+                # converte published_ms -> age_minutes
+                age_minutes = None
+                ms = it.get("published_ms")
+                if isinstance(ms, int) and ms > 0:
+                    try:
+                        published_dt = datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
+                        age = (datetime.now(tz=timezone.utc) - published_dt).total_seconds() / 60.0
+                        age_minutes = max(0, int(age))
+                    except Exception:
+                        age_minutes = None
+
+                return {
+                    "category": it.get("category"),
+                    "level": it.get("level"),
+                    "age_minutes": age_minutes,
+                    "proposals": it.get("proposals"),
+                    "interested": it.get("interested"),
+                    "client_rating": it.get("client_rating"),
+                    "client_reviews": it.get("client_reviews"),
+                }
+    return None
 
 
 __all__ = [
     "HttpClient",
     "fetch_html",
     "scrape_99freelas_detail",
+    "scrape_99freelas_list_items",
+    "enrich_from_list_pages",
     "parse_age_to_minutes",
 ]
