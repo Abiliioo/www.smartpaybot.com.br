@@ -382,8 +382,9 @@ input[type="text"], input[type="email"], input[type="password"]{
   letter-spacing: .4px;
   border: 1px solid;
 }
-.plan-badge--pro  { background:#713f12; color:#fef08a; border-color:#a16207 }
-.plan-badge--free { background:#1e293b; color:#94a3b8; border-color:#334155; font-weight:600 }
+.plan-badge--pro   { background:#713f12; color:#fef08a; border-color:#a16207 }
+.plan-badge--free  { background:#1e293b; color:#94a3b8; border-color:#334155; font-weight:600 }
+.plan-badge--admin { background:#1e3a5f; color:#93c5fd; border-color:#2563eb }
 
 /* Banner de limite atingido */
 .limit-banner {

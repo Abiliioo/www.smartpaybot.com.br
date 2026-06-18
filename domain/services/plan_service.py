@@ -14,17 +14,27 @@ from ..repositories import (
     upsert_subscription,
 )
 
-FREE_SLUG = "free"
-PRO_SLUG = "pro"
+FREE_SLUG  = "free"
+PRO_SLUG   = "pro"
+ADMIN_SLUG = "admin"
 
-# Plano Free de fallback usado quando não há registro no banco.
-# Mantido em memória para não exigir DB em todo lugar.
+# Plano Free de fallback — sem subscription ativa → Free implícito.
 _FREE_FALLBACK = Plan(
     id=0,
     slug=FREE_SLUG,
     name="Gratuito",
     max_keywords=3,
     max_alerts_day=10,
+    is_active=True,
+)
+
+# Plano Admin em memória — is_admin=True → sem nenhum limite.
+_ADMIN_PLAN = Plan(
+    id=0,
+    slug=ADMIN_SLUG,
+    name="Admin",
+    max_keywords=-1,
+    max_alerts_day=-1,
     is_active=True,
 )
 
@@ -37,8 +47,12 @@ def get_free_plan(db: Session) -> Plan:
 def get_user_plan(db: Session, user_id: int) -> Plan:
     """
     Retorna o plano ativo do usuário.
+    Admin (is_admin=True) → ilimitado, sem verificar subscription.
     Sem assinatura ativa → Free.
     """
+    user = db.get(User, user_id)
+    if user and user.is_admin:
+        return _ADMIN_PLAN
     sub = get_subscription_by_user(db, user_id)
     if sub and sub.status == "active":
         return sub.plan
@@ -109,4 +123,5 @@ def get_plan_display(db: Session, user_id: int) -> dict:
         "max_alerts_day": plan.max_alerts_day,
         "alerts_today": today_alerts,
         "is_pro": plan.slug == PRO_SLUG,
+        "is_admin_plan": plan.slug == ADMIN_SLUG,
     }

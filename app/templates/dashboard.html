@@ -6,7 +6,9 @@
   <h2 class="page-title" style="margin:0">Dashboard</h2>
 
   <div style="display:flex; align-items:center; gap:10px">
-    {% if plan and plan.is_pro %}
+    {% if plan and plan.is_admin_plan %}
+      <span class="plan-badge plan-badge--admin">⚙ Admin</span>
+    {% elif plan and plan.is_pro %}
       <span class="plan-badge plan-badge--pro">⭐ PRO</span>
     {% else %}
       <span class="plan-badge plan-badge--free">Plano Gratuito</span>
@@ -251,7 +253,12 @@
     <section class="card">
       <h3>Seu Plano</h3>
 
-      {% if plan.is_pro %}
+      {% if plan.is_admin_plan %}
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
+          <span class="plan-badge plan-badge--admin">⚙ Admin</span>
+          <span class="help">Acesso irrestrito — sem limites de keywords ou alertas</span>
+        </div>
+      {% elif plan.is_pro %}
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
           <span class="plan-badge plan-badge--pro">⭐ PRO</span>
           <span class="help">Keywords e alertas ilimitados</span>
