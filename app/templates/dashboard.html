@@ -2,118 +2,152 @@
 {% block title %}Dashboard — SmartPayBot{% endblock %}
 
 {% block content %}
-<div style="display:flex; align-items:center; justify-content:space-between; margin:18px 0 10px; flex-wrap:wrap; gap:8px">
-  <h2 class="page-title" style="margin:0">Dashboard</h2>
 
-  <div style="display:flex; align-items:center; gap:10px">
-    {% if plan and plan.is_admin_plan %}
+{# ── Cabeçalho da página ─────────────────────────────────────────────── #}
+<div class="page-header">
+  <div>
+    <h2 class="page-header__title">Dashboard</h2>
+    <p class="page-header__sub">Projetos e alertas em tempo real</p>
+  </div>
+  {% if plan %}
+    {% if plan.is_admin_plan %}
       <span class="plan-badge plan-badge--admin">⚙ Admin</span>
-    {% elif plan and plan.is_pro %}
+    {% elif plan.is_pro %}
       <span class="plan-badge plan-badge--pro">⭐ PRO</span>
     {% else %}
       <span class="plan-badge plan-badge--free">Plano Gratuito</span>
     {% endif %}
-
-    {% if current_user.is_admin %}
-      <a class="btn ghost pill" href="{{ url_for('admin.index') }}"
-         style="font-size:.82rem; padding:4px 12px">Admin</a>
-    {% endif %}
-  </div>
+  {% endif %}
 </div>
 
 <div class="grid">
-  <!-- Coluna Esquerda -->
+  {# ═══════════════════════════════════════ COLUNA ESQUERDA ════════════ #}
   <div class="stack">
-    <!-- Projetos - KPIs -->
+
+    {# ── Projetos recebidos ──────────────────────────────────────────── #}
     <section class="card">
       <h3>Projetos recebidos</h3>
 
-      <div class="stats-grid clean">
-        <div class="stat-hero">
-          <div class="label">Hoje</div>
-          <div class="disc"><div class="num" id="count-today">0</div></div>
+      <div class="metrics-grid">
+        <div class="metric-card metric-card--hero">
+          <div class="metric-label">Hoje</div>
+          <div class="metric-val" id="count-today">0</div>
+          <div class="metric-sub">projetos encontrados</div>
         </div>
-
-        <div class="kpis kpis-clean">
-          <div class="kpi">
-            <div class="kpi-label">Ontem</div>
-            <div class="kpi-num" id="count-yesterday">0</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">Últimos&nbsp;7&nbsp;dias</div>
-            <div class="kpi-num" id="count-week">0</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">Total&nbsp;geral</div>
-            <div class="kpi-num projects-count" id="count-total">{{ projects_count or 0 }}</div>
-          </div>
+        <div class="metric-card">
+          <div class="metric-label">Ontem</div>
+          <div class="metric-val" id="count-yesterday">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Últimos 7 dias</div>
+          <div class="metric-val" id="count-week">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total geral</div>
+          <div class="metric-val projects-count" id="count-total">{{ projects_count or 0 }}</div>
         </div>
       </div>
 
       <div class="kpi-footer">
-        <p class="help">Contagem de projetos coletados.</p>
-        <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todos os projetos</a>
+        <p class="help">Atualizado automaticamente.</p>
+        <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todos os projetos →</a>
       </div>
     </section>
 
- <!-- Resultados (14 dias) -->
-<section class="card">
-  <h3>Resultados — últimos 14 dias</h3>
-
-  <div class="row" style="justify-content:space-between; align-items:flex-end">
-    <canvas id="rev-chart" width="680" height="180" style="max-width:100%"></canvas>
-    <div>
-      <div class="kpi-label">Conversão</div>
-      <div class="kpi-num" id="mini-conv">0%</div>
-      <div class="kpi-label" style="margin-top:8px">Ticket médio</div>
-      <div class="kpi-num" id="mini-avg">R$ 0</div>
-    </div>
-  </div>
-
-  <div class="kpi-footer">
-    <p class="help">Receita diária (R$) e contagem de ganhos.</p>
-    <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver projetos</a>
-  </div>
-</section>
-
-
-    <!-- Adicionar Palavras-chave -->
+    {# ── Resultados — últimos 14 dias ────────────────────────────────── #}
     <section class="card">
-      <h3>Adicione Palavras-chave</h3>
-      <form id="keywords-form" class="form-inline" method="post" action="{{ url_for('dashboard.save_keywords') }}">
-        {{ form.hidden_tag() }}
-        {{ form.keywords(class="input", id="keywords", placeholder="Ex.: Excel, vba, JavaScript") }}
-        {{ form.submit(class="btn primary pill", value="Salvar") }}
-      </form>
+      <h3>Resultados — últimos 14 dias</h3>
+
+      <div class="row" style="gap:20px; align-items:flex-start; flex-wrap:wrap">
+        <div style="flex:1; min-width:180px; position:relative">
+          <canvas id="rev-chart" height="160" style="width:100%; display:none"></canvas>
+          <div id="chart-empty" class="empty-state">
+            <div class="empty-state__icon">📊</div>
+            <div class="empty-state__title">Ainda sem dados de ganhos</div>
+            <div class="empty-state__desc">
+              Marque projetos como ganhos para ver seus resultados aqui.
+            </div>
+          </div>
+        </div>
+        <div class="kpi-mini">
+          <div>
+            <div class="kpi-mini__label">Conversão</div>
+            <div class="kpi-mini__val" id="mini-conv">—</div>
+          </div>
+          <div>
+            <div class="kpi-mini__label">Ticket médio</div>
+            <div class="kpi-mini__val" id="mini-avg">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-footer" style="margin-top:14px">
+        <p class="help">Receita e projetos ganhos no período.</p>
+        <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver projetos →</a>
+      </div>
     </section>
 
-    <!-- Suas Palavras-chave (chips) -->
+    {# ── Palavras-chave monitoradas ───────────────────────────────────── #}
     <section class="card">
-      <h3>Suas Palavras-chave</h3>
+      <h3>Palavras-chave monitoradas</h3>
 
-      {# Banner de excesso de keywords após downgrade Pro → Free #}
-      {% if plan and not plan.is_pro and plan.max_keywords > 0 and keywords|length > plan.max_keywords %}
-        <div style="background:#431407; border:1px solid #9a3412; border-radius:10px;
-                    padding:10px 14px; margin-bottom:14px; display:flex; gap:10px; align-items:flex-start">
-          <span style="color:#f97316; font-size:1rem; flex-shrink:0; margin-top:1px">⚠</span>
-          <div>
-            <p style="margin:0 0 4px; font-weight:600; color:#fed7aa; font-size:.9rem">
-              Você tem {{ keywords|length }} keywords — o plano Gratuito permite {{ plan.max_keywords }}
-            </p>
-            <p style="margin:0; font-size:.82rem; color:#fdba74; line-height:1.4">
-              As keywords extras <strong>não serão monitoradas</strong> até você remover o excedente
-              ou fazer upgrade para o Pro.
-              Remova as keywords menos importantes usando o ×.
-            </p>
+      {# Banner de excesso (downgrade Pro → Free) #}
+      {% if plan and not plan.is_pro and not plan.is_admin_plan and plan.max_keywords > 0 and keywords|length > plan.max_keywords %}
+        <div class="limit-banner" style="margin-bottom:14px">
+          <span style="color:#f97316; flex-shrink:0; margin-top:1px">⚠</span>
+          <p>
+            <strong>Você tem {{ keywords|length }} palavras-chave</strong> — o plano Gratuito permite {{ plan.max_keywords }}.
+            As extras <strong>não serão monitoradas</strong> até remover o excedente
+            ou <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro">fazer upgrade para o Pro</a>.
+          </p>
+        </div>
+      {% endif %}
+
+      {# Formulário de adição #}
+      <form id="keywords-form" class="form-inline" method="post"
+            action="{{ url_for('dashboard.save_keywords') }}"
+            style="margin-bottom:14px">
+        {{ form.hidden_tag() }}
+        {{ form.keywords(class="input", id="keywords",
+                         placeholder="Ex.: Excel, Python, WordPress — separados por vírgula",
+                         style="flex:1; min-width:180px") }}
+        {{ form.submit(class="btn primary pill", value="Adicionar") }}
+      </form>
+
+      {# Barra de uso de keywords (somente plano Free) #}
+      {% if plan and not plan.is_pro and not plan.is_admin_plan and plan.max_keywords > 0 %}
+        {% set kw_used = keywords | length %}
+        {% set kw_max  = plan.max_keywords %}
+        {% set kw_pct  = ((kw_used / kw_max) * 100) | int if kw_max > 0 else 0 %}
+        <div style="margin-bottom:14px">
+          <div class="usage-row">
+            <span class="help" style="font-size:.82rem">Palavras-chave</span>
+            <span id="kw-count-display"
+                  data-kw-max="{{ kw_max }}"
+                  class="usage-count {% if kw_used >= kw_max %}usage-count--danger{% elif kw_pct >= 67 %}usage-count--warn{% else %}usage-count--ok{% endif %}">
+              {{ kw_used }}&nbsp;/&nbsp;{{ kw_max }}
+            </span>
+          </div>
+          <div class="progress-track">
+            <div id="kw-bar"
+                 class="progress-fill {% if kw_pct >= 100 %}progress-fill--danger{% elif kw_pct >= 67 %}progress-fill--warn{% endif %}"
+                 style="width:{{ kw_pct }}%"></div>
           </div>
         </div>
       {% endif %}
 
+      {# Estado vazio #}
       <div id="keywords-empty" {% if keywords and keywords|length > 0 %}style="display:none"{% endif %}>
-        <p class="help">Nenhuma palavra-chave cadastrada.</p>
+        <div class="empty-state" style="padding:18px 0">
+          <div class="empty-state__icon" style="font-size:1.5rem">🔍</div>
+          <div class="empty-state__title">Nenhuma palavra-chave cadastrada</div>
+          <div class="empty-state__desc">
+            Adicione termos acima para começar a receber alertas de projetos relevantes.
+          </div>
+        </div>
       </div>
 
-      <!-- removido style inline -->
+      {# Lista de chips #}
       <ul id="keywords-list" class="chips">
         {% for k in keywords %}
           <li
@@ -126,17 +160,18 @@
         {% endfor %}
       </ul>
     </section>
+
   </div>
 
-  <!-- Coluna Direita -->
+  {# ════════════════════════════════════════ COLUNA DIREITA ════════════ #}
   <div class="stack">
-    <!-- Vínculo Telegram -->
+
+    {# ── Vínculo Telegram ────────────────────────────────────────────── #}
     <section class="card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}">
       <h3>Telegram</h3>
       <div id="tg-card-body">
 
       {% if is_linked %}
-        {# ── Estado: VINCULADO ── #}
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
           <span style="color:var(--success); font-size:1.1rem">✓</span>
           <span style="font-weight:600; color:var(--success)">Vinculado</span>
@@ -145,32 +180,27 @@
           Chat ID: <span class="code" style="font-size:.82rem">{{ chat_id }}</span>
         </p>
         <p class="help" style="margin-bottom:14px">
-          Você receberá alertas nesse chat assim que novos projetos forem encontrados.
+          Você receberá alertas nesse chat assim que novas oportunidades forem encontradas.
         </p>
-        <form method="post" action="{{ url_for('dashboard.unlink') }}"
-              style="margin-top:4px">
+        <form method="post" action="{{ url_for('dashboard.unlink') }}" style="margin-top:4px">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn ghost pill"
-                  style="font-size:.82rem"
+          <button type="submit" class="btn ghost pill" style="font-size:.82rem"
                   onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
             Desvincular Telegram
           </button>
         </form>
 
       {% else %}
-        {# ── Estado: NÃO VINCULADO ── #}
         <p class="help" style="margin-bottom:16px">
           Siga os passos abaixo para começar a receber alertas no Telegram:
         </p>
 
-        {# Passo 1 #}
         <div class="step-row">
           <span class="step-num">1</span>
           <div>
             <p style="margin:0 0 6px; font-weight:600">Abra o bot no Telegram</p>
             {% if deep_link %}
-              <a class="btn primary pill" href="{{ deep_link }}" target="_blank"
-                 style="font-size:.9rem">
+              <a class="btn primary pill" href="{{ deep_link }}" target="_blank" style="font-size:.9rem">
                 Abrir @{{ bot_username }}
               </a>
             {% else %}
@@ -183,7 +213,6 @@
           </div>
         </div>
 
-        {# Passo 2 #}
         <div class="step-row">
           <span class="step-num">2</span>
           <div>
@@ -202,7 +231,6 @@
           </div>
         </div>
 
-        {# Passo 3 #}
         <div class="step-row" style="margin-bottom:18px">
           <span class="step-num step-num--done">3</span>
           <div>
@@ -213,7 +241,6 @@
           </div>
         </div>
 
-        {# Código expirado / novo código #}
         <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px">
           <p class="help" style="font-size:.82rem; margin-bottom:8px">
             O código acima é de uso único. Se não funcionar, gere um novo:
@@ -229,67 +256,54 @@
       </div>
     </section>
 
-    <!-- Controle do Bot -->
+    {# ── Monitoramento ───────────────────────────────────────────────── #}
     <section class="card">
-      <h3>Controle do Bot</h3>
-      <div class="row">
-        <label class="switch" title="Ligar/Desligar pipeline">
+      <h3>Monitoramento</h3>
+      <div class="row" style="gap:14px; margin-bottom:10px">
+        <label class="switch" title="Ativar/pausar monitoramento de projetos">
           <input id="bot-toggle" type="checkbox"
                  {% if bot_running %}checked{% endif %}
                  {% if not is_linked %}disabled{% endif %}>
           <span class="slider"></span>
         </label>
-        <span id="bot-status">{{ 'Ativado' if bot_running else 'Parado' }}</span>
+        <span id="bot-status" style="font-weight:600">
+          {{ 'Ativado' if bot_running else 'Parado' }}
+        </span>
       </div>
       {% if not is_linked %}
-        <p id="bot-link-hint" class="help">Vincule seu Telegram para habilitar o controle.</p>
+        <p id="bot-link-hint" class="help">Vincule seu Telegram para ativar o monitoramento.</p>
       {% else %}
-        <p id="bot-link-hint" class="help">Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.</p>
+        <p id="bot-link-hint" class="help">Controle o recebimento automático de alertas.</p>
       {% endif %}
     </section>
 
-    <!-- Seu Plano -->
+    {# ── Seu Plano ────────────────────────────────────────────────────── #}
     {% if plan %}
     <section class="card">
       <h3>Seu Plano</h3>
 
       {% if plan.is_admin_plan %}
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px">
           <span class="plan-badge plan-badge--admin">⚙ Admin</span>
-          <span class="help">Acesso irrestrito — sem limites de keywords ou alertas</span>
         </div>
+        <p class="help" style="margin:0; font-size:.86rem; line-height:1.5">
+          Acesso administrativo — sem limites de palavras-chave ou alertas diários.
+        </p>
+
       {% elif plan.is_pro %}
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px">
           <span class="plan-badge plan-badge--pro">⭐ PRO</span>
-          <span class="help">Keywords e alertas ilimitados</span>
         </div>
+        <p class="help" style="margin:0; font-size:.86rem; line-height:1.5">
+          Plano Pro ativo — palavras-chave e alertas ilimitados.
+        </p>
+
       {% else %}
         <div style="margin-bottom:14px">
           <span class="plan-badge plan-badge--free">Gratuito</span>
         </div>
 
-        {# Barra de uso de keywords #}
-        {% set kw_used = keywords | length %}
-        {% set kw_max  = plan.max_keywords %}
-        {% set kw_pct  = ((kw_used / kw_max) * 100) | int if kw_max > 0 else 0 %}
-        <div style="margin-bottom:12px">
-          <div class="usage-row">
-            <span class="help">Keywords</span>
-            <span id="kw-count-display"
-                  data-kw-max="{{ kw_max }}"
-                  class="usage-count {% if kw_used >= kw_max %}usage-count--danger{% elif kw_pct >= 67 %}usage-count--warn{% else %}usage-count--ok{% endif %}">
-              {{ kw_used }}&nbsp;/&nbsp;{{ kw_max }}
-            </span>
-          </div>
-          <div class="progress-track">
-            <div id="kw-bar"
-                 class="progress-fill {% if kw_pct >= 100 %}progress-fill--danger{% elif kw_pct >= 67 %}progress-fill--warn{% endif %}"
-                 style="width:{{ kw_pct }}%">
-            </div>
-          </div>
-        </div>
-
-        {# Barra de uso de alertas diários #}
+        {# Barra de alertas diários #}
         {% set al_used = plan.alerts_today %}
         {% set al_max  = plan.max_alerts_day %}
         {% set al_pct  = ((al_used / al_max) * 100) | int if al_max > 0 else 0 %}
@@ -305,22 +319,21 @@
           <div class="progress-track">
             <div id="al-bar"
                  class="progress-fill {% if al_pct >= 100 %}progress-fill--danger{% elif al_pct >= 67 %}progress-fill--warn{% else %}progress-fill--ok{% endif %}"
-                 style="width:{{ al_pct }}%">
-            </div>
+                 style="width:{{ al_pct }}%"></div>
           </div>
           <div id="al-limit-banner" class="limit-banner"{% if al_used < al_max %} style="display:none"{% endif %}>
             <span style="color:var(--danger); flex-shrink:0; margin-top:1px">&#9888;</span>
-            <p>Limite diário de <strong>{{ al_max }} alertas</strong> atingido.
+            <p>Limite de <strong>{{ al_max }} alertas</strong> atingido hoje.
                Novos projetos serão ignorados até amanhã.
-               <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro">Faça upgrade para o Pro.</a>
+               <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro">Fazer upgrade para Pro →</a>
             </p>
           </div>
         </div>
 
-        <p class="help" style="font-size:.82rem">
-          Quer keywords e alertas ilimitados?
+        <p class="help" style="font-size:.82rem; margin:0">
+          Quer alertas ilimitados?
           <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro"
-             style="color:var(--brand)">Fale com a gente para fazer upgrade.</a>
+             style="color:var(--brand)">Fale com a gente →</a>
         </p>
       {% endif %}
     </section>
@@ -369,11 +382,10 @@
       tgCard.dataset.linked = 'true';
       tgCardBody.innerHTML = buildLinkedHtml(data.chat_id || '');
 
-      // Habilitar o switch do bot agora que o Telegram está vinculado
       var toggle = document.getElementById('bot-toggle');
       if (toggle) toggle.removeAttribute('disabled');
       var hint = document.getElementById('bot-link-hint');
-      if (hint) hint.textContent = 'Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.';
+      if (hint) hint.textContent = 'Controle o recebimento automático de alertas.';
     })
     .catch(function () { /* ignora erros de rede */ });
   }, 5000);
@@ -392,7 +404,7 @@
         'Chat ID: <span class="code" style="font-size:.82rem">' + chatId + '</span>' +
       '</p>' +
       '<p class="help" style="margin-bottom:14px">' +
-        'Você receberá alertas nesse chat assim que novos projetos forem encontrados.' +
+        'Você receberá alertas nesse chat assim que novas oportunidades forem encontradas.' +
       '</p>' +
       '<form method="post" action="/dashboard/unlink" style="margin-top:4px">' +
         '<input type="hidden" name="csrf_token" value="' + csrf + '">' +

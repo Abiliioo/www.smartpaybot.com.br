@@ -482,20 +482,21 @@ function drawChart(canvas, labels, cents, counts){
     ctx.fillText(lb, x-12, H-6);
   });
 
-  // legenda simples
-  ctx.fillStyle = '#e8eefc';
-  ctx.fillText('R$ (linha) • # ganhos (barras)', P.l, P.t + 12);
 }
 
 async function updateDailyChart(){
   const canvas = document.getElementById('rev-chart');
   if (!canvas) return;
+  const chartEmpty = document.getElementById('chart-empty');
   try {
     const res = await apiFetch('/dashboard/api/kpis/daily');
     let data = {};
     try { data = await res.json(); } catch {}
     if (!data || !data.ok) return;
-    drawChart(canvas, data.labels || [], data.cents || [], data.counts || []);
+    const hasData = (data.counts || []).some(v => v > 0) || (data.cents || []).some(v => v > 0);
+    if (chartEmpty) chartEmpty.style.display = hasData ? 'none' : '';
+    canvas.style.display = hasData ? '' : 'none';
+    if (hasData) drawChart(canvas, data.labels || [], data.cents || [], data.counts || []);
   } catch {}
 }
 

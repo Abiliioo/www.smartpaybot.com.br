@@ -2,79 +2,87 @@
 {% block title %}Admin — SmartPayBot{% endblock %}
 
 {% block content %}
-<div style="display:flex; align-items:center; justify-content:space-between; margin:18px 0 10px">
-  <h2 class="page-title" style="margin:0">Painel Admin</h2>
+
+<div class="page-header">
+  <div>
+    <h2 class="page-header__title">Painel Admin</h2>
+    <p class="page-header__sub">Gerenciamento de usuários e planos</p>
+  </div>
   <a class="btn ghost pill" href="{{ url_for('dashboard.home') }}">← Dashboard</a>
 </div>
 
 <section class="card">
   <h3>Usuários ({{ rows|length }})</h3>
-
-  <div style="overflow-x:auto; margin-top:12px">
-    <table style="width:100%; border-collapse:collapse; font-size:.9rem">
+  <div style="overflow-x:auto; margin-top:4px">
+    <table class="admin-table">
       <thead>
-        <tr style="border-bottom:1px solid var(--border); color:var(--muted); text-align:left">
-          <th style="padding:8px 10px">#</th>
-          <th style="padding:8px 10px">Usuário</th>
-          <th style="padding:8px 10px">E-mail</th>
-          <th style="padding:8px 10px; text-align:center">Plano</th>
-          <th style="padding:8px 10px; text-align:center">Keywords</th>
-          <th style="padding:8px 10px; text-align:center">Alertas hoje</th>
-          <th style="padding:8px 10px; text-align:center">Total alertas</th>
-          <th style="padding:8px 10px; text-align:center">Telegram</th>
-          <th style="padding:8px 10px">Alterar plano</th>
+        <tr>
+          <th>#</th>
+          <th>Usuário</th>
+          <th>E-mail</th>
+          <th class="th-center">Plano</th>
+          <th class="th-center">Keywords</th>
+          <th class="th-center">Alertas hoje</th>
+          <th class="th-center">Total</th>
+          <th class="th-center">Telegram</th>
+          <th>Alterar plano</th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:10px 10px; color:var(--muted)">{{ row.user.id }}</td>
-          <td style="padding:10px 10px">
+        <tr>
+          <td style="color:var(--muted); font-size:.82rem">{{ row.user.id }}</td>
+          <td>
             <span style="font-weight:600">{{ row.user.username }}</span>
             {% if row.user.is_admin %}
-              <span style="font-size:.75rem; background:#1e1b4b; color:#a5b4fc; border:1px solid #3730a3; border-radius:999px; padding:2px 7px; margin-left:6px">admin</span>
+              <span class="user-badge--admin">admin</span>
             {% endif %}
           </td>
-          <td style="padding:10px 10px; color:var(--muted)">{{ row.user.email }}</td>
-          <td style="padding:10px 10px; text-align:center">
-            {% if row.plan_slug == 'pro' %}
-              <span style="background:#713f12; color:#fef08a; border:1px solid #a16207; border-radius:999px; padding:3px 10px; font-size:.8rem; font-weight:700">PRO</span>
+          <td style="color:var(--muted); font-size:.85rem">{{ row.user.email }}</td>
+          <td class="td-center">
+            {% if row.user.is_admin %}
+              <span class="plan-badge plan-badge--admin" style="font-size:.75rem; padding:3px 10px">⚙ Admin</span>
+            {% elif row.plan_slug == 'pro' %}
+              <span class="plan-badge plan-badge--pro" style="font-size:.75rem; padding:3px 10px">PRO</span>
             {% else %}
-              <span style="background:#1e293b; color:#94a3b8; border:1px solid #334155; border-radius:999px; padding:3px 10px; font-size:.8rem">FREE</span>
+              <span class="plan-badge plan-badge--free" style="font-size:.75rem; padding:3px 10px">Free</span>
             {% endif %}
           </td>
-          <td style="padding:10px 10px; text-align:center">{{ row.kw_count }}</td>
-          <td style="padding:10px 10px; text-align:center">{{ row.alerts_today }}</td>
-          <td style="padding:10px 10px; text-align:center; color:var(--muted)">{{ row.total_projects }}</td>
-          <td style="padding:10px 10px; text-align:center">
+          <td class="td-center">{{ row.kw_count }}</td>
+          <td class="td-center">{{ row.alerts_today }}</td>
+          <td class="td-center" style="color:var(--muted)">{{ row.total_projects }}</td>
+          <td class="td-center">
             {% if row.user.chat_id %}
-              <span style="color:var(--success)">✓</span>
+              <span style="color:var(--success); font-size:1.05rem">✓</span>
             {% else %}
               <span style="color:var(--muted)">—</span>
             {% endif %}
           </td>
-          <td style="padding:10px 10px">
-            <form method="post" action="{{ url_for('admin.set_plan', user_id=row.user.id) }}"
-                  style="display:flex; gap:6px; align-items:center">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <select name="plan_slug"
-                      style="background:#0f172a; border:1px solid var(--border); color:var(--ink);
-                             border-radius:8px; padding:6px 10px; font-size:.85rem; outline:none">
-                {% for plan in plans %}
-                  <option value="{{ plan.slug }}" {% if plan.slug == row.plan_slug %}selected{% endif %}>
-                    {{ plan.name }}
-                  </option>
-                {% endfor %}
-              </select>
-              <button type="submit" class="btn primary pill" style="padding:6px 14px; font-size:.85rem">
-                Salvar
-              </button>
-            </form>
+          <td>
+            {% if row.user.is_admin %}
+              <span class="help" style="font-size:.82rem">Administrador</span>
+            {% else %}
+              <form method="post" action="{{ url_for('admin.set_plan', user_id=row.user.id) }}"
+                    style="display:flex; gap:6px; align-items:center">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="plan_slug" class="plan-select">
+                  {% for plan in plans %}
+                    <option value="{{ plan.slug }}" {% if plan.slug == row.plan_slug %}selected{% endif %}>
+                      {{ plan.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn primary pill"
+                        style="padding:6px 14px; font-size:.83rem; white-space:nowrap">
+                  Salvar
+                </button>
+              </form>
+            {% endif %}
           </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="9" style="padding:20px; text-align:center; color:var(--muted)">
+          <td colspan="9" style="padding:24px; text-align:center; color:var(--muted)">
             Nenhum usuário cadastrado.
           </td>
         </tr>
@@ -86,28 +94,28 @@
 
 <section class="card" style="margin-top:0">
   <h3>Planos cadastrados</h3>
-  <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap">
+  <div class="plan-grid">
     {% for plan in plans %}
-    <div style="background:#0f172a; border:1px solid var(--border); border-radius:12px; padding:16px 20px; min-width:180px">
-      <div style="font-weight:700; font-size:1rem; margin-bottom:6px">{{ plan.name }}</div>
-      <div style="color:var(--muted); font-size:.85rem">
-        Keywords:
-        {% if plan.max_keywords == -1 %}
-          <span style="color:var(--success)">ilimitadas</span>
-        {% else %}
-          <strong>{{ plan.max_keywords }}</strong>
-        {% endif %}
+    <div class="plan-card">
+      <span class="plan-card__icon">
+        {%- if plan.slug == 'pro' %}⭐{%- elif plan.slug == 'free' %}🔓{%- else %}⚙{%- endif %}
+      </span>
+      <div class="plan-card__name">{{ plan.name }}</div>
+      <div class="plan-card__row">
+        <span>Keywords</span>
+        <span class="plan-card__val{% if plan.max_keywords == -1 %} plan-card__val--ok{% endif %}">
+          {% if plan.max_keywords == -1 %}Ilimitadas{% else %}{{ plan.max_keywords }}{% endif %}
+        </span>
       </div>
-      <div style="color:var(--muted); font-size:.85rem; margin-top:4px">
-        Alertas/dia:
-        {% if plan.max_alerts_day == -1 %}
-          <span style="color:var(--success)">ilimitados</span>
-        {% else %}
-          <strong>{{ plan.max_alerts_day }}</strong>
-        {% endif %}
+      <div class="plan-card__row">
+        <span>Alertas/dia</span>
+        <span class="plan-card__val{% if plan.max_alerts_day == -1 %} plan-card__val--ok{% endif %}">
+          {% if plan.max_alerts_day == -1 %}Ilimitados{% else %}{{ plan.max_alerts_day }}{% endif %}
+        </span>
       </div>
     </div>
     {% endfor %}
   </div>
 </section>
+
 {% endblock %}
