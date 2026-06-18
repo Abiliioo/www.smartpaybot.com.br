@@ -428,6 +428,7 @@ def api_summary():
 
         keywords = [k.keyword for k in user.keywords]
         is_linked = bool(user.chat_id)
+        plan_info = get_plan_display(db, uid)
 
     return jsonify({
         "ok": True,
@@ -441,6 +442,10 @@ def api_summary():
         "keywords": keywords,
         "linked": is_linked,
         "chat_id": user.chat_id,
+        "alerts_today": plan_info["alerts_today"],
+        "max_alerts_day": plan_info["max_alerts_day"],
+        "kw_count": len(keywords),
+        "kw_max": plan_info["max_keywords"],
     })
 
 

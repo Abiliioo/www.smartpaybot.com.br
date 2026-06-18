@@ -110,14 +110,32 @@ function updateKwCounter() {
   if (!display) return; // plano Pro não tem contador
   const max  = parseInt(display.getAttribute('data-kw-max') || '-1', 10);
   const used = getDomKeywords().length;
-  display.textContent = `${used} / ${max > 0 ? max : '∞'}`;
-  display.style.color = (max > 0 && used >= max) ? 'var(--danger)' : 'var(--ink)';
+  display.textContent = `${used} / ${max > 0 ? max : '∞'}`;
+  const pct = max > 0 ? Math.min(100, Math.round(used / max * 100)) : 0;
+  display.className = 'usage-count ' + (pct >= 100 ? 'usage-count--danger' : pct >= 67 ? 'usage-count--warn' : 'usage-count--ok');
   const bar = document.getElementById('kw-bar');
   if (bar && max > 0) {
-    const pct = Math.min(100, Math.round(used / max * 100));
     bar.style.width = pct + '%';
-    bar.style.background = pct >= 100 ? 'var(--danger)' : (pct >= 67 ? '#f59e0b' : 'var(--brand)');
+    bar.className = 'progress-fill ' + (pct >= 100 ? 'progress-fill--danger' : pct >= 67 ? 'progress-fill--warn' : '');
   }
+}
+
+function updateAlertCounter(alertsToday, maxAlerts) {
+  const display = document.getElementById('al-count-display');
+  if (!display) return; // plano Pro -- sem contador
+  const max  = maxAlerts   !== undefined ? parseInt(maxAlerts,   10) : parseInt(display.getAttribute('data-al-max') || '-1', 10);
+  const used = alertsToday !== undefined ? parseInt(alertsToday, 10) : NaN;
+  if (isNaN(used) || max < 0) return;
+  display.textContent = `${used} / ${max}`;
+  const pct = Math.min(100, Math.round(used / max * 100));
+  display.className = 'usage-count ' + (pct >= 100 ? 'usage-count--danger' : pct >= 67 ? 'usage-count--warn' : 'usage-count--ok');
+  const bar = document.getElementById('al-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.className = 'progress-fill ' + (pct >= 100 ? 'progress-fill--danger' : pct >= 67 ? 'progress-fill--warn' : 'progress-fill--ok');
+  }
+  const banner = document.getElementById('al-limit-banner');
+  if (banner) banner.style.display = (used >= max) ? '' : 'none';
 }
 
 function renderKeywords(list = []) {
@@ -347,6 +365,10 @@ async function updateSummaryOnce() {
     setText('count-week',      week);
     if (domTotalEl) domTotalEl.textContent = String(totalFinal);
 
+    if (data.alerts_today !== undefined) {
+      updateAlertCounter(data.alerts_today, data.max_alerts_day);
+    }
+
   } catch { /* silencioso */ }
 }
 
@@ -489,7 +511,7 @@ function startPolling() {
       updateKpisOnce();
       updateDailyChart();
     }
-  }, 20000);
+  }, 12000);
 }
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }

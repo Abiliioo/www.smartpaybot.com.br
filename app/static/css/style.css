@@ -328,3 +328,97 @@ input[type="text"], input[type="email"], input[type="password"]{
 .pagination .page.current{ background:var(--brand); border-color:var(--brand); color:#fff; font-weight:700 }
 .pagination .gap{ border-style:dashed; opacity:.7 }
 .pagination .btn.disabled{ opacity:.5; pointer-events:none }
+
+/* =======================
+   17) DASHBOARD — REFINAMENTOS
+   ======================= */
+
+/* Separador nos cabeçalhos de card */
+.card > h3 {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Barras de progresso */
+.progress-track {
+  height: 8px;
+  background: #1a2440;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+  transition: width .4s ease, background .3s ease;
+}
+.progress-fill--warn   { background: #f59e0b }
+.progress-fill--danger { background: var(--danger) }
+.progress-fill--ok     { background: var(--success) }
+
+/* Linha de uso (label + contador) */
+.usage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .85rem;
+  margin-bottom: 4px;
+}
+.usage-count           { font-weight: 600 }
+.usage-count--ok       { color: var(--ink) }
+.usage-count--warn     { color: #f59e0b }
+.usage-count--danger   { color: var(--danger) }
+
+/* Badges de plano */
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .4px;
+  border: 1px solid;
+}
+.plan-badge--pro  { background:#713f12; color:#fef08a; border-color:#a16207 }
+.plan-badge--free { background:#1e293b; color:#94a3b8; border-color:#334155; font-weight:600 }
+
+/* Banner de limite atingido */
+.limit-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #2a0f13;
+  border: 1px solid #4d151b;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: .85rem;
+}
+.limit-banner p { margin: 0; color: #ffb4b4; line-height: 1.5 }
+.limit-banner a { color: #ffb4b4; text-decoration: underline }
+
+/* Passos de vinculação Telegram */
+.step-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+.step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+  font-weight: 700;
+  margin-top: 2px;
+  background: var(--brand);
+  color: #fff;
+}
+.step-num--done { background: #1e293b; color: var(--muted) }

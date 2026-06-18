@@ -11,6 +11,10 @@ from ..repositories import (
     create_user_project_if_absent,
 )
 from .keywords_service import normalize_text, clean_keyword
+from .plan_service import can_receive_alert_today
+from infrastructure.logging import get_logger
+
+_logger = get_logger(__name__)
 
 
 def upsert_global_project(
@@ -85,6 +89,13 @@ def fanout_project_to_users(
 
     created = 0
     for user_id, matched_kw in pairs:
+        if not can_receive_alert_today(db, user_id):
+            _logger.info(
+                "[matcher] limite diário atingido para user_id=%s — "
+                "projeto global_id=%s não enfileirado.",
+                user_id, global_project.project_id,
+            )
+            continue
         ppu = create_user_project_if_absent(
             db,
             user_id=user_id,
