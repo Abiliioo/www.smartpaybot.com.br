@@ -5,7 +5,8 @@ scripts/local_collector_push.py
 Executa no ambiente LOCAL (IP residencial) para contornar o bloqueio
 do 99Freelas a IPs de datacenter (Cloudflare → HTTP 403).
 
-Raspa N páginas de /projects, deduplica por project_id e envia o lote
+Raspa N páginas de /projects usando o scraper rico (categoria, nível,
+propostas, avaliação, etc.), deduplica por project_id e envia o lote
 via POST para o endpoint protegido na VPS.
 
 Uso:
@@ -32,9 +33,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from infrastructure.scraping import HttpClient
+# scraper rico: retorna category, level, published_ms, proposals, interested,
+# client_rating, client_reviews além de project_id, title, link
+from infrastructure.scraping import HttpClient, scrape_99freelas_list_items
 from infrastructure.config import get_settings
-from workers.ingestor import _parse_projects
 
 settings = get_settings()
 
@@ -50,7 +52,7 @@ async def _collect_pages(pages: int) -> list[dict]:
             url = f"{BASE_URL}{page}"
             try:
                 html_text = await http.get_text(url)
-                items = _parse_projects(html_text)
+                items = scrape_99freelas_list_items(html_text)
                 new_on_page = 0
                 for item in items:
                     pid = item.get("project_id")
@@ -58,7 +60,8 @@ async def _collect_pages(pages: int) -> list[dict]:
                         seen_ids.add(pid)
                         results.append(item)
                         new_on_page += 1
-                print(f"  Página {page:>2}: {len(items)} projetos, {new_on_page} novos (total: {len(results)})")
+                print(f"  Página {page:>2}: {len(items)} projetos, {new_on_page} novos "
+                      f"(total: {len(results)})")
                 await asyncio.sleep(0.4)
             except Exception as e:
                 print(f"  Página {page:>2}: ERRO — {e}")
@@ -89,7 +92,7 @@ def main() -> None:
     args = parser.parse_args()
 
     ingest_url = os.getenv("SMARTPAYBOT_INGEST_URL", "").strip()
-    token = os.getenv("INTERNAL_INGEST_TOKEN", "").strip()
+    token      = os.getenv("INTERNAL_INGEST_TOKEN", "").strip()
 
     if not ingest_url:
         print("ERRO: SMARTPAYBOT_INGEST_URL não configurado no .env")
@@ -97,13 +100,19 @@ def main() -> None:
     if not token:
         print("AVISO: INTERNAL_INGEST_TOKEN não configurado — requisição sem autenticação.")
 
-    print(f"Coletando {args.pages} página(s) do 99Freelas...")
+    print(f"Coletando {args.pages} página(s) do 99Freelas (scraper rico)...")
     projects = asyncio.run(_collect_pages(args.pages))
     print(f"\nTotal coletado: {len(projects)} projetos únicos")
 
     if not projects:
         print("Nenhum projeto coletado. Nada a enviar.")
         sys.exit(0)
+
+    # Prévia dos campos coletados no primeiro item
+    if projects:
+        p0 = projects[0]
+        campos = [k for k, v in p0.items() if v is not None]
+        print(f"Campos disponíveis no 1º item: {campos}")
 
     print(f"\nEnviando para {ingest_url} ...")
     try:

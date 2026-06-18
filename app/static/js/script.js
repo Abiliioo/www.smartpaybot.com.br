@@ -105,6 +105,21 @@ function splitInputKeywords(raw) {
     .filter(Boolean);
 }
 
+function updateKwCounter() {
+  const display = document.getElementById('kw-count-display');
+  if (!display) return; // plano Pro não tem contador
+  const max  = parseInt(display.getAttribute('data-kw-max') || '-1', 10);
+  const used = getDomKeywords().length;
+  display.textContent = `${used} / ${max > 0 ? max : '∞'}`;
+  display.style.color = (max > 0 && used >= max) ? 'var(--danger)' : 'var(--ink)';
+  const bar = document.getElementById('kw-bar');
+  if (bar && max > 0) {
+    const pct = Math.min(100, Math.round(used / max * 100));
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--danger)' : (pct >= 67 ? '#f59e0b' : 'var(--brand)');
+  }
+}
+
 function renderKeywords(list = []) {
   const ul = $('#keywords-list');
   const empty = $('#keywords-empty');
@@ -132,6 +147,7 @@ function renderKeywords(list = []) {
   });
 
   if (empty) empty.style.display = list.length ? 'none' : '';
+  updateKwCounter();
 }
 
 function appendKeywordsOptimistic(newOnes = []) {
@@ -165,6 +181,7 @@ function appendKeywordsOptimistic(newOnes = []) {
   });
 
   if (empty) empty.style.display = 'none';
+  updateKwCounter();
 }
 
 async function refreshKeywordsFromServer() {

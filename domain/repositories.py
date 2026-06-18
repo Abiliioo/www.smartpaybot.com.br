@@ -56,10 +56,18 @@ def create_or_get_global_project(
     title: str,
     link: str,
     published_at: Optional[datetime] = None,
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    proposals: Optional[int] = None,
+    interested: Optional[int] = None,
+    client_rating: Optional[float] = None,
+    client_reviews: Optional[int] = None,
 ) -> tuple[ProjectGlobal, bool, bool]:
     """
     Upsert deduplicando por project_id.
-    Retorna (ProjectGlobal, created:bool, updated:bool)
+    Retorna (ProjectGlobal, created:bool, updated:bool).
+    Campos opcionais só são gravados quando o valor incoming é não-None
+    (compatível com registros antigos que têm esses campos como NULL).
     """
     stmt = select(ProjectGlobal).where(ProjectGlobal.project_id == project_id)
     pg = db.execute(stmt).scalar_one_or_none()
@@ -72,12 +80,31 @@ def create_or_get_global_project(
             pg.link = link; changed = True
         if published_at and not pg.published_at:
             pg.published_at = published_at; changed = True
+        # Metadados: só atualiza se o valor chegou (não-None)
+        if category is not None and pg.category != category:
+            pg.category = category; changed = True
+        if level is not None and pg.level != level:
+            pg.level = level; changed = True
+        if proposals is not None and pg.proposals != proposals:
+            pg.proposals = proposals; changed = True
+        if interested is not None and pg.interested != interested:
+            pg.interested = interested; changed = True
+        if client_rating is not None and pg.client_rating != client_rating:
+            pg.client_rating = client_rating; changed = True
+        if client_reviews is not None and pg.client_reviews != client_reviews:
+            pg.client_reviews = client_reviews; changed = True
         if changed:
             db.add(pg)
             db.commit()
         return pg, False, changed  # já existia
 
-    pg = ProjectGlobal(project_id=project_id, title=title, link=link, published_at=published_at)
+    pg = ProjectGlobal(
+        project_id=project_id, title=title, link=link,
+        published_at=published_at,
+        category=category, level=level,
+        proposals=proposals, interested=interested,
+        client_rating=client_rating, client_reviews=client_reviews,
+    )
     db.add(pg)
     try:
         db.commit()

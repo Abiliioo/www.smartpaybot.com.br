@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html as py_html
 import re
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from infrastructure.logging import get_logger
@@ -226,14 +227,62 @@ def _enrich_project(link: str) -> Dict[str, object] | None:
     return None
 
 
+# ===================== dados do banco =====================
+
+def _extract_db_extra(ppu) -> Dict[str, object] | None:
+    """
+    Extrai metadados ricos diretamente do ProjectGlobal associado ao ppu.
+    Retorna None se o projeto não tem campos enriquecidos (registros antigos).
+    Não faz chamadas HTTP — usa apenas o que já está no banco.
+    """
+    gp = getattr(ppu, "global_project", None)
+    if gp is None:
+        return None
+
+    age_min: int | None = None
+    pub = getattr(gp, "published_at", None)
+    if pub is not None:
+        try:
+            now = datetime.now(timezone.utc)
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
+            delta = now - pub
+            age_min = max(0, int(delta.total_seconds() / 60))
+        except Exception:
+            age_min = None
+
+    fields: Dict[str, object] = {
+        "category":      getattr(gp, "category", None),
+        "level":         getattr(gp, "level", None),
+        "age_minutes":   age_min,
+        "proposals":     getattr(gp, "proposals", None),
+        "interested":    getattr(gp, "interested", None),
+        "client_rating": getattr(gp, "client_rating", None),
+        "client_reviews":getattr(gp, "client_reviews", None),
+    }
+
+    # Só retorna se ao menos um campo de metadado (além de age_minutes) está preenchido
+    has_meta = any(
+        fields[k] is not None
+        for k in ("category", "level", "proposals", "interested", "client_rating", "client_reviews")
+    )
+    return fields if has_meta else None
+
+
 # ===================== fluxo principal =====================
 
 def _build_message_for_project(ppu) -> str:
-    title = ppu.title or "Projeto"
-    link = ppu.link or ""
+    title      = ppu.title or "Projeto"
+    link       = ppu.link or ""
     matched_kw = ppu.matched_keyword or ""
 
-    extra = _enrich_project(link)
+    # 1ª tentativa: dados já persistidos no banco (sem chamada HTTP)
+    extra = _extract_db_extra(ppu)
+
+    # 2ª tentativa: enriquecimento via HTTP (funciona apenas em IP residencial)
+    if not extra:
+        extra = _enrich_project(link)
+
     if extra:
         return _render_rich_message(title=title, link=link, matched_kw=matched_kw, extra=extra)
     return _render_basic_message(title, matched_kw)

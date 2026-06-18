@@ -20,9 +20,16 @@ def upsert_global_project(
     title: str,
     link: str,
     published_at: Optional[datetime] = None,
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    proposals: Optional[int] = None,
+    interested: Optional[int] = None,
+    client_rating: Optional[float] = None,
+    client_reviews: Optional[int] = None,
 ):
     """
-    Upsert por project_id. Retorna (ProjectGlobal, created:boolean)
+    Upsert por project_id. Retorna (ProjectGlobal, created:bool, updated:bool).
+    Campos opcionais são repassados ao repositório e ignorados se None.
     """
     return create_or_get_global_project(
         db,
@@ -30,6 +37,12 @@ def upsert_global_project(
         title=title.strip(),
         link=link.strip(),
         published_at=published_at,
+        category=category,
+        level=level,
+        proposals=proposals,
+        interested=interested,
+        client_rating=client_rating,
+        client_reviews=client_reviews,
     )
 
 

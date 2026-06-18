@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -96,6 +97,14 @@ class ProjectGlobal(Base):
 
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Metadados ricos coletados pelo scraper local (ausentes em registros antigos → None)
+    category: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    level: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    proposals: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    interested: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    client_rating: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    client_reviews: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     user_projects: Mapped[list["ProjectPerUser"]] = relationship(
         back_populates="global_project", cascade="all, delete-orphan"

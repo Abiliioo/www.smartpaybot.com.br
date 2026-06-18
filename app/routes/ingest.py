@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import threading
+from datetime import datetime, timezone
+from typing import Optional
 
 from flask import Blueprint, jsonify, request
 
@@ -16,6 +18,40 @@ log = get_logger(__name__)
 
 _no_token_warned = False
 
+
+# ── helpers de coerção segura ──────────────────────────────────────────
+
+def _int_or_none(v) -> Optional[int]:
+    try:
+        return int(v) if v is not None else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _float_or_none(v) -> Optional[float]:
+    try:
+        return float(v) if v is not None else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _str_or_none(v) -> Optional[str]:
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s or None
+
+
+def _published_at_from_ms(v) -> Optional[datetime]:
+    """Converte epoch em milissegundos para datetime UTC."""
+    try:
+        ms = int(v)
+        return datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+
+# ── autenticação ──────────────────────────────────────────────────────
 
 def _check_token() -> bool:
     global _no_token_warned
@@ -35,6 +71,8 @@ def _check_token() -> bool:
     return True
 
 
+# ── pipeline pós-ingest (thread daemon) ─────────────────────────────
+
 def _run_pipeline() -> None:
     try:
         from workers.matcher import match_recent_projects
@@ -44,6 +82,8 @@ def _run_pipeline() -> None:
     except Exception:
         log.exception("[ingest] erro no pipeline pós-ingest")
 
+
+# ── endpoint ─────────────────────────────────────────────────────────
 
 @bp.post("/ingest/projects")
 @csrf.exempt
@@ -64,6 +104,7 @@ def ingest_projects():
 
     with SessionLocal() as db:
         for p in projects:
+            # Campos obrigatórios
             try:
                 pid = int(p["project_id"])
                 title = str(p["title"]).strip()
@@ -74,12 +115,28 @@ def ingest_projects():
             if not pid or not title or not link:
                 skipped += 1
                 continue
+
+            # Campos opcionais — ignorados silenciosamente se ausentes ou inválidos
+            published_at = _published_at_from_ms(p.get("published_ms"))
+            category     = _str_or_none(p.get("category"))
+            level        = _str_or_none(p.get("level"))
+            proposals    = _int_or_none(p.get("proposals"))
+            interested   = _int_or_none(p.get("interested"))
+            client_rating  = _float_or_none(p.get("client_rating"))
+            client_reviews = _int_or_none(p.get("client_reviews"))
+
             _, created, upd = upsert_global_project(
                 db,
                 project_id=pid,
                 title=title,
                 link=link,
-                published_at=None,
+                published_at=published_at,
+                category=category,
+                level=level,
+                proposals=proposals,
+                interested=interested,
+                client_rating=client_rating,
+                client_reviews=client_reviews,
             )
             if created:
                 inserted += 1

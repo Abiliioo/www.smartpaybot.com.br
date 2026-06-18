@@ -256,9 +256,9 @@
         <span id="bot-status">{{ 'Ativado' if bot_running else 'Parado' }}</span>
       </div>
       {% if not is_linked %}
-        <p class="help">Vincule seu Telegram para habilitar o controle.</p>
+        <p id="bot-link-hint" class="help">Vincule seu Telegram para habilitar o controle.</p>
       {% else %}
-        <p class="help">Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.</p>
+        <p id="bot-link-hint" class="help">Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.</p>
       {% endif %}
     </section>
 
@@ -290,12 +290,15 @@
         <div style="margin-bottom:12px">
           <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px">
             <span class="help">Keywords</span>
-            <span style="color:{% if kw_used >= kw_max %}var(--danger){% else %}var(--ink){% endif %}; font-weight:600">
+            <span id="kw-count-display"
+                  data-kw-max="{{ kw_max }}"
+                  style="color:{% if kw_used >= kw_max %}var(--danger){% else %}var(--ink){% endif %}; font-weight:600">
               {{ kw_used }}&nbsp;/&nbsp;{{ kw_max }}
             </span>
           </div>
           <div style="height:6px; background:#1e293b; border-radius:999px; overflow:hidden">
-            <div style="height:100%; width:{{ kw_pct }}%; border-radius:999px;
+            <div id="kw-bar"
+                 style="height:100%; width:{{ kw_pct }}%; border-radius:999px;
                         background:{% if kw_pct >= 100 %}var(--danger){% elif kw_pct >= 67 %}#f59e0b{% else %}var(--brand){% endif %};
                         transition:width .3s ease">
             </div>
@@ -372,6 +375,12 @@
       clearInterval(pollTimer);
       tgCard.dataset.linked = 'true';
       tgCardBody.innerHTML = buildLinkedHtml(data.chat_id || '');
+
+      // Habilitar o switch do bot agora que o Telegram está vinculado
+      var toggle = document.getElementById('bot-toggle');
+      if (toggle) toggle.removeAttribute('disabled');
+      var hint = document.getElementById('bot-link-hint');
+      if (hint) hint.textContent = 'Liga/desliga o pipeline (ingestor → matcher → notifier) neste servidor.';
     })
     .catch(function () { /* ignora erros de rede */ });
   }, 5000);
