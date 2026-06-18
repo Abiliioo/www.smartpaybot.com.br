@@ -1,0 +1,104 @@
+# app/routes/ingest.py
+from __future__ import annotations
+
+import threading
+
+from flask import Blueprint, jsonify, request
+
+from app import csrf
+from infrastructure.config import get_settings
+from infrastructure.logging import get_logger
+from infrastructure.db import SessionLocal
+from domain.services.projects_service import upsert_global_project
+
+bp = Blueprint("ingest", __name__)
+log = get_logger(__name__)
+
+_no_token_warned = False
+
+
+def _check_token() -> bool:
+    global _no_token_warned
+    expected = get_settings().INTERNAL_INGEST_TOKEN
+    if expected:
+        incoming = request.headers.get("X-Internal-Ingest-Token", "")
+        if incoming != expected:
+            log.warning("Ingest rejeitado: token inválido ou ausente")
+            return False
+        return True
+    if not _no_token_warned:
+        log.warning(
+            "INTERNAL_INGEST_TOKEN não configurado — endpoint aceita requisições "
+            "sem autenticação. Configure em produção via .env."
+        )
+        _no_token_warned = True
+    return True
+
+
+def _run_pipeline() -> None:
+    try:
+        from workers.matcher import match_recent_projects
+        from workers.notifier import notify_pending
+        match_recent_projects()
+        notify_pending()
+    except Exception:
+        log.exception("[ingest] erro no pipeline pós-ingest")
+
+
+@bp.post("/ingest/projects")
+@csrf.exempt
+def ingest_projects():
+    if not _check_token():
+        return jsonify({"error": "forbidden"}), 403
+
+    data = request.get_json(silent=True)
+    if not data or "projects" not in data:
+        return jsonify({"error": 'payload inválido; esperado {"projects": [...]}'}), 400
+
+    projects = data["projects"]
+    if not isinstance(projects, list):
+        return jsonify({"error": '"projects" deve ser uma lista'}), 400
+
+    received = len(projects)
+    inserted = updated = skipped = 0
+
+    with SessionLocal() as db:
+        for p in projects:
+            try:
+                pid = int(p["project_id"])
+                title = str(p["title"]).strip()
+                link = str(p["link"]).strip()
+            except (KeyError, ValueError, TypeError):
+                skipped += 1
+                continue
+            if not pid or not title or not link:
+                skipped += 1
+                continue
+            _, created, upd = upsert_global_project(
+                db,
+                project_id=pid,
+                title=title,
+                link=link,
+                published_at=None,
+            )
+            if created:
+                inserted += 1
+            elif upd:
+                updated += 1
+            else:
+                skipped += 1
+
+    if inserted > 0 or updated > 0:
+        t = threading.Thread(target=_run_pipeline, daemon=True)
+        t.start()
+
+    log.info(
+        "[ingest] recebidos=%s inserted=%s updated=%s skipped=%s",
+        received, inserted, updated, skipped,
+    )
+    return jsonify({
+        "received": received,
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+    })

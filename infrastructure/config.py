@@ -43,6 +43,8 @@ class Settings:
     TELEGRAM_BOT_USERNAME: Optional[str] = os.getenv("TELEGRAM_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET: Optional[str] = os.getenv("TELEGRAM_WEBHOOK_SECRET") or None
 
+    INTERNAL_INGEST_TOKEN: Optional[str] = os.getenv("INTERNAL_INGEST_TOKEN") or None
+
     PUBLIC_BASE_URL: Optional[str] = os.getenv("PUBLIC_BASE_URL")
     SHOW_WEBHOOK_PANEL: bool = _env_bool("SHOW_WEBHOOK_PANEL", False)
 

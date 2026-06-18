@@ -56,10 +56,10 @@ def create_or_get_global_project(
     title: str,
     link: str,
     published_at: Optional[datetime] = None,
-) -> tuple[ProjectGlobal, bool]:
+) -> tuple[ProjectGlobal, bool, bool]:
     """
     Upsert deduplicando por project_id.
-    Retorna (ProjectGlobal, created:boolean)
+    Retorna (ProjectGlobal, created:bool, updated:bool)
     """
     stmt = select(ProjectGlobal).where(ProjectGlobal.project_id == project_id)
     pg = db.execute(stmt).scalar_one_or_none()
@@ -75,19 +75,19 @@ def create_or_get_global_project(
         if changed:
             db.add(pg)
             db.commit()
-        return pg, False  # <-- já existia
+        return pg, False, changed  # já existia
 
     pg = ProjectGlobal(project_id=project_id, title=title, link=link, published_at=published_at)
     db.add(pg)
     try:
         db.commit()
-        return pg, True  # <-- criado agora
+        return pg, True, False  # criado agora
     except IntegrityError:
         db.rollback()
         pg = db.execute(stmt).scalar_one_or_none()
         if pg is None:
             raise
-        return pg, False
+        return pg, False, False
 
 
 def iter_new_global_projects_since(db: Session, since: datetime) -> Iterable[ProjectGlobal]:

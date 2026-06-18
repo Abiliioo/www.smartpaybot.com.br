@@ -119,7 +119,7 @@ async def crawl_once(pages: int | None = None) -> int:
                     created_count = 0
 
                     for it in unique_items:
-                        _, created = upsert_global_project(
+                        _, created, _ = upsert_global_project(
                             db,
                             project_id=int(it["project_id"]),
                             title=str(it["title"]),
