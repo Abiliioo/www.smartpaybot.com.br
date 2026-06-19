@@ -32,14 +32,20 @@ def _check_secret() -> bool:
     Retorna True se a requisição pode prosseguir, False se deve ser rejeitada.
     """
     global _no_secret_warned
-    expected = get_settings().TELEGRAM_WEBHOOK_SECRET
+    settings = get_settings()
+    expected = settings.TELEGRAM_WEBHOOK_SECRET
     if expected:
         incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         if incoming != expected:
             log.warning("Webhook Telegram rejeitado: secret inválido ou ausente")
             return False
         return True
-    # Sem secret configurado: permitir, mas avisar uma vez
+    if settings.FLASK_ENV == "production":
+        log.error(
+            "TELEGRAM_WEBHOOK_SECRET ausente em produção — webhook recusado. "
+            "Configure no .env de produção."
+        )
+        return False
     if not _no_secret_warned:
         log.warning(
             "TELEGRAM_WEBHOOK_SECRET não configurado — webhook aceita requisições sem autenticação. "

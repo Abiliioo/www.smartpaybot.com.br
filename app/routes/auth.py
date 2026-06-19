@@ -10,9 +10,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.security import AppUser
 from app.forms import LoginForm, RegisterForm
 from infrastructure.db import SessionLocal
+from infrastructure.ratelimit import register_failure, is_limited, reset as rl_reset
 from domain.models import User
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+_LOGIN_MAX_ATTEMPTS = 8
+_LOGIN_WINDOW = 600  # 10 minutos
+
 
 @bp.get("/login")
 def login():
@@ -32,19 +37,30 @@ def login_post():
     username = (form.username.data or "").strip()
     password = form.password.data or ""
 
+    rl_key = f"login:{username.lower()}"
+    limited, retry = is_limited(rl_key, max_attempts=_LOGIN_MAX_ATTEMPTS, window_seconds=_LOGIN_WINDOW)
+    if limited:
+        mins = retry // 60 + 1
+        log.warning("LOGIN bloqueado por rate limit: username=%s retry=%ss", username, retry)
+        flash(f"Muitas tentativas. Tente novamente em ~{mins} min.", "danger")
+        return render_template("login.html", form=form), 429
+
     with SessionLocal() as db:
         user = db.query(User).filter(User.username == username).first()
         if not user:
             log.info("LOGIN fail: user not found username=%s", username)
+            register_failure(rl_key, window_seconds=_LOGIN_WINDOW)
             flash("Usuário ou senha inválidos.", "danger")
             return render_template("login.html", form=form)
 
         ok = check_password_hash(user.password_hash, password)
         log.info("LOGIN check: username=%s ok=%s", username, ok)
         if not ok:
+            register_failure(rl_key, window_seconds=_LOGIN_WINDOW)
             flash("Usuário ou senha inválidos.", "danger")
             return render_template("login.html", form=form)
 
+        rl_reset(rl_key)
         login_user(AppUser.from_domain(user))
         flash("Login efetuado!", "success")
         return redirect(url_for("dashboard.home"))

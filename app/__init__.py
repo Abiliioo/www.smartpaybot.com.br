@@ -6,7 +6,7 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from flask_login import LoginManager, current_user
 
-from infrastructure.config import get_settings
+from infrastructure.config import get_settings, INSECURE_SECRET_KEY_DEFAULT
 from infrastructure.logging import get_logger
 
 from app.security import AppUser
@@ -20,6 +20,14 @@ log = get_logger(__name__)
 
 def create_app() -> Flask:
     settings = get_settings()
+
+    if settings.FLASK_ENV == "production":
+        if not settings.SECRET_KEY or settings.SECRET_KEY == INSECURE_SECRET_KEY_DEFAULT:
+            raise RuntimeError(
+                "SECRET_KEY ausente ou com valor padrão inseguro. "
+                "Configure SECRET_KEY no .env de produção."
+            )
+
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
     @app.context_processor

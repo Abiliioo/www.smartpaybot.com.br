@@ -55,13 +55,20 @@ def _published_at_from_ms(v) -> Optional[datetime]:
 
 def _check_token() -> bool:
     global _no_token_warned
-    expected = get_settings().INTERNAL_INGEST_TOKEN
+    settings = get_settings()
+    expected = settings.INTERNAL_INGEST_TOKEN
     if expected:
         incoming = request.headers.get("X-Internal-Ingest-Token", "")
         if incoming != expected:
             log.warning("Ingest rejeitado: token inválido ou ausente")
             return False
         return True
+    if settings.FLASK_ENV == "production":
+        log.error(
+            "INTERNAL_INGEST_TOKEN ausente em produção — ingest recusado. "
+            "Configure no .env de produção."
+        )
+        return False
     if not _no_token_warned:
         log.warning(
             "INTERNAL_INGEST_TOKEN não configurado — endpoint aceita requisições "

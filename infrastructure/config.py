@@ -26,17 +26,20 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 
+INSECURE_SECRET_KEY_DEFAULT = “dev-secret-key-change-me”
+
+
 @dataclass(frozen=True)
 class Settings:
     # Ambiente
-    FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
-    DEBUG: bool = _as_bool(os.getenv("DEBUG"), default=(os.getenv("FLASK_ENV", "development") == "development"))
+    FLASK_ENV: str = os.getenv(“FLASK_ENV”, “development”)
+    DEBUG: bool = _as_bool(os.getenv(“DEBUG”), default=(os.getenv(“FLASK_ENV”, “development”) == “development”))
 
     # Novo: fuso horário “oficial” do app
-    TZ_NAME: str = os.getenv("TZ_NAME", "America/Sao_Paulo")
+    TZ_NAME: str = os.getenv(“TZ_NAME”, “America/Sao_Paulo”)
 
     # Segurança / sessão
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
+    SECRET_KEY: str = os.getenv(“SECRET_KEY”, INSECURE_SECRET_KEY_DEFAULT)
     CSRF_ENABLED: bool = True
 
     TELEGRAM_TOKEN: Optional[str] = os.getenv("TELEGRAM_TOKEN")

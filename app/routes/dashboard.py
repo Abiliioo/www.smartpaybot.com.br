@@ -193,7 +193,8 @@ def webhook_set():
     if not target:
         flash("Informe a URL pública (HTTPS) para o webhook.", "warning")
         return redirect(url_for("dashboard.home"))
-    ok = set_webhook(target, drop_pending=True)
+    settings = get_settings()
+    ok = set_webhook(target, drop_pending=True, secret_token=settings.TELEGRAM_WEBHOOK_SECRET or None)
     flash("Webhook configurado." if ok else "Falha ao configurar webhook.", "success" if ok else "danger")
     return redirect(url_for("dashboard.home"))
 
