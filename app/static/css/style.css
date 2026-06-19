@@ -666,3 +666,97 @@ input[type="text"], input[type="email"], input[type="password"]{
   cursor: pointer;
 }
 .plan-select:focus { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(59,130,246,.2) }
+
+/* Variantes de plan-card por slug */
+.plan-card--pro   { border-color: #92400e }
+.plan-card--pro:hover { border-color: #b45309 }
+.plan-card--admin { border-color: #1e3a8a }
+.plan-card--admin:hover { border-color: #2563eb }
+
+/* =======================
+   22) NAVBAR — LOGO + TELEGRAM CARD
+   ======================= */
+
+/* Logo oficial no header */
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Ícone emoji nos metric-cards */
+.metric-icon {
+  font-size: .9rem;
+  margin-bottom: 3px;
+  opacity: .75;
+  line-height: 1;
+}
+.metric-card--hero .metric-icon { opacity: .9; font-size: 1rem }
+
+/* ── Telegram card — estado vinculado ─────────────────────── */
+
+.tg-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: rgba(34,197,94,.06);
+  border: 1px solid rgba(34,197,94,.18);
+  border-radius: 10px;
+}
+.tg-pulse-wrapper { width: 10px; height: 10px; flex-shrink: 0; position: relative }
+.tg-pulse-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: tg-pulse 2.2s ease-in-out infinite;
+}
+@keyframes tg-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(34,197,94,.5) }
+  50%       { box-shadow: 0 0 0 5px rgba(34,197,94,.0) }
+}
+
+.tg-bot-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f1e36;
+  border: 1px solid #1e3560;
+  border-radius: 12px;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+}
+.tg-bot-avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--brand);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.tg-bot-info { flex: 1; min-width: 0 }
+.tg-bot-name { font-weight: 700; font-size: .88rem; color: var(--ink) }
+.tg-chat-id  { font-size: .78rem; color: var(--muted); margin-top: 2px }
+.tg-check-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(34,197,94,.12);
+  border: 1.5px solid rgba(34,197,94,.35);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .88rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}

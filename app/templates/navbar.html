@@ -2,13 +2,14 @@
   <nav class="nav container" aria-label="Navegação principal">
 
     {# ── Marca ─────────────────────────────────────────────────────────── #}
-    <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('auth.login') }}"
+    <a href="{{ url_for('main.index') }}"
        class="brand-area" aria-label="SmartPayBot — início">
-      <span class="brand-icon" aria-hidden="true">
-        <svg width="14" height="17" viewBox="0 0 14 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 0L0 9.5H6L4.5 17L14 7H8L8 0Z" fill="white" opacity="0.92"/>
-        </svg>
-      </span>
+      <img
+        class="brand-logo"
+        src="{{ url_for('static', filename='images/logo.svg') }}"
+        alt="SmartPayBot logo"
+        width="32" height="32"
+      >
       <span class="brand-text">
         <span class="brand-name">SmartPay<b>Bot</b></span>
         <span class="brand-sub">Monitor de oportunidades</span>
@@ -50,13 +51,9 @@
       <span class="ml-auto"></span>
 
       {% if is_login %}
-        <a class="btn ghost pill" href="{{ url_for('auth.register') }}" aria-label="Ir para criar conta">
-          Criar conta
-        </a>
+        <a class="btn ghost pill" href="{{ url_for('auth.register') }}">Criar conta</a>
       {% elif is_register %}
-        <a class="btn primary pill" href="{{ url_for('auth.login') }}" aria-label="Ir para login">
-          Entrar
-        </a>
+        <a class="btn primary pill" href="{{ url_for('auth.login') }}">Entrar</a>
       {% else %}
         <a class="btn primary pill" href="{{ url_for('auth.login') }}">Entrar</a>
         <a class="btn ghost pill"   href="{{ url_for('auth.register') }}">Criar conta</a>

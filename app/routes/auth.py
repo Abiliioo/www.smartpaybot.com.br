@@ -55,7 +55,7 @@ def login_post():
 def logout():
     logout_user()
     flash("Você saiu da conta.", "info")
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("main.index"))
 
 @bp.get("/register")
 def register():

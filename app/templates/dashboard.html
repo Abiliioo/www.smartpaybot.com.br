@@ -9,15 +9,6 @@
     <h2 class="page-header__title">Dashboard</h2>
     <p class="page-header__sub">Projetos e alertas em tempo real</p>
   </div>
-  {% if plan %}
-    {% if plan.is_admin_plan %}
-      <span class="plan-badge plan-badge--admin">⚙ Admin</span>
-    {% elif plan.is_pro %}
-      <span class="plan-badge plan-badge--pro">⭐ PRO</span>
-    {% else %}
-      <span class="plan-badge plan-badge--free">Plano Gratuito</span>
-    {% endif %}
-  {% endif %}
 </div>
 
 <div class="grid">
@@ -30,21 +21,28 @@
 
       <div class="metrics-grid">
         <div class="metric-card metric-card--hero">
+          <div class="metric-icon">📅</div>
           <div class="metric-label">Hoje</div>
           <div class="metric-val" id="count-today">0</div>
-          <div class="metric-sub">projetos encontrados</div>
+          <div class="metric-sub">projetos</div>
         </div>
         <div class="metric-card">
+          <div class="metric-icon">📆</div>
           <div class="metric-label">Ontem</div>
           <div class="metric-val" id="count-yesterday">0</div>
+          <div class="metric-sub">projetos</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Últimos 7 dias</div>
+          <div class="metric-icon">📊</div>
+          <div class="metric-label">7 dias</div>
           <div class="metric-val" id="count-week">0</div>
+          <div class="metric-sub">projetos</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Total geral</div>
+          <div class="metric-icon">📁</div>
+          <div class="metric-label">Total recebido</div>
           <div class="metric-val projects-count" id="count-total">{{ projects_count or 0 }}</div>
+          <div class="metric-sub">projetos</div>
         </div>
       </div>
 
@@ -63,9 +61,9 @@
           <canvas id="rev-chart" height="160" style="width:100%; display:none"></canvas>
           <div id="chart-empty" class="empty-state">
             <div class="empty-state__icon">📊</div>
-            <div class="empty-state__title">Ainda sem dados de ganhos</div>
+            <div class="empty-state__title">Ainda sem resultados marcados</div>
             <div class="empty-state__desc">
-              Marque projetos como ganhos para ver seus resultados aqui.
+              Quando você marcar oportunidades como ganho, os indicadores aparecem aqui.
             </div>
           </div>
         </div>
@@ -172,25 +170,40 @@
       <div id="tg-card-body">
 
       {% if is_linked %}
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
-          <span style="color:var(--success); font-size:1.1rem">✓</span>
-          <span style="font-weight:600; color:var(--success)">Vinculado</span>
+        {# ── Estado: VINCULADO ─────────────────────────────────────── #}
+        <div class="tg-status-row">
+          <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
+          <span style="font-weight:600; color:var(--success); font-size:.88rem">Ativo</span>
+          <span class="help" style="margin-left:auto; font-size:.78rem">Monitorando</span>
         </div>
-        <p class="help" style="margin-bottom:6px">
-          Chat ID: <span class="code" style="font-size:.82rem">{{ chat_id }}</span>
+
+        <div class="tg-bot-card">
+          <div class="tg-bot-avatar">🤖</div>
+          <div class="tg-bot-info">
+            <div class="tg-bot-name">SmartPayBot</div>
+            <div class="tg-chat-id">
+              <span class="help">Chat ID:</span>
+              <span class="code" style="font-size:.76rem">{{ chat_id }}</span>
+            </div>
+          </div>
+          <span class="tg-check-badge">✓</span>
+        </div>
+
+        <p class="help" style="font-size:.83rem; line-height:1.55; margin:0 0 14px">
+          Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.
         </p>
-        <p class="help" style="margin-bottom:14px">
-          Você receberá alertas nesse chat assim que novas oportunidades forem encontradas.
-        </p>
-        <form method="post" action="{{ url_for('dashboard.unlink') }}" style="margin-top:4px">
+
+        <form method="post" action="{{ url_for('dashboard.unlink') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn ghost pill" style="font-size:.82rem"
+          <button type="submit" class="btn ghost pill"
+                  style="font-size:.78rem; color:var(--muted)"
                   onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
             Desvincular Telegram
           </button>
         </form>
 
       {% else %}
+        {# ── Estado: NÃO VINCULADO ─────────────────────────────────── #}
         <p class="help" style="margin-bottom:16px">
           Siga os passos abaixo para começar a receber alertas no Telegram:
         </p>
@@ -206,8 +219,7 @@
             {% else %}
               <p class="help" style="margin:0">
                 Pesquise <span class="code" style="font-size:.8rem">@{{ bot_username or 'O_Freela_bot' }}</span>
-                no Telegram ou defina <code>TELEGRAM_BOT_USERNAME</code> no <code>.env</code>
-                para habilitar o botão.
+                no Telegram ou defina <code>TELEGRAM_BOT_USERNAME</code> no <code>.env</code>.
               </p>
             {% endif %}
           </div>
@@ -396,19 +408,25 @@
     if (meta) csrf = meta.getAttribute('content');
 
     return (
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
-        '<span style="color:#22c55e;font-size:1.1rem">&#10003;</span>' +
-        '<span style="font-weight:600;color:#22c55e">Vinculado</span>' +
+      '<div class="tg-status-row">' +
+        '<div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>' +
+        '<span style="font-weight:600;color:var(--success);font-size:.88rem">Ativo</span>' +
+        '<span class="help" style="margin-left:auto;font-size:.78rem">Monitorando</span>' +
       '</div>' +
-      '<p class="help" style="margin-bottom:6px">' +
-        'Chat ID: <span class="code" style="font-size:.82rem">' + chatId + '</span>' +
+      '<div class="tg-bot-card">' +
+        '<div class="tg-bot-avatar">🤖</div>' +
+        '<div class="tg-bot-info">' +
+          '<div class="tg-bot-name">SmartPayBot</div>' +
+          '<div class="tg-chat-id"><span class="help">Chat ID:</span> <span class="code" style="font-size:.76rem">' + chatId + '</span></div>' +
+        '</div>' +
+        '<span class="tg-check-badge">&#10003;</span>' +
+      '</div>' +
+      '<p class="help" style="font-size:.83rem;line-height:1.55;margin:0 0 14px">' +
+        'Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.' +
       '</p>' +
-      '<p class="help" style="margin-bottom:14px">' +
-        'Você receberá alertas nesse chat assim que novas oportunidades forem encontradas.' +
-      '</p>' +
-      '<form method="post" action="/dashboard/unlink" style="margin-top:4px">' +
+      '<form method="post" action="/dashboard/unlink">' +
         '<input type="hidden" name="csrf_token" value="' + csrf + '">' +
-        '<button type="submit" class="btn ghost pill" style="font-size:.82rem"' +
+        '<button type="submit" class="btn ghost pill" style="font-size:.78rem;color:var(--muted)"' +
           ' onclick="return confirm(\'Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.\')">' +
           'Desvincular Telegram' +
         '</button>' +

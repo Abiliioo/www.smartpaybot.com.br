@@ -116,13 +116,10 @@ def _render_status_block(
     lines: list[str] = []
     lines.append("<b>📊 Status</b>")
 
-    meta_top: list[str] = []
     if category:
-        meta_top.append(f"Categoria: <b>{esc(category)}</b>")
+        lines.append(f"Categoria: <b>{esc(category)}</b>")
     if level:
-        meta_top.append(f"Nível: <b>{esc(level)}</b>")
-    if meta_top:
-        lines.append("• " + " • ".join(meta_top))
+        lines.append(f"Nível: <b>{esc(level)}</b>")
 
     ago = human_ago_from_minutes(age_min)
     if ago:
