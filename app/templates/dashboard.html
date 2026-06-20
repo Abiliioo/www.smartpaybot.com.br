@@ -9,6 +9,15 @@
     <h2 class="page-header__title">Dashboard</h2>
     <p class="page-header__sub">Projetos e alertas em tempo real</p>
   </div>
+  {% if plan %}
+    {% if plan.is_admin_plan %}
+      <span class="plan-badge plan-badge--admin">Admin</span>
+    {% elif plan.is_pro %}
+      <span class="plan-badge plan-badge--pro">PRO</span>
+    {% else %}
+      <span class="plan-badge">Gratuito</span>
+    {% endif %}
+  {% endif %}
 </div>
 
 <div class="grid">
@@ -21,25 +30,33 @@
 
       <div class="metrics-grid">
         <div class="metric-card metric-card--hero">
-          <div class="metric-icon">📅</div>
+          <div class="metric-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
           <div class="metric-label">Hoje</div>
           <div class="metric-val" id="count-today">0</div>
           <div class="metric-sub">projetos</div>
         </div>
         <div class="metric-card">
-          <div class="metric-icon">📆</div>
+          <div class="metric-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="16" x2="16" y2="16"/></svg>
+          </div>
           <div class="metric-label">Ontem</div>
           <div class="metric-val" id="count-yesterday">0</div>
           <div class="metric-sub">projetos</div>
         </div>
         <div class="metric-card">
-          <div class="metric-icon">📊</div>
+          <div class="metric-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+          </div>
           <div class="metric-label">7 dias</div>
           <div class="metric-val" id="count-week">0</div>
           <div class="metric-sub">projetos</div>
         </div>
         <div class="metric-card">
-          <div class="metric-icon">📁</div>
+          <div class="metric-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+          </div>
           <div class="metric-label">Total recebido</div>
           <div class="metric-val projects-count" id="count-total">{{ projects_count or 0 }}</div>
           <div class="metric-sub">projetos</div>
@@ -92,11 +109,10 @@
       {# Banner de excesso (downgrade Pro → Free) #}
       {% if plan and not plan.is_pro and not plan.is_admin_plan and plan.max_keywords > 0 and keywords|length > plan.max_keywords %}
         <div class="limit-banner" style="margin-bottom:14px">
-          <span style="color:#f97316; flex-shrink:0; margin-top:1px">⚠</span>
           <p>
             <strong>Você tem {{ keywords|length }} palavras-chave</strong> — o plano Gratuito permite {{ plan.max_keywords }}.
             As extras <strong>não serão monitoradas</strong> até remover o excedente
-            ou <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro">fazer upgrade para o Pro</a>.
+            ou <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+Pro">fazer upgrade para o Pro</a>.
           </p>
         </div>
       {% endif %}
@@ -108,7 +124,7 @@
         {{ form.hidden_tag() }}
         {{ form.keywords(class="input", id="keywords",
                          placeholder="Ex.: Excel, Python, WordPress — separados por vírgula",
-                         style="flex:1; min-width:180px") }}
+                         style="flex:1") }}
         {{ form.submit(class="btn primary pill", value="Adicionar") }}
       </form>
 
@@ -129,7 +145,7 @@
           <div class="progress-track">
             <div id="kw-bar"
                  class="progress-fill {% if kw_pct >= 100 %}progress-fill--danger{% elif kw_pct >= 67 %}progress-fill--warn{% endif %}"
-                 style="width:{{ kw_pct }}%"></div>
+                 data-pct="{{ kw_pct }}"></div>
           </div>
         </div>
       {% endif %}
@@ -181,10 +197,6 @@
           <div class="tg-bot-avatar">🤖</div>
           <div class="tg-bot-info">
             <div class="tg-bot-name">SmartPayBot</div>
-            <div class="tg-chat-id">
-              <span class="help">Chat ID:</span>
-              <span class="code" style="font-size:.76rem">{{ chat_id }}</span>
-            </div>
           </div>
           <span class="tg-check-badge">✓</span>
         </div>
@@ -266,27 +278,26 @@
         </div>
       {% endif %}
       </div>
-    </section>
-
-    {# ── Monitoramento ───────────────────────────────────────────────── #}
-    <section class="card">
-      <h3>Monitoramento</h3>
-      <div class="row" style="gap:14px; margin-bottom:10px">
-        <label class="switch" title="Ativar/pausar monitoramento de projetos">
+      {# ── Monitoramento (merged no card Telegram) ─────────────────────── #}
+      <div class="tg-monitoring-section">
+        <label class="switch" title="Ativar/pausar monitoramento">
           <input id="bot-toggle" type="checkbox"
                  {% if bot_running %}checked{% endif %}
                  {% if not is_linked %}disabled{% endif %}>
           <span class="slider"></span>
         </label>
-        <span id="bot-status" style="font-weight:600">
+        <div style="flex:1; min-width:0">
+          <div class="tg-monitoring-label">Monitoramento</div>
+          {% if not is_linked %}
+            <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Vincule seu Telegram para ativar.</p>
+          {% else %}
+            <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Alertas automáticos ativados.</p>
+          {% endif %}
+        </div>
+        <span id="bot-status" style="font-weight:600; font-size:.82rem">
           {{ 'Ativado' if bot_running else 'Parado' }}
         </span>
       </div>
-      {% if not is_linked %}
-        <p id="bot-link-hint" class="help">Vincule seu Telegram para ativar o monitoramento.</p>
-      {% else %}
-        <p id="bot-link-hint" class="help">Controle o recebimento automático de alertas.</p>
-      {% endif %}
     </section>
 
     {# ── Seu Plano ────────────────────────────────────────────────────── #}
@@ -312,7 +323,7 @@
 
       {% else %}
         <div style="margin-bottom:14px">
-          <span class="plan-badge plan-badge--free">Gratuito</span>
+          <span class="plan-badge">Gratuito</span>
         </div>
 
         {# Barra de alertas diários #}
@@ -331,22 +342,29 @@
           <div class="progress-track">
             <div id="al-bar"
                  class="progress-fill {% if al_pct >= 100 %}progress-fill--danger{% elif al_pct >= 67 %}progress-fill--warn{% else %}progress-fill--ok{% endif %}"
-                 style="width:{{ al_pct }}%"></div>
+                 data-pct="{{ al_pct }}"></div>
           </div>
           <div id="al-limit-banner" class="limit-banner"{% if al_used < al_max %} style="display:none"{% endif %}>
-            <span style="color:var(--danger); flex-shrink:0; margin-top:1px">&#9888;</span>
             <p>Limite de <strong>{{ al_max }} alertas</strong> atingido hoje.
                Novos projetos serão ignorados até amanhã.
-               <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro">Fazer upgrade para Pro →</a>
+               <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+Pro">Fazer upgrade para Pro →</a>
             </p>
           </div>
         </div>
 
-        <p class="help" style="font-size:.82rem; margin:0">
-          Quer alertas ilimitados?
-          <a href="mailto:joseiltonjass@hotmail.com?subject=Upgrade SmartPayBot Pro"
-             style="color:var(--brand)">Fale com a gente →</a>
-        </p>
+        <div class="upgrade-cta">
+          <div class="upgrade-cta__header">
+            <div>
+              <p class="upgrade-cta__title">SmartPayBot Pro</p>
+              <p class="upgrade-cta__sub">Keywords e alertas ilimitados</p>
+            </div>
+            <div class="upgrade-cta__price">R$&nbsp;47<span>/mês</span></div>
+          </div>
+          <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+Pro"
+             target="_blank" rel="noopener" class="upgrade-cta__btn">
+            Fazer upgrade para Pro →
+          </a>
+        </div>
       {% endif %}
     </section>
     {% endif %}
@@ -356,9 +374,42 @@
 {% endblock %}
 
 {% block scripts %}
+<template id="tg-linked-tpl">
+  <div class="tg-status-row">
+    <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
+    <span style="font-weight:600;color:var(--success);font-size:.88rem">Ativo</span>
+    <span class="help" style="margin-left:auto;font-size:.78rem">Monitorando</span>
+  </div>
+  <div class="tg-bot-card">
+    <div class="tg-bot-avatar">🤖</div>
+    <div class="tg-bot-info">
+      <div class="tg-bot-name">SmartPayBot</div>
+    </div>
+    <span class="tg-check-badge">&#10003;</span>
+  </div>
+  <p class="help" style="font-size:.83rem;line-height:1.55;margin:0 0 14px">
+    Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.
+  </p>
+  <form method="post" action="/dashboard/unlink">
+    <input type="hidden" name="csrf_token" data-csrf-placeholder>
+    <button type="submit" class="btn ghost pill"
+            style="font-size:.78rem;color:var(--muted)"
+            onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
+      Desvincular Telegram
+    </button>
+  </form>
+</template>
+
 <script>
 (function () {
   'use strict';
+
+  // ── Barras de progresso via data-pct (evita Jinja dentro de style="") ─
+  document.querySelectorAll('[data-pct]').forEach(function (el) {
+    var pct = Number(el.dataset.pct || 0);
+    var safe = Math.max(0, Math.min(100, pct));
+    el.style.width = safe + '%';
+  });
 
   // ── Botão copiar código ──────────────────────────────────────────────
   var copyBtn = document.getElementById('tg-copy-btn');
@@ -383,6 +434,19 @@
   if (!tgCard || tgCard.dataset.linked === 'true') return;
 
   var tgCardBody = document.getElementById('tg-card-body');
+
+  function swapToLinked() {
+    var csrf = '';
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) csrf = meta.getAttribute('content');
+    var tpl = document.getElementById('tg-linked-tpl');
+    var clone = tpl.content.cloneNode(true);
+    var csrfInput = clone.querySelector('[data-csrf-placeholder]');
+    if (csrfInput) csrfInput.value = csrf;
+    tgCardBody.innerHTML = '';
+    tgCardBody.appendChild(clone);
+  }
+
   var pollTimer = setInterval(function () {
     fetch('/dashboard/api/summary', {
       headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
@@ -392,47 +456,14 @@
       if (!data || !data.ok || !data.linked) return;
       clearInterval(pollTimer);
       tgCard.dataset.linked = 'true';
-      tgCardBody.innerHTML = buildLinkedHtml(data.chat_id || '');
-
+      swapToLinked();
       var toggle = document.getElementById('bot-toggle');
       if (toggle) toggle.removeAttribute('disabled');
       var hint = document.getElementById('bot-link-hint');
-      if (hint) hint.textContent = 'Controle o recebimento automático de alertas.';
+      if (hint) hint.textContent = 'Alertas automáticos ativados.';
     })
     .catch(function () { /* ignora erros de rede */ });
   }, 5000);
-
-  function buildLinkedHtml(chatId) {
-    var csrf = '';
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta) csrf = meta.getAttribute('content');
-
-    return (
-      '<div class="tg-status-row">' +
-        '<div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>' +
-        '<span style="font-weight:600;color:var(--success);font-size:.88rem">Ativo</span>' +
-        '<span class="help" style="margin-left:auto;font-size:.78rem">Monitorando</span>' +
-      '</div>' +
-      '<div class="tg-bot-card">' +
-        '<div class="tg-bot-avatar">🤖</div>' +
-        '<div class="tg-bot-info">' +
-          '<div class="tg-bot-name">SmartPayBot</div>' +
-          '<div class="tg-chat-id"><span class="help">Chat ID:</span> <span class="code" style="font-size:.76rem">' + chatId + '</span></div>' +
-        '</div>' +
-        '<span class="tg-check-badge">&#10003;</span>' +
-      '</div>' +
-      '<p class="help" style="font-size:.83rem;line-height:1.55;margin:0 0 14px">' +
-        'Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.' +
-      '</p>' +
-      '<form method="post" action="/dashboard/unlink">' +
-        '<input type="hidden" name="csrf_token" value="' + csrf + '">' +
-        '<button type="submit" class="btn ghost pill" style="font-size:.78rem;color:var(--muted)"' +
-          ' onclick="return confirm(\'Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.\')">' +
-          'Desvincular Telegram' +
-        '</button>' +
-      '</form>'
-    );
-  }
 }());
 </script>
 {% endblock %}

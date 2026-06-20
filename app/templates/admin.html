@@ -13,7 +13,7 @@
 
 <section class="card">
   <h3>Usuários</h3>
-  <div style="overflow-x:auto; margin-top:4px">
+  <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
@@ -41,11 +41,11 @@
           <td style="color:var(--muted); font-size:.85rem">{{ row.user.email }}</td>
           <td class="td-center">
             {% if row.user.is_admin %}
-              <span class="plan-badge plan-badge--admin" style="font-size:.75rem; padding:3px 10px">⚙ Admin</span>
+              <span class="plan-badge plan-badge--admin">Admin</span>
             {% elif row.plan_slug == 'pro' %}
-              <span class="plan-badge plan-badge--pro" style="font-size:.75rem; padding:3px 10px">PRO</span>
+              <span class="plan-badge plan-badge--pro">PRO</span>
             {% else %}
-              <span class="plan-badge plan-badge--free" style="font-size:.75rem; padding:3px 10px">Free</span>
+              <span class="plan-badge">Free</span>
             {% endif %}
           </td>
           <td class="td-center">{{ row.kw_count }}</td>
