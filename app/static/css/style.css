@@ -833,6 +833,8 @@ input[type="text"], input[type="email"], input[type="password"]{
   .container { padding: 0 12px }
   .card { padding: 14px; border-radius: 16px }
   .nav-link { font-size: .76rem; padding: 4px 6px }
+  .user-area .btn { display: none }
+  .nav-sep { display: none }
   .metric-card--hero .metric-val { font-size: 2rem }
   .metric-card .metric-val { font-size: 1.55rem }
   .upgrade-cta { padding: 12px }
