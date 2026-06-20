@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}SmartPayBot Pro — Monitore sem limite{% endblock %}
+
+{% block content %}
+
+{# ═══════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════ #}
+<section style="padding:56px 0 40px; text-align:center; position:relative; overflow:hidden">
+
+  <div style="position:absolute;inset:0;pointer-events:none;z-index:0;
+              background:radial-gradient(ellipse 700px 300px at 50% 0%,
+                rgba(59,130,246,.13) 0%, transparent 70%)"></div>
+
+  <div style="position:relative;z-index:1">
+
+    <span style="display:inline-block;background:rgba(251,191,36,.1);
+                 border:1px solid rgba(251,191,36,.3);color:#fbbf24;
+                 border-radius:999px;padding:5px 18px;
+                 font-size:.78rem;font-weight:700;letter-spacing:.5px;margin-bottom:24px">
+      ⭐ SmartPayBot PRO
+    </span>
+
+    <h1 style="font-size:clamp(1.65rem,4.5vw,2.75rem);font-weight:900;line-height:1.15;
+               max-width:600px;margin:0 auto 18px">
+      Monitore todas as suas especialidades.<br>
+      <span style="color:var(--brand)">Sem corte. Sem limite.</span>
+    </h1>
+
+    <p style="font-size:clamp(.95rem,2.5vw,1.08rem);color:var(--muted);
+              max-width:480px;margin:0 auto;line-height:1.68">
+      O plano Gratuito te dá 3 keywords e 10 alertas por dia.
+      O Pro remove todos os limites — e você para de escolher
+      quais oportunidades quer perder.
+    </p>
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   DOR: LIMITES DO FREE
+═══════════════════════════════════════════════════════ #}
+<section style="padding:24px 0 32px">
+  <div class="card" style="margin:0;background:rgba(239,68,68,.05);
+                            border-color:rgba(239,68,68,.18);text-align:center">
+
+    <p style="color:var(--muted);font-size:.76rem;text-transform:uppercase;
+              letter-spacing:1.2px;font-weight:700;margin-bottom:16px">
+      Com o plano Gratuito você está limitado a
+    </p>
+
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:14px">
+      <span style="display:inline-flex;align-items:center;gap:7px;
+                   background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+                   color:#f87171;border-radius:999px;padding:7px 18px;
+                   font-size:.9rem;font-weight:600">
+        ✕ Apenas 3 keywords
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:7px;
+                   background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+                   color:#f87171;border-radius:999px;padding:7px 18px;
+                   font-size:.9rem;font-weight:600">
+        ✕ Máximo 10 alertas por dia
+      </span>
+    </div>
+
+    <p style="color:var(--muted);font-size:.88rem;line-height:1.6;
+              margin:0;max-width:460px;margin-left:auto;margin-right:auto">
+      Em dias cheios — segundas-feiras, início de mês — os 10 alertas
+      acabam antes do meio-dia. Os projetos publicados depois chegam
+      para seus concorrentes. Não para você.
+    </p>
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   BENEFÍCIOS DO PRO
+═══════════════════════════════════════════════════════ #}
+<section style="padding:36px 0">
+
+  <h2 style="text-align:center;margin-bottom:6px">O Pro desbloqueia</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:30px">
+    Três mudanças. Impacto imediato.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px">
+
+    <div class="card" style="margin:0">
+      <div style="width:44px;height:44px;border-radius:12px;
+                  background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);
+                  display:grid;place-items:center;margin-bottom:14px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+             fill="none" stroke="#60a5fa" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Keywords ilimitadas</h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Cadastre todas as suas especialidades sem precisar escolher.
+        Python, JavaScript, Excel, WordPress, design, redação —
+        todos chegam. Nenhum perdido.
+      </p>
+    </div>
+
+    <div class="card" style="margin:0">
+      <div style="width:44px;height:44px;border-radius:12px;
+                  background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.2);
+                  display:grid;place-items:center;margin-bottom:14px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+             fill="none" stroke="#4ade80" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Alertas ilimitados</h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Segundas-feiras e início de mês publicam dezenas de projetos.
+        No Gratuito você recebe 10 e para.
+        No Pro, todos chegam — não importa quantos.
+      </p>
+    </div>
+
+    <div class="card" style="margin:0">
+      <div style="width:44px;height:44px;border-radius:12px;
+                  background:rgba(251,191,36,.09);border:1px solid rgba(251,191,36,.2);
+                  display:grid;place-items:center;margin-bottom:14px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+             fill="none" stroke="#fbbf24" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Suporte prioritário</h3>
+      <p class="help" style="margin:0;line-height:1.55">
+        Acesso direto via WhatsApp. Resposta em até 30 minutos
+        em horário comercial (9h–18h, dias úteis).
+        Qualquer problema é resolvido pessoalmente.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   ROI CALLOUT
+═══════════════════════════════════════════════════════ #}
+<section style="padding:28px 0">
+  <div class="roi-box">
+    <div style="font-size:2rem;margin-bottom:12px">💡</div>
+    <p style="margin:0 0 8px;font-size:1.05rem;font-weight:700;
+              color:var(--ink);line-height:1.5">
+      Se você fechar um projeto de R$&nbsp;300 via bot,<br>
+      o Pro já se pagou por 6 meses.
+    </p>
+    <p style="margin:0;color:var(--muted);font-size:.88rem;line-height:1.5">
+      Ticket médio no 99Freelas: R$&nbsp;300 – R$&nbsp;2.000.
+      O Pro custa R$&nbsp;1,57 por dia.
+    </p>
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   COMO FUNCIONA O UPGRADE
+═══════════════════════════════════════════════════════ #}
+<section style="padding:40px 0">
+
+  <h2 style="text-align:center;margin-bottom:6px">Como funciona o upgrade</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:40px">
+    Três passos. Acesso em até 30 minutos.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+              gap:28px;max-width:680px;margin:0 auto">
+
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--brand);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.1rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(59,130,246,.15)">
+        1
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Clique no botão</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        O WhatsApp abre com a mensagem já preenchida. É só enviar.
+      </p>
+    </div>
+
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--brand);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.1rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(59,130,246,.15)">
+        2
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Combine o Pix</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        Você recebe os dados do Pix no WhatsApp. R$&nbsp;47,00 por mês.
+      </p>
+    </div>
+
+    <div style="text-align:center">
+      <div style="width:46px;height:46px;background:var(--success);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;font-size:1.2rem;color:#fff;margin:0 auto 14px;
+                  box-shadow:0 0 0 6px rgba(34,197,94,.15)">
+        ✓
+      </div>
+      <h3 style="font-size:.97rem;margin-bottom:8px">Acesso ativado</h3>
+      <p class="help" style="margin:0;line-height:1.5;font-size:.88rem">
+        Em até 30 minutos após a confirmação do pagamento.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   CTA PRINCIPAL — personalizado por estado do usuário
+═══════════════════════════════════════════════════════ #}
+<section style="padding:36px 0 48px">
+
+  {% if is_admin_user %}
+    {# Admin: sem CTA de compra #}
+    <div class="pro-support-msg">
+      <span class="plan-badge plan-badge--admin" style="margin-bottom:12px">⚙ Admin</span>
+      <p style="margin:8px 0 0;font-size:.9rem;color:var(--muted);line-height:1.55">
+        Você está no painel administrativo e tem acesso ilimitado sem cobrança.
+      </p>
+    </div>
+
+  {% elif is_subscriber %}
+    {# Pro ativo: mensagem de suporte, sem CTA agressivo #}
+    <div class="pro-support-msg">
+      <span class="plan-badge plan-badge--pro" style="margin-bottom:12px">⭐ PRO Ativo</span>
+      <p style="margin:8px 0 16px;font-weight:700;color:var(--ink)">
+        Você já tem o Pro ativo.
+      </p>
+      <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem;line-height:1.55">
+        Precisa de ajuda, tem alguma dúvida ou quer fazer algo no seu plano?
+        Fale direto via WhatsApp — resposta em até 30 minutos em horário comercial.
+      </p>
+      <a href="https://wa.me/5511994630432?text=Preciso+de+suporte+com+o+SmartPayBot+Pro"
+         target="_blank" rel="noopener"
+         class="btn ghost pill" style="font-size:.9rem">
+        Falar com suporte →
+      </a>
+    </div>
+
+  {% else %}
+    {# Visitante ou Free: CTA de compra completo #}
+    <div class="pro-cta-box">
+
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:.73rem;color:#93c5fd;text-transform:uppercase;
+                    letter-spacing:.9px;font-weight:700;margin-bottom:8px">
+          SmartPayBot Pro
+        </div>
+        <div style="font-size:3.2rem;font-weight:900;line-height:1;color:#fff">
+          R$&nbsp;47
+          <span style="font-size:1rem;font-weight:400;color:#93c5fd">/mês</span>
+        </div>
+      </div>
+
+      <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+SmartPayBot+Pro"
+         target="_blank" rel="noopener"
+         class="pro-cta-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+             viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+        Quero o Pro — R$&nbsp;47/mês
+      </a>
+
+      <p style="text-align:center;margin:14px 0 0;font-size:.8rem;color:#93c5fd;line-height:1.6">
+        Pagamento via Pix &nbsp;·&nbsp; Ativação em até 30 min &nbsp;·&nbsp; 7 dias de garantia
+      </p>
+
+      {% if not current_user.is_authenticated %}
+        <p style="text-align:center;margin:18px 0 0;font-size:.85rem;
+                  color:var(--muted);line-height:1.55">
+          Ainda sem conta?
+          <a href="{{ url_for('auth.register') }}" style="color:#60a5fa">
+            Crie grátis em segundos
+          </a>
+          e teste o plano Gratuito antes de decidir.
+        </p>
+      {% endif %}
+
+    </div>
+  {% endif %}
+
+</section>
+
+
+{# ═══════════════════════════════════════════════════════
+   FAQ
+═══════════════════════════════════════════════════════ #}
+<section style="padding:36px 0 60px;max-width:680px;margin:0 auto" id="pro-faq">
+
+  <h2 style="text-align:center;margin-bottom:6px">Dúvidas sobre o Pro</h2>
+  <p style="text-align:center;color:var(--muted);margin-bottom:28px">
+    Respostas diretas para as principais perguntas.
+  </p>
+
+  <div style="display:grid;gap:10px">
+
+    {% set faqs = [
+      (
+        "Preciso ter fechado um freela pelo bot antes de assinar?",
+        "Não — mas recomendamos usar o plano Gratuito por pelo menos uma semana antes. Quando você sentir os limites e ver os alertas chegando, o Pro faz todo o sentido. Não existe pressão para assinar antes de sentir o valor."
+      ),
+      (
+        "Como é feito o pagamento?",
+        "Via Pix. Ao clicar no botão acima, o WhatsApp abre com a mensagem já preenchida. Você recebe os dados do Pix direto no chat. Após o pagamento, o acesso é ativado manualmente em até 30 minutos."
+      ),
+      (
+        "E se eu não gostar ou o produto não funcionar para mim?",
+        "Reembolso integral em até 7 dias após a ativação, sem perguntas. Basta enviar uma mensagem no WhatsApp e o valor é devolvido via Pix."
+      ),
+      (
+        "Posso cancelar quando quiser?",
+        "Sim. Sem contrato mínimo, sem fidelidade. Para cancelar, mande uma mensagem no WhatsApp. O plano é revertido para o Gratuito no próximo ciclo, sem cobranças futuras."
+      ),
+      (
+        "O que é o suporte prioritário na prática?",
+        "Acesso direto via WhatsApp com resposta em até 30 minutos durante o horário comercial (9h–18h, dias úteis). Qualquer problema com o bot, alertas ou keywords é resolvido pessoalmente — sem abrir ticket, sem esperar fila."
+      ),
+    ] %}
+
+    {% for pergunta, resposta in faqs %}
+      <details class="card faq-item" style="margin:0;cursor:pointer"
+               {% if loop.first %}open{% endif %}>
+        <summary style="font-weight:600;list-style:none;display:flex;
+                        justify-content:space-between;align-items:center;
+                        cursor:pointer;user-select:none">
+          {{ pergunta }}
+          <span class="faq-icon" style="color:var(--muted);font-size:1.1rem;
+                                        flex-shrink:0;margin-left:12px;
+                                        transition:transform .2s">
+            {{ "−" if loop.first else "+" }}
+          </span>
+        </summary>
+        <p class="help" style="margin:12px 0 0;line-height:1.6">{{ resposta }}</p>
+      </details>
+    {% endfor %}
+
+  </div>
+</section>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  document.querySelectorAll('#pro-faq details.faq-item').forEach(function (el) {
+    var icon = el.querySelector('.faq-icon');
+    el.addEventListener('toggle', function () {
+      if (icon) icon.textContent = el.open ? '−' : '+';
+    });
+  });
+}());
+</script>
+{% endblock %}

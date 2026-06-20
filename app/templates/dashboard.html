@@ -112,7 +112,7 @@
           <p>
             <strong>Você tem {{ keywords|length }} palavras-chave</strong> — o plano Gratuito permite {{ plan.max_keywords }}.
             As extras <strong>não serão monitoradas</strong> até remover o excedente
-            ou <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+Pro">fazer upgrade para o Pro</a>.
+            ou <a href="{{ url_for('main.pro') }}">fazer upgrade para o Pro</a>.
           </p>
         </div>
       {% endif %}
@@ -347,7 +347,7 @@
           <div id="al-limit-banner" class="limit-banner"{% if al_used < al_max %} style="display:none"{% endif %}>
             <p>Limite de <strong>{{ al_max }} alertas</strong> atingido hoje.
                Novos projetos serão ignorados até amanhã.
-               <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+Pro">Fazer upgrade para Pro →</a>
+               <a href="{{ url_for('main.pro') }}">Fazer upgrade para Pro →</a>
             </p>
           </div>
         </div>
@@ -360,8 +360,8 @@
             </div>
             <div class="upgrade-cta__price">R$&nbsp;47<span>/mês</span></div>
           </div>
-          <a href="https://wa.me/5511994630432?text=Quero+fazer+upgrade+para+o+Pro"
-             target="_blank" rel="noopener" class="upgrade-cta__btn">
+          <a href="{{ url_for('main.pro') }}"
+             class="upgrade-cta__btn">
             Fazer upgrade para Pro →
           </a>
         </div>
