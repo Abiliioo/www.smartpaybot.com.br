@@ -318,18 +318,18 @@ def increment_alert_daily(db: Session, user_id: int) -> None:
 # Admin helpers
 # ---------------------------
 
-def list_users_with_plans(db: Session) -> List[Tuple[User, Optional[Plan]]]:
+def list_users_with_plans(db: Session) -> List[Tuple[User, Optional[Plan], Optional[Subscription]]]:
     """
-    Retorna (User, Plan|None) para todos os usuários.
-    Plan=None significa Free implícito (sem subscription).
+    Retorna (User, Plan|None, Subscription|None) para todos os usuários.
+    Plan=None significa Free implícito (sem subscription ativa).
     """
     rows = db.execute(
         select(User).order_by(User.id)
     ).scalars().all()
 
-    result: List[Tuple[User, Optional[Plan]]] = []
+    result: List[Tuple[User, Optional[Plan], Optional[Subscription]]] = []
     for user in rows:
         sub = get_subscription_by_user(db, user.id)
         plan = sub.plan if (sub and sub.status == "active") else None
-        result.append((user, plan))
+        result.append((user, plan, sub))
     return result

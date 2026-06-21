@@ -21,11 +21,12 @@
           <th>Usuário</th>
           <th>E-mail</th>
           <th class="th-center">Plano</th>
+          <th class="th-center">Cliente desde</th>
           <th class="th-center">Keywords</th>
           <th class="th-center">Alertas hoje</th>
           <th class="th-center">Total</th>
           <th class="th-center">Telegram</th>
-          <th>Alterar plano</th>
+          <th>Ação</th>
         </tr>
       </thead>
       <tbody>
@@ -48,6 +49,7 @@
               <span class="plan-badge">Free</span>
             {% endif %}
           </td>
+          <td class="td-center" style="font-size:.82rem;color:var(--muted);white-space:nowrap">{{ row.sub_created_at or '—' }}</td>
           <td class="td-center">{{ row.kw_count }}</td>
           <td class="td-center">{{ row.alerts_today }}</td>
           <td class="td-center" style="color:var(--muted)">{{ row.total_projects }}</td>
@@ -61,20 +63,22 @@
           <td>
             {% if row.user.is_admin %}
               <span class="help" style="font-size:.82rem">Administrador</span>
-            {% else %}
-              <form method="post" action="{{ url_for('admin.set_plan', user_id=row.user.id) }}"
-                    style="display:flex; gap:6px; align-items:center">
+            {% elif row.plan_slug == 'pro' %}
+              <form method="post" action="{{ url_for('admin.revoke_pro', user_id=row.user.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <select name="plan_slug" class="plan-select">
-                  {% for plan in plans %}
-                    <option value="{{ plan.slug }}" {% if plan.slug == row.plan_slug %}selected{% endif %}>
-                      {{ plan.name }}
-                    </option>
-                  {% endfor %}
-                </select>
+                <button type="submit" class="btn ghost pill"
+                        style="font-size:.82rem;padding:6px 14px;white-space:nowrap;color:var(--danger);border-color:rgba(239,68,68,.35)"
+                        onclick="return confirm('Voltar @{{ row.user.username }} para o plano gratuito?\nOs limites voltarão para o padrão Free.')">
+                  ↩ Voltar para Free
+                </button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('admin.activate_pro', user_id=row.user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn primary pill"
-                        style="padding:6px 14px; font-size:.83rem; white-space:nowrap">
-                  Salvar
+                        style="font-size:.82rem;padding:6px 14px;white-space:nowrap"
+                        onclick="return confirm('Ativar Pro para @{{ row.user.username }}?\nO acesso será liberado imediatamente.')">
+                  ⭐ Ativar Pro
                 </button>
               </form>
             {% endif %}
@@ -82,7 +86,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="9" style="padding:28px; text-align:center; color:var(--muted)">
+          <td colspan="10" style="padding:28px; text-align:center; color:var(--muted)">
             Nenhum usuário cadastrado.
           </td>
         </tr>
