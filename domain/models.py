@@ -36,6 +36,7 @@ class User(Base):
 
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_subscriber: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bot_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
 
     chat_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     telegram_link_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True, index=True)

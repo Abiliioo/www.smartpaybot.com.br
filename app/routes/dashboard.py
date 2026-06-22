@@ -85,7 +85,7 @@ def home():
 
     form = KeywordsForm()
     projects_count = len(projects)
-    bot_running = sched_is_running()
+    bot_running = bool(user.bot_active)
 
     with SessionLocal() as db:
         plan_info = get_plan_display(db, int(current_user.id))
@@ -373,6 +373,10 @@ def bot_toggle():
                 "error": "link_required",
                 "running": sched_is_running(),
             }), 400
+        # Persiste preferência de monitoramento por usuário no banco
+        user.bot_active = enabled
+        db.add(user)
+        db.commit()
 
     try:
         ok = sched_start() if enabled else sched_stop()
@@ -464,8 +468,11 @@ def api_keywords():
 @bp.get("/api/bot")
 @login_required
 def api_bot():
-    """Estado atual do scheduler (para sincronizar o switch/label no front)."""
-    return jsonify({"ok": True, "running": sched_is_running()})
+    """Estado de monitoramento do usuário (persistido no banco)."""
+    with SessionLocal() as db:
+        user = db.get(User, int(current_user.id))
+        bot_active = bool(user.bot_active) if user else False
+    return jsonify({"ok": True, "running": bot_active})
 
 
 @bp.get("/api/kpis")

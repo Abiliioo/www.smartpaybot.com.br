@@ -299,6 +299,15 @@ def notify_pending(max_batch: int = 100) -> int:
                 increment_notify_attempts(db, ppu)
                 continue
 
+            # Descarta alerta se o usuário desligou o monitoramento
+            if not getattr(ppu.user, "bot_active", True):
+                logger.info(
+                    "[notifier] user_id=%s monitoramento desligado — alerta descartado (não será reenviado).",
+                    ppu.user_id,
+                )
+                mark_project_notified(db, ppu)  # seta notified_at → sai da fila permanentemente
+                continue
+
             # Verifica limite diário do plano antes de enviar
             if not can_receive_alert_today(db, ppu.user_id):
                 logger.info(
