@@ -3,14 +3,18 @@ from __future__ import annotations
 
 import html as py_html
 import re
+from time import perf_counter
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Collection, Dict, Optional
 
 from infrastructure.logging import get_logger
 from infrastructure.db import SessionLocal
 from infrastructure.telegram import send_message
 from domain.repositories import (
-    get_unnotified_user_projects,
+    count_eligible_unnotified_user_projects,
+    count_pending_user_projects,
+    get_eligible_pending_user_ids,
+    get_eligible_unnotified_user_projects,
     mark_project_notified,
     increment_notify_attempts,
 )
@@ -284,59 +288,109 @@ def _build_message_for_project(ppu) -> str:
         return _render_rich_message(title=title, link=link, matched_kw=matched_kw, extra=extra)
     return _render_basic_message(title, matched_kw)
 
-def notify_pending(max_batch: int = 100) -> int:
+def _notify_pending_legacy(max_batch: int = 100) -> int:
+    return notify_pending(max_batch=max_batch)
+
+
+def notify_pending(
+    max_batch: int = 100,
+    max_per_user: int = 20,
+    only_user_id: Optional[int] = None,
+    only_project_ids: Optional[Collection[int]] = None,
+) -> int:
+    started = perf_counter()
     sent = 0
+    failed = 0
+    blocked_limit = 0
+    project_ids = list(dict.fromkeys(only_project_ids)) if only_project_ids is not None else None
+
     with SessionLocal() as db:
-        pendings = get_unnotified_user_projects(db, limit=max_batch)
-        if not pendings:
-            logger.info("[notifier] Sem pendências.")
+        pending_total = count_pending_user_projects(db)
+        eligible_total = count_eligible_unnotified_user_projects(
+            db,
+            max_attempts=MAX_ATTEMPTS,
+            only_user_id=only_user_id,
+            only_project_ids=project_ids,
+        )
+        if not eligible_total:
+            logger.info(
+                "[notifier] elegiveis=0 usuarios=0 enviados=0 falhos=0 "
+                "bloqueados_limite=0 pendentes_total=%s inelegiveis=%s duracao=%.2fs",
+                pending_total,
+                pending_total,
+                perf_counter() - started,
+            )
             return 0
 
-        for ppu in pendings:
-            chat_id = ppu.user.chat_id if ppu.user else None
-            if not chat_id:
-                logger.warning("[notifier] user_id=%s sem chat_id - ignorando.", ppu.user_id)
-                increment_notify_attempts(db, ppu)
-                continue
+        user_ids = get_eligible_pending_user_ids(
+            db,
+            max_attempts=MAX_ATTEMPTS,
+            limit=max_batch,
+            only_user_id=only_user_id,
+            only_project_ids=project_ids,
+        )
+        per_user_limit = max(1, min(max_per_user, max_batch))
+        remaining = max_batch
 
-            # Descarta alerta se o usuário desligou o monitoramento
-            if not getattr(ppu.user, "bot_active", True):
-                logger.info(
-                    "[notifier] user_id=%s monitoramento desligado — alerta descartado (não será reenviado).",
-                    ppu.user_id,
-                )
-                mark_project_notified(db, ppu)  # seta notified_at → sai da fila permanentemente
-                continue
+        for user_id in user_ids:
+            if remaining <= 0:
+                break
 
-            # Verifica limite diário do plano antes de enviar
-            if not can_receive_alert_today(db, ppu.user_id):
-                logger.info(
-                    "[notifier] user_id=%s atingiu limite diário de alertas do plano. "
-                    "Notificação adiada para amanhã.",
-                    ppu.user_id,
-                )
-                continue  # mantém pendente; será reprocessado no próximo ciclo/dia
-
-            text = _build_message_for_project(ppu)
-            ok = send_message(
-                chat_id=chat_id,
-                text=text,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-                reply_markup=_button_open(ppu.link),
+            pendings = get_eligible_unnotified_user_projects(
+                db,
+                user_id=user_id,
+                max_attempts=MAX_ATTEMPTS,
+                limit=min(per_user_limit, remaining),
+                only_project_ids=project_ids,
             )
 
-            if ok:
-                mark_project_notified(db, ppu)
-                increment_alert_count(db, ppu.user_id)
-                sent += 1
-            else:
-                increment_notify_attempts(db, ppu)
-                if ppu.notify_attempts >= MAX_ATTEMPTS:
-                    logger.error(
-                        "[notifier] Desistindo de user_project id=%s após %s tentativas.",
-                        ppu.id, ppu.notify_attempts
-                    )
+            for ppu in pendings:
+                # The query filters chat_id and bot_active before LIMIT. These
+                # guards keep the run robust if a user changes mid-cycle.
+                chat_id = ppu.user.chat_id if ppu.user else None
+                if not chat_id or not getattr(ppu.user, "bot_active", True):
+                    continue
 
-    logger.info("[notifier] enviadas=%s", sent)
+                if not can_receive_alert_today(db, ppu.user_id):
+                    blocked_limit += 1
+                    continue
+
+                text = _build_message_for_project(ppu)
+                ok = send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=_button_open(ppu.link),
+                )
+
+                if ok:
+                    mark_project_notified(db, ppu)
+                    increment_alert_count(db, ppu.user_id)
+                    sent += 1
+                else:
+                    failed += 1
+                    increment_notify_attempts(db, ppu)
+                    if ppu.notify_attempts >= MAX_ATTEMPTS:
+                        logger.error(
+                            "[notifier] Desistindo de user_project id=%s apos %s tentativas.",
+                            ppu.id, ppu.notify_attempts
+                        )
+
+                remaining -= 1
+                if remaining <= 0:
+                    break
+
+    logger.info(
+        "[notifier] elegiveis=%s usuarios=%s enviados=%s falhos=%s "
+        "bloqueados_limite=%s pendentes_total=%s inelegiveis=%s duracao=%.2fs",
+        eligible_total,
+        len(user_ids),
+        sent,
+        failed,
+        blocked_limit,
+        pending_total,
+        max(0, pending_total - eligible_total),
+        perf_counter() - started,
+    )
     return sent

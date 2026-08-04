@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import select, func, and_, delete
 from sqlalchemy.exc import IntegrityError
@@ -168,13 +168,101 @@ def create_user_project_if_absent(
         db.rollback()
         return None  # outro processo inseriu primeiro
 
-def get_unnotified_user_projects(db: Session, limit: int = 100) -> List[ProjectPerUser]:
+def count_pending_user_projects(db: Session) -> int:
     stmt = (
-        select(ProjectPerUser)
+        select(func.count())
+        .select_from(ProjectPerUser)
         .where(ProjectPerUser.notified_at.is_(None))
-        .order_by(ProjectPerUser.created_at.asc())
+    )
+    return int(db.execute(stmt).scalar_one() or 0)
+
+def count_eligible_unnotified_user_projects(
+    db: Session,
+    *,
+    max_attempts: int,
+    only_user_id: Optional[int] = None,
+    only_project_ids: Optional[Collection[int]] = None,
+) -> int:
+    if only_project_ids is not None and not only_project_ids:
+        return 0
+
+    stmt = (
+        select(func.count())
+        .select_from(ProjectPerUser)
+        .join(User, ProjectPerUser.user_id == User.id)
+        .where(
+            ProjectPerUser.notified_at.is_(None),
+            ProjectPerUser.notify_attempts < max_attempts,
+            User.bot_active.is_(True),
+            User.chat_id.is_not(None),
+            func.trim(User.chat_id) != "",
+        )
+    )
+    if only_user_id is not None:
+        stmt = stmt.where(ProjectPerUser.user_id == only_user_id)
+    if only_project_ids is not None:
+        stmt = stmt.where(ProjectPerUser.id.in_(only_project_ids))
+    return int(db.execute(stmt).scalar_one() or 0)
+
+def get_eligible_pending_user_ids(
+    db: Session,
+    *,
+    max_attempts: int,
+    limit: int = 100,
+    only_user_id: Optional[int] = None,
+    only_project_ids: Optional[Collection[int]] = None,
+) -> List[int]:
+    if only_project_ids is not None and not only_project_ids:
+        return []
+
+    stmt = (
+        select(ProjectPerUser.user_id)
+        .join(User, ProjectPerUser.user_id == User.id)
+        .where(
+            ProjectPerUser.notified_at.is_(None),
+            ProjectPerUser.notify_attempts < max_attempts,
+            User.bot_active.is_(True),
+            User.chat_id.is_not(None),
+            func.trim(User.chat_id) != "",
+        )
+    )
+    if only_user_id is not None:
+        stmt = stmt.where(ProjectPerUser.user_id == only_user_id)
+    if only_project_ids is not None:
+        stmt = stmt.where(ProjectPerUser.id.in_(only_project_ids))
+
+    stmt = (
+        stmt.group_by(ProjectPerUser.user_id)
+        .order_by(func.min(ProjectPerUser.created_at).asc(), ProjectPerUser.user_id.asc())
         .limit(limit)
     )
+    return [int(row[0]) for row in db.execute(stmt).all()]
+
+def get_eligible_unnotified_user_projects(
+    db: Session,
+    *,
+    user_id: int,
+    max_attempts: int,
+    limit: int = 100,
+    only_project_ids: Optional[Collection[int]] = None,
+) -> List[ProjectPerUser]:
+    if only_project_ids is not None and not only_project_ids:
+        return []
+
+    stmt = (
+        select(ProjectPerUser)
+        .join(User, ProjectPerUser.user_id == User.id)
+        .where(ProjectPerUser.notified_at.is_(None))
+        .where(ProjectPerUser.user_id == user_id)
+        .where(ProjectPerUser.notify_attempts < max_attempts)
+        .where(User.bot_active.is_(True))
+        .where(User.chat_id.is_not(None))
+        .where(func.trim(User.chat_id) != "")
+    )
+    if only_project_ids is not None:
+        stmt = stmt.where(ProjectPerUser.id.in_(only_project_ids))
+
+    stmt = stmt.order_by(ProjectPerUser.created_at.asc()).limit(limit)
     return list(db.execute(stmt).scalars())
 
 def mark_project_notified(db: Session, ppu: ProjectPerUser) -> None:
