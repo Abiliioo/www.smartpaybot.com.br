@@ -1,0 +1,118 @@
+# Matcher de palavras-chave
+
+## Estado atual
+
+`domain/services/projects_service.py` implementa `match_users_for_title()`.
+
+Algoritmo atual:
+
+1. normaliza o titulo com `normalize_text()`;
+2. normaliza a keyword com `clean_keyword()`;
+3. considera match quando `nkw in nt`.
+
+Isso preserva lowercase e remocao de acentos, mas gera falso positivo por substring.
+
+## Bug confirmado
+
+Keyword: `excel`
+
+Resultado atual indevido:
+
+- `excelente oportunidade` casa com `excel`.
+
+Comportamento esperado:
+
+- `Planilha em Excel`: match.
+- `Excel/VBA`: match.
+- `Curso de Excel avancado`: match.
+- `Excelente profissional`: sem match.
+- `Trabalho excelente`: sem match.
+- `Excelencia no atendimento`: sem match.
+
+## Comportamento desejado
+
+- Matching case-insensitive.
+- Equivalencia sem acentos.
+- Palavra completa.
+- Frase composta.
+- Pontuacao como separador.
+- Hifen e barra tratados conscientemente.
+- Espacos multiplos normalizados.
+- Termos curtos com regra explicita.
+
+## Alternativas
+
+### Alternativa A - Regex com limites lexicais
+
+Gerar padrao por keyword normalizada, escapando caracteres especiais e usando limites que considerem letras e numeros como corpo de palavra.
+
+Vantagens: simples, baixo impacto, facil de testar.
+
+Riscos: regras de Unicode e separadores precisam ser bem definidas.
+
+### Alternativa B - Tokenizacao
+
+Tokenizar titulo e keyword em termos, comparar sequencias de tokens.
+
+Vantagens: comportamento claro para frases e separadores.
+
+Riscos: mais codigo e decisoes para hifen, barra e termos como `c#`.
+
+### Alternativa C - Estrategia hibrida
+
+Normalizar, tokenizar e usar regex apenas para casos especificos.
+
+Vantagens: flexivel.
+
+Riscos: pode ficar dificil de manter cedo demais.
+
+## Recomendacao
+
+Comecar com tokenizacao simples ou regex lexical bem testada, sem dependencia externa. A primeira entrega deve focar em corrigir falsos positivos conhecidos e proteger termos curtos.
+
+## Matriz de casos
+
+| keyword | texto | esperado | justificativa |
+|---|---|---|---|
+| excel | Excel avancado | match | palavra completa |
+| excel | excelente | sem match | substring dentro de palavra |
+| excel | Excel-VBA | match | hifen como separador operacional |
+| mercado livre | Mercado Livre | match | frase exata normalizada |
+| mercado livre | Mercado-Livre | decisao pendente | decidir se hifen equivale a espaco em frases |
+| mercado livre | mercado livreiro | sem match | `livre` nao deve casar dentro de `livreiro` |
+| python | Python/Django | match | barra como separador |
+| python | pythonista | sem match | substring dentro de palavra |
+| ia | inteligencia artificial | decisao pendente | sigla curta pode exigir termo isolado ou sinonimos |
+| ia | secretaria | sem match | substring curta dentro de palavra |
+| api | API REST | match | sigla isolada |
+| api | capital | sem match | substring dentro de palavra |
+| ads | Google Ads | match | sigla/palavra curta isolada |
+| seo | SEO tecnico | match | sigla isolada |
+| vba | Excel/VBA | match | sigla apos separador |
+
+## Observabilidade futura
+
+Registrar, sem dados sensiveis:
+
+- keyword normalizada;
+- regra usada;
+- projeto global;
+- usuario;
+- resultado de match;
+- motivo de descarte em casos ambiguios.
+
+## Testes
+
+Criar testes unitarios para:
+
+- `normalize_text()`;
+- `clean_keyword()`;
+- `match_users_for_title()`;
+- termos curtos;
+- frases;
+- pontuacao;
+- hifen;
+- barra;
+- acentos;
+- espacos multiplos;
+- regressao `excel`/`excelente`.
