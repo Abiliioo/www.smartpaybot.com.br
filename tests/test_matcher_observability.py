@@ -47,19 +47,14 @@ class MatcherObservabilityTest(unittest.TestCase):
         ), patch.object(
             matcher, "iter_new_global_projects_since", return_value=projects
         ), patch.object(
-            matcher,
-            "fanout_project_to_users",
-            side_effect=[r.created for r in results],
-            create=True,
-        ) as legacy_fanout, patch.object(
             matcher, "fanout_project_to_users_result", side_effect=results, create=True
         ) as stats_fanout, self.assertLogs("workers.matcher", level="INFO") as logs:
             created = matcher.match_recent_projects()
 
-        return created, " ".join(logs.output), legacy_fanout, stats_fanout
+        return created, " ".join(logs.output), stats_fanout
 
     def test_cycle_without_users_or_keywords_logs_zero_summary(self) -> None:
-        created, log_text, _legacy, stats_fanout = self._run_cycle(
+        created, log_text, stats_fanout = self._run_cycle(
             users_keywords={},
             projects=[],
             results=[],
@@ -76,7 +71,7 @@ class MatcherObservabilityTest(unittest.TestCase):
         stats_fanout.assert_not_called()
 
     def test_cycle_with_projects_and_no_matches_logs_aggregate_counts(self) -> None:
-        created, log_text, _legacy, _stats = self._run_cycle(
+        created, log_text, _stats = self._run_cycle(
             users_keywords={1: ["excel"]},
             projects=[_Project("Projeto A"), _Project("Projeto B")],
             results=[_result(created=0, match_pairs=0), _result(created=0, match_pairs=0)],
@@ -91,7 +86,7 @@ class MatcherObservabilityTest(unittest.TestCase):
         self.assertIn("projections_created=0", log_text)
 
     def test_cycle_with_one_match_preserves_return_value(self) -> None:
-        created, log_text, _legacy, _stats = self._run_cycle(
+        created, log_text, _stats = self._run_cycle(
             users_keywords={1: ["excel"]},
             projects=[_Project("Planilha em Excel")],
             results=[_result(created=1, match_pairs=1)],
@@ -104,7 +99,7 @@ class MatcherObservabilityTest(unittest.TestCase):
         self.assertIn("projections_created=1", log_text)
 
     def test_cycle_counts_multiple_pairs_and_existing_projections(self) -> None:
-        created, log_text, _legacy, _stats = self._run_cycle(
+        created, log_text, _stats = self._run_cycle(
             users_keywords={1: ["excel", "vba"], 2: ["api"]},
             projects=[_Project("Excel VBA"), _Project("API REST")],
             results=[
@@ -123,17 +118,17 @@ class MatcherObservabilityTest(unittest.TestCase):
         self.assertIn("duplicates_or_existing=1", log_text)
 
     def test_matcher_does_not_call_legacy_fanout_when_collecting_stats(self) -> None:
-        _created, _log_text, legacy_fanout, stats_fanout = self._run_cycle(
+        _created, _log_text, stats_fanout = self._run_cycle(
             users_keywords={1: ["excel"]},
             projects=[_Project("Excel"), _Project("Outro")],
             results=[_result(created=1, match_pairs=1), _result(created=0, match_pairs=0)],
         )
 
         self.assertEqual(stats_fanout.call_count, 2)
-        legacy_fanout.assert_not_called()
+        self.assertFalse(hasattr(matcher, "fanout_project_to_users"))
 
     def test_duration_is_present_and_non_negative(self) -> None:
-        _created, log_text, _legacy, _stats = self._run_cycle(
+        _created, log_text, _stats = self._run_cycle(
             users_keywords={1: ["excel"]},
             projects=[],
             results=[],
@@ -144,7 +139,7 @@ class MatcherObservabilityTest(unittest.TestCase):
         self.assertGreaterEqual(int(match.group(1)), 0)
 
     def test_summary_does_not_log_project_titles_keywords_or_user_data(self) -> None:
-        _created, log_text, _legacy, _stats = self._run_cycle(
+        _created, log_text, _stats = self._run_cycle(
             users_keywords={7: ["secretkeyword"]},
             projects=[_Project("Sensitive Project Title")],
             results=[_result(created=1, match_pairs=1)],
@@ -157,8 +152,38 @@ class MatcherObservabilityTest(unittest.TestCase):
 
 
 class FanoutProjectResultTest(unittest.TestCase):
+    def test_legacy_fanout_delegates_to_result_and_returns_created(self) -> None:
+        db = object()
+        project = SimpleNamespace(title="Planilha Excel", project_id=123)
+        users_keywords = {1: ["excel"]}
+        result = projects_service.FanoutProjectResult(
+            match_pairs=4,
+            created=3,
+            blocked_by_daily_limit=1,
+            duplicates_or_existing=0,
+        )
+
+        with patch.object(
+            projects_service,
+            "fanout_project_to_users_result",
+            return_value=result,
+        ) as aggregate_fanout:
+            created = projects_service.fanout_project_to_users(
+                db,
+                global_project=project,
+                users_keywords=users_keywords,
+            )
+
+        self.assertEqual(created, 3)
+        aggregate_fanout.assert_called_once_with(
+            db,
+            global_project=project,
+            users_keywords=users_keywords,
+        )
+
     def test_result_counts_created_blocked_and_existing_without_extra_logs(self) -> None:
         project = SimpleNamespace(title="Planilha Excel", project_id=123)
+        users_keywords = {1: ["excel"], 2: ["excel"], 3: ["excel"]}
 
         with self.assertNoLogs(
             "domain.services.projects_service", level="INFO"
@@ -166,7 +191,7 @@ class FanoutProjectResultTest(unittest.TestCase):
             projects_service,
             "match_users_for_title",
             return_value=[(1, "excel"), (2, "excel"), (3, "excel")],
-        ), patch.object(
+        ) as match_users, patch.object(
             projects_service,
             "can_receive_alert_today",
             side_effect=[True, False, True],
@@ -178,7 +203,7 @@ class FanoutProjectResultTest(unittest.TestCase):
             result = projects_service.fanout_project_to_users_result(
                 object(),
                 global_project=project,
-                users_keywords={1: ["excel"], 2: ["excel"], 3: ["excel"]},
+                users_keywords=users_keywords,
             )
 
         self.assertEqual(result.match_pairs, 3)
@@ -186,6 +211,7 @@ class FanoutProjectResultTest(unittest.TestCase):
         self.assertEqual(result.blocked_by_daily_limit, 1)
         self.assertEqual(result.duplicates_or_existing, 1)
         self.assertEqual(create_projection.call_count, 2)
+        match_users.assert_called_once_with(project.title, users_keywords)
 
 
 if __name__ == "__main__":

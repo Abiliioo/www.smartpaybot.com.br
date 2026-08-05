@@ -13,9 +13,6 @@ from ..repositories import (
 )
 from .keywords_service import clean_keyword, keyword_matches_text
 from .plan_service import can_receive_alert_today
-from infrastructure.logging import get_logger
-
-_logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -41,8 +38,8 @@ def upsert_global_project(
     client_reviews: Optional[int] = None,
 ):
     """
-    Upsert por project_id. Retorna (ProjectGlobal, created:bool, updated:bool).
-    Campos opcionais são repassados ao repositório e ignorados se None.
+    Upsert by project_id. Returns (ProjectGlobal, created: bool, updated: bool).
+    Optional fields are forwarded to the repository and ignored there when None.
     """
     return create_or_get_global_project(
         db,
@@ -64,8 +61,8 @@ def match_users_for_title(
     users_keywords: Dict[int, List[str]],
 ) -> List[Tuple[int, str]]:
     """
-    Para um título, retorna pares (user_id, matched_keyword) a notificar.
-    Matching lexical apos normalizacao/remocao de acentos.
+    For a title, return (user_id, matched_keyword) pairs to notify.
+    Matching is lexical after normalization/accent removal.
     """
     results: List[Tuple[int, str]] = []
 
@@ -76,7 +73,7 @@ def match_users_for_title(
                 continue
             if keyword_matches_text(nkw, title):
                 results.append((user_id, nkw))
-                # se quiser limitar a uma keyword por user, faça um break aqui
+                # Add a break here if the product later wants one keyword per user.
     return results
 
 
@@ -87,32 +84,14 @@ def fanout_project_to_users(
     users_keywords: Dict[int, List[str]],
 ) -> int:
     """
-    Dado um projeto global e o mapa {user_id: [keywords...]},
-    cria projeções em projects_per_user para cada user que casar.
-    Respeita UNIQUE(user_id, global_project_id).
-    Retorna o número de projeções criadas.
+    Create projects_per_user projections for users whose keywords match.
+    Preserves the legacy integer-returning API.
     """
-    title = global_project.title
-    pairs = match_users_for_title(title, users_keywords)
-
-    created = 0
-    for user_id, matched_kw in pairs:
-        if not can_receive_alert_today(db, user_id):
-            _logger.info(
-                "[matcher] limite diário atingido para user_id=%s — "
-                "projeto global_id=%s não enfileirado.",
-                user_id, global_project.project_id,
-            )
-            continue
-        ppu = create_user_project_if_absent(
-            db,
-            user_id=user_id,
-            global_project=global_project,
-            matched_keyword=matched_kw,
-        )
-        if ppu:
-            created += 1
-    return created
+    return fanout_project_to_users_result(
+        db,
+        global_project=global_project,
+        users_keywords=users_keywords,
+    ).created
 
 
 def fanout_project_to_users_result(
@@ -122,7 +101,7 @@ def fanout_project_to_users_result(
     users_keywords: Dict[int, List[str]],
 ) -> FanoutProjectResult:
     """
-    Cria projecoes e retorna contadores agregados do fanout do projeto.
+    Create projections and return aggregate counters for this project's fanout.
     """
     title = global_project.title
     pairs = match_users_for_title(title, users_keywords)

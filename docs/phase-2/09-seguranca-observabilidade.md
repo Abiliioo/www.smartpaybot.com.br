@@ -56,6 +56,14 @@ Campos registrados:
 - `duplicates_or_existing`;
 - `duration_ms`.
 
+Semantica dos principais contadores:
+
+- `projects_with_matches` conta projetos com ao menos um par lexical;
+- `match_pairs_total` conta pares usuario/keyword encontrados;
+- `projections_created` conta registros efetivamente criados;
+- `blocked_by_daily_limit` conta pares bloqueados pelo limite diario;
+- `duplicates_or_existing` conta pares que nao criaram nova projecao por ja existir ou por concorrencia.
+
 O resumo nao deve incluir titulo, link, keyword, texto de projeto, email, username, token ou identificador de usuario.
 
 ## Observabilidade proposta
