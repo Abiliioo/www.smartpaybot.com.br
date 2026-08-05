@@ -1,14 +1,44 @@
 # domain/repositories.py
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from math import ceil
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple
 
-from sqlalchemy import select, func, and_, delete
+from sqlalchemy import select, func, and_, delete, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .models import Plan, Subscription, User, UserAlertDaily, UserKeyword, ProjectGlobal, ProjectPerUser
+
+
+ADMIN_USERS_PAGE_SIZE = 20
+
+
+@dataclass(frozen=True)
+class AdminUserListItem:
+    user: User
+    plan_slug: str
+    plan_name: str
+    kw_count: int
+    alerts_today: int
+    total_projects: int
+    sub_created_at: Optional[datetime]
+    telegram_linked: bool
+    monitoring_active: bool
+    is_admin: bool
+
+
+@dataclass(frozen=True)
+class AdminUserListPage:
+    items: List[AdminUserListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_prev: bool
+    has_next: bool
 
 
 # ---------------------------
@@ -421,3 +451,151 @@ def list_users_with_plans(db: Session) -> List[Tuple[User, Optional[Plan], Optio
         plan = sub.plan if (sub and sub.status == "active") else None
         result.append((user, plan, sub))
     return result
+
+
+def list_admin_users_paginated(
+    db: Session,
+    *,
+    q: str = "",
+    plan: str = "all",
+    monitoring: str = "all",
+    telegram: str = "all",
+    page: int = 1,
+    page_size: int = ADMIN_USERS_PAGE_SIZE,
+) -> AdminUserListPage:
+    normalized_q = (q or "").strip()[:100]
+    plan = plan if plan in {"all", "free", "pro"} else "all"
+    monitoring = monitoring if monitoring in {"all", "active", "inactive"} else "all"
+    telegram = telegram if telegram in {"all", "linked", "unlinked"} else "all"
+    try:
+        page = int(page or 1)
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, page)
+    page_size = max(1, int(page_size or ADMIN_USERS_PAGE_SIZE))
+
+    active_subscriptions = (
+        select(
+            Subscription.user_id.label("user_id"),
+            Subscription.created_at.label("sub_created_at"),
+            Plan.slug.label("plan_slug"),
+            Plan.name.label("plan_name"),
+        )
+        .join(Plan, Subscription.plan_id == Plan.id)
+        .where(Subscription.status == "active")
+        .subquery()
+    )
+    keyword_counts = (
+        select(
+            UserKeyword.user_id.label("user_id"),
+            func.count(UserKeyword.id).label("kw_count"),
+        )
+        .group_by(UserKeyword.user_id)
+        .subquery()
+    )
+    project_counts = (
+        select(
+            ProjectPerUser.user_id.label("user_id"),
+            func.count(ProjectPerUser.id).label("total_projects"),
+        )
+        .group_by(ProjectPerUser.user_id)
+        .subquery()
+    )
+    today_alert_counts = (
+        select(
+            UserAlertDaily.user_id.label("user_id"),
+            func.sum(UserAlertDaily.alerts_sent).label("alerts_today"),
+        )
+        .where(UserAlertDaily.date == date.today())
+        .group_by(UserAlertDaily.user_id)
+        .subquery()
+    )
+
+    def apply_filters(stmt):
+        if normalized_q:
+            like_q = f"%{normalized_q.lower()}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(User.username).like(like_q),
+                    func.lower(User.email).like(like_q),
+                )
+            )
+        if plan == "pro":
+            stmt = stmt.where(active_subscriptions.c.plan_slug == "pro")
+        elif plan == "free":
+            stmt = stmt.where(
+                or_(
+                    active_subscriptions.c.plan_slug.is_(None),
+                    active_subscriptions.c.plan_slug != "pro",
+                )
+            )
+        if monitoring == "active":
+            stmt = stmt.where(User.bot_active.is_(True))
+        elif monitoring == "inactive":
+            stmt = stmt.where(User.bot_active.is_(False))
+        if telegram == "linked":
+            stmt = stmt.where(User.chat_id.is_not(None), func.trim(User.chat_id) != "")
+        elif telegram == "unlinked":
+            stmt = stmt.where(or_(User.chat_id.is_(None), func.trim(User.chat_id) == ""))
+        return stmt
+
+    base_from = (
+        select(User.id)
+        .outerjoin(active_subscriptions, active_subscriptions.c.user_id == User.id)
+    )
+    total_stmt = select(func.count()).select_from(apply_filters(base_from).subquery())
+    total = int(db.execute(total_stmt).scalar_one() or 0)
+    total_pages = max(1, ceil(total / page_size)) if total else 1
+    page = min(page, total_pages)
+    offset = (page - 1) * page_size
+
+    rows_stmt = (
+        select(
+            User,
+            active_subscriptions.c.plan_slug,
+            active_subscriptions.c.plan_name,
+            active_subscriptions.c.sub_created_at,
+            func.coalesce(keyword_counts.c.kw_count, 0).label("kw_count"),
+            func.coalesce(today_alert_counts.c.alerts_today, 0).label("alerts_today"),
+            func.coalesce(project_counts.c.total_projects, 0).label("total_projects"),
+        )
+        .outerjoin(active_subscriptions, active_subscriptions.c.user_id == User.id)
+        .outerjoin(keyword_counts, keyword_counts.c.user_id == User.id)
+        .outerjoin(today_alert_counts, today_alert_counts.c.user_id == User.id)
+        .outerjoin(project_counts, project_counts.c.user_id == User.id)
+    )
+    rows_stmt = (
+        apply_filters(rows_stmt)
+        .order_by(User.id.asc())
+        .offset(offset)
+        .limit(page_size)
+    )
+
+    items: List[AdminUserListItem] = []
+    for user, plan_slug, plan_name, sub_created_at, kw_count, alerts_today, total_projects in db.execute(rows_stmt).all():
+        effective_slug = plan_slug or "free"
+        effective_name = plan_name or "Gratuito"
+        items.append(
+            AdminUserListItem(
+                user=user,
+                plan_slug=effective_slug,
+                plan_name=effective_name,
+                kw_count=int(kw_count or 0),
+                alerts_today=int(alerts_today or 0),
+                total_projects=int(total_projects or 0),
+                sub_created_at=sub_created_at,
+                telegram_linked=bool(user.chat_id and user.chat_id.strip()),
+                monitoring_active=bool(user.bot_active),
+                is_admin=bool(user.is_admin),
+            )
+        )
+
+    return AdminUserListPage(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        has_prev=page > 1,
+        has_next=page < total_pages,
+    )

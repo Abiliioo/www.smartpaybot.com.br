@@ -575,6 +575,64 @@ input[type="text"], input[type="email"], input[type="password"]{
 .page-header__title { font-size: 1.5rem; font-weight: 800; margin: 0 0 2px; line-height: 1.15 }
 .page-header__sub   { color: var(--muted); font-size: .86rem; margin: 0 }
 
+.admin-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, .8fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+.admin-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.admin-filter-field .input { width: 100%; min-height: 42px }
+.admin-filter-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.admin-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.status-badge--ok {
+  color: #86efac;
+  border-color: rgba(34,197,94,.3);
+  background: rgba(34,197,94,.08);
+}
+.status-badge--muted {
+  color: var(--muted);
+  background: #0e1628;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.pagination .is-disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+
 /* Tabela admin */
 .admin-table { width: 100%; border-collapse: collapse; font-size: .88rem }
 .admin-table thead th {
@@ -793,6 +851,8 @@ input[type="text"], input[type="email"], input[type="password"]{
 }
 
 @media (max-width: 900px) {
+  .admin-filters { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .admin-filter-actions { grid-column: 1 / -1 }
   .admin-table { font-size: .83rem }
   .admin-table thead th,
   .admin-table tbody td { padding: 8px }
@@ -814,6 +874,9 @@ input[type="text"], input[type="email"], input[type="password"]{
   .form-inline .input,
   .form-inline input { width: 100% }
   .form-inline .btn { width: 100%; text-align: center }
+  .admin-filters { grid-template-columns: 1fr }
+  .admin-filter-actions { align-items: stretch }
+  .admin-filter-actions .btn { flex: 1; text-align: center }
   .metrics-grid { grid-template-columns: 1fr 1fr }
   .metric-card--hero { grid-column: 1 / -1 }
   .metric-card--hero .metric-val { font-size: 2.2rem }

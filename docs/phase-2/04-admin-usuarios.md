@@ -4,9 +4,18 @@
 
 O Admin atual fica em `/admin/`, protegido por `login_required` e `admin_required`.
 
+Status SPB-210: Implementado localmente, aguardando revisao e deploy.
+
 Capacidades atuais confirmadas:
 
 - listar usuarios;
+- buscar por username ou email;
+- filtrar por plano efetivo;
+- filtrar por monitoramento;
+- filtrar por Telegram vinculado;
+- combinar filtros por query string;
+- paginar a listagem;
+- exibir total filtrado;
 - exibir email;
 - exibir plano;
 - exibir data de subscription;
@@ -18,13 +27,42 @@ Capacidades atuais confirmadas:
 - voltar para Free;
 - alterar plano por rota.
 
+## Listagem SPB-210
+
+`GET /admin/` aceita os parametros:
+
+- `q`: busca opcional por username ou email, case-insensitive, limitada a 100 caracteres;
+- `plan`: `all`, `free` ou `pro`;
+- `monitoring`: `all`, `active` ou `inactive`;
+- `telegram`: `all`, `linked` ou `unlinked`;
+- `page`: pagina atual, com fallback seguro para `1`.
+
+`monitoring` representa somente o status do monitoramento (`users.bot_active`). Ele nao representa conta ativa/inativa.
+
+`plan` considera o plano efetivo da assinatura ativa:
+
+- assinatura ativa Pro: `pro`;
+- assinatura ativa Free ou ausencia de assinatura ativa: `free`;
+- assinatura cancelada ou inativa: Free implicito.
+
+Administradores continuam aparecendo na listagem. O badge visual `Admin` tem precedencia na interface, mas o filtro por plano usa a assinatura efetiva.
+
+A paginacao usa tamanho fixo de 20 usuarios por pagina e nao aceita `page_size` enviado pelo usuario.
+
+## Protecao de PII
+
+A listagem nao exibe telefone, `chat_id`, `password_hash`, tokens ou codigos de vinculacao. O filtro por Telegram mostra apenas o estado vinculado/nao vinculado.
+
+As buscas usam SQLAlchemy com parametros e nao registram termos pesquisados em logs.
+
+## Fora de escopo do SPB-210
+
+Conta ativa/inativa ainda nao existe como campo separado. O SPB-212 continua responsavel por desativacao de conta.
+
 ## Lacunas
 
-- busca por nome, username e email;
-- filtros por plano, status e Telegram;
 - pagina de detalhes;
 - ultimo acesso;
-- status de monitoramento;
 - alertas pendentes e falhos;
 - atividade recente;
 - ativar/desativar conta;

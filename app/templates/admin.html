@@ -1,32 +1,84 @@
 {% extends "base.html" %}
-{% block title %}Admin — SmartPayBot{% endblock %}
+{% block title %}Admin - SmartPayBot{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
   <div>
     <h2 class="page-header__title">Painel Admin</h2>
-    <p class="page-header__sub">Gerenciamento de usuários e planos · {{ rows|length }} usuário{{ 's' if rows|length != 1 }}</p>
+    <p class="page-header__sub">
+      Gerenciamento de usuarios e planos -
+      {{ users_page.total }} resultado{{ 's' if users_page.total != 1 }} filtrado{{ 's' if users_page.total != 1 }}
+      ({{ rows|length }} nesta pagina)
+    </p>
   </div>
-  <a class="btn ghost pill" href="{{ url_for('dashboard.home') }}">← Dashboard</a>
+  <a class="btn ghost pill" href="{{ url_for('dashboard.home') }}">Dashboard</a>
 </div>
 
 <section class="card">
-  <h3>Usuários</h3>
+  <h3>Filtros</h3>
+  <form method="get" class="admin-filters" action="{{ url_for('admin.index') }}">
+    <label class="admin-filter-field">
+      <span>Busca</span>
+      <input class="input" type="text" name="q" value="{{ filters.q }}" maxlength="100"
+             placeholder="Username ou e-mail">
+    </label>
+
+    <label class="admin-filter-field">
+      <span>Plano</span>
+      <select class="input" name="plan">
+        <option value="all" {% if filters.plan == 'all' %}selected{% endif %}>Todos</option>
+        <option value="free" {% if filters.plan == 'free' %}selected{% endif %}>Free</option>
+        <option value="pro" {% if filters.plan == 'pro' %}selected{% endif %}>Pro</option>
+      </select>
+    </label>
+
+    <label class="admin-filter-field">
+      <span>Monitoramento</span>
+      <select class="input" name="monitoring">
+        <option value="all" {% if filters.monitoring == 'all' %}selected{% endif %}>Todos</option>
+        <option value="active" {% if filters.monitoring == 'active' %}selected{% endif %}>Ativo</option>
+        <option value="inactive" {% if filters.monitoring == 'inactive' %}selected{% endif %}>Inativo</option>
+      </select>
+    </label>
+
+    <label class="admin-filter-field">
+      <span>Telegram</span>
+      <select class="input" name="telegram">
+        <option value="all" {% if filters.telegram == 'all' %}selected{% endif %}>Todos</option>
+        <option value="linked" {% if filters.telegram == 'linked' %}selected{% endif %}>Vinculado</option>
+        <option value="unlinked" {% if filters.telegram == 'unlinked' %}selected{% endif %}>Nao vinculado</option>
+      </select>
+    </label>
+
+    <div class="admin-filter-actions">
+      <button type="submit" class="btn primary pill">Filtrar</button>
+      <a class="btn ghost pill" href="{{ url_for('admin.index') }}">Limpar filtros</a>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="admin-section-head">
+    <h3>Usuarios</h3>
+    <span class="help">Pagina {{ users_page.page }} de {{ users_page.total_pages }}</span>
+  </div>
+
   <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
           <th>#</th>
-          <th>Usuário</th>
+          <th>Usuario</th>
           <th>E-mail</th>
           <th class="th-center">Plano</th>
           <th class="th-center">Cliente desde</th>
+          <th class="th-center">Monitoramento</th>
           <th class="th-center">Keywords</th>
           <th class="th-center">Alertas hoje</th>
           <th class="th-center">Total</th>
           <th class="th-center">Telegram</th>
-          <th>Ação</th>
+          <th>Acao</th>
         </tr>
       </thead>
       <tbody>
@@ -35,13 +87,13 @@
           <td style="color:var(--muted); font-size:.82rem">{{ row.user.id }}</td>
           <td>
             <span style="font-weight:600">{{ row.user.username }}</span>
-            {% if row.user.is_admin %}
+            {% if row.is_admin %}
               <span class="user-badge--admin">admin</span>
             {% endif %}
           </td>
           <td style="color:var(--muted); font-size:.85rem">{{ row.user.email }}</td>
           <td class="td-center">
-            {% if row.user.is_admin %}
+            {% if row.is_admin %}
               <span class="plan-badge plan-badge--admin">Admin</span>
             {% elif row.plan_slug == 'pro' %}
               <span class="plan-badge plan-badge--pro">PRO</span>
@@ -49,36 +101,55 @@
               <span class="plan-badge">Free</span>
             {% endif %}
           </td>
-          <td class="td-center" style="font-size:.82rem;color:var(--muted);white-space:nowrap">{{ row.sub_created_at or '—' }}</td>
-          <td class="td-center">{{ row.kw_count }}</td>
-          <td class="td-center">{{ row.alerts_today }}</td>
-          <td class="td-center" style="color:var(--muted)">{{ row.total_projects }}</td>
+          <td class="td-center" style="font-size:.82rem;color:var(--muted);white-space:nowrap">
+            {{ row.sub_created_at.strftime("%d/%m/%Y") if row.sub_created_at else '-' }}
+          </td>
           <td class="td-center">
-            {% if row.user.chat_id %}
-              <span style="color:var(--success); font-size:1.05rem">✓</span>
+            {% if row.monitoring_active %}
+              <span class="status-badge status-badge--ok">Ativo</span>
             {% else %}
-              <span style="color:var(--muted)">—</span>
+              <span class="status-badge status-badge--muted">Inativo</span>
+            {% endif %}
+          </td>
+          <td class="td-center" data-testid="keywords-count">{{ row.kw_count }}</td>
+          <td class="td-center" data-testid="alerts-today">{{ row.alerts_today }}</td>
+          <td class="td-center" data-testid="total-projects" style="color:var(--muted)">{{ row.total_projects }}</td>
+          <td class="td-center">
+            {% if row.telegram_linked %}
+              <span class="status-badge status-badge--ok">Vinculado</span>
+            {% else %}
+              <span class="status-badge status-badge--muted">Nao vinculado</span>
             {% endif %}
           </td>
           <td>
-            {% if row.user.is_admin %}
+            {% if row.is_admin %}
               <span class="help" style="font-size:.82rem">Administrador</span>
             {% elif row.plan_slug == 'pro' %}
               <form method="post" action="{{ url_for('admin.revoke_pro', user_id=row.user.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="q" value="{{ filters.q }}">
+                <input type="hidden" name="plan" value="{{ filters.plan }}">
+                <input type="hidden" name="monitoring" value="{{ filters.monitoring }}">
+                <input type="hidden" name="telegram" value="{{ filters.telegram }}">
+                <input type="hidden" name="page" value="{{ users_page.page }}">
                 <button type="submit" class="btn ghost pill"
                         style="font-size:.82rem;padding:6px 14px;white-space:nowrap;color:var(--danger);border-color:rgba(239,68,68,.35)"
-                        onclick="return confirm('Voltar @{{ row.user.username }} para o plano gratuito?\nOs limites voltarão para o padrão Free.')">
-                  ↩ Voltar para Free
+                        onclick="return confirm('Voltar @{{ row.user.username }} para o plano gratuito?\nOs limites voltarao para o padrao Free.')">
+                  Voltar para Free
                 </button>
               </form>
             {% else %}
               <form method="post" action="{{ url_for('admin.activate_pro', user_id=row.user.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="q" value="{{ filters.q }}">
+                <input type="hidden" name="plan" value="{{ filters.plan }}">
+                <input type="hidden" name="monitoring" value="{{ filters.monitoring }}">
+                <input type="hidden" name="telegram" value="{{ filters.telegram }}">
+                <input type="hidden" name="page" value="{{ users_page.page }}">
                 <button type="submit" class="btn primary pill"
                         style="font-size:.82rem;padding:6px 14px;white-space:nowrap"
-                        onclick="return confirm('Ativar Pro para @{{ row.user.username }}?\nO acesso será liberado imediatamente.')">
-                  ⭐ Ativar Pro
+                        onclick="return confirm('Ativar Pro para @{{ row.user.username }}?\nO acesso sera liberado imediatamente.')">
+                  Ativar Pro
                 </button>
               </form>
             {% endif %}
@@ -86,14 +157,41 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="10" style="padding:28px; text-align:center; color:var(--muted)">
-            Nenhum usuário cadastrado.
+          <td colspan="11" style="padding:28px; text-align:center; color:var(--muted)">
+            Nenhum usuario encontrado.
+            <div style="margin-top:12px">
+              <a class="btn ghost pill" href="{{ url_for('admin.index') }}">Limpar filtros</a>
+            </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  <nav class="pagination" aria-label="Paginacao de usuarios">
+    {% set prev_page = users_page.page - 1 %}
+    {% set next_page = users_page.page + 1 %}
+    {% if users_page.has_prev %}
+      <a class="btn ghost pill" href="{{ url_for('admin.index', q=filters.q, plan=filters.plan, monitoring=filters.monitoring, telegram=filters.telegram, page=prev_page) }}">Anterior</a>
+    {% else %}
+      <span class="btn ghost pill is-disabled">Anterior</span>
+    {% endif %}
+
+    {% for page_number in page_numbers %}
+      {% if page_number == users_page.page %}
+        <span class="btn primary pill" aria-current="page">{{ page_number }}</span>
+      {% else %}
+        <a class="btn ghost pill" href="{{ url_for('admin.index', q=filters.q, plan=filters.plan, monitoring=filters.monitoring, telegram=filters.telegram, page=page_number) }}">{{ page_number }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if users_page.has_next %}
+      <a class="btn ghost pill" href="{{ url_for('admin.index', q=filters.q, plan=filters.plan, monitoring=filters.monitoring, telegram=filters.telegram, page=next_page) }}">Proxima</a>
+    {% else %}
+      <span class="btn ghost pill is-disabled">Proxima</span>
+    {% endif %}
+  </nav>
 </section>
 
 <section class="card" style="margin-top:0">
@@ -105,7 +203,7 @@
       {%- elif plan.slug == 'admin' %} plan-card--admin
       {%- endif %}">
       <span class="plan-card__icon">
-        {%- if plan.slug == 'pro' %}⭐{%- elif plan.slug == 'free' %}🔓{%- else %}⚙{%- endif %}
+        {%- if plan.slug == 'pro' %}PRO{%- elif plan.slug == 'free' %}Free{%- else %}Admin{%- endif %}
       </span>
       <div class="plan-card__name">{{ plan.name }}</div>
       <div class="plan-card__row">
