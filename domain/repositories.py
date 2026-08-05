@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from math import ceil
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple
 
-from sqlalchemy import select, func, and_, delete, or_
+from sqlalchemy import select, func, and_, delete, or_, case
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,9 @@ ADMIN_USERS_PAGE_SIZE = 20
 
 @dataclass(frozen=True)
 class AdminUserListItem:
-    user: User
+    user_id: int
+    username: str
+    email: str
     plan_slug: str
     plan_name: str
     kw_count: int
@@ -39,6 +41,15 @@ class AdminUserListPage:
     total_pages: int
     has_prev: bool
     has_next: bool
+
+
+def _escape_like_value(value: str) -> str:
+    return (
+        value
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
 
 
 # ---------------------------
@@ -513,11 +524,11 @@ def list_admin_users_paginated(
 
     def apply_filters(stmt):
         if normalized_q:
-            like_q = f"%{normalized_q.lower()}%"
+            like_q = f"%{_escape_like_value(normalized_q.lower())}%"
             stmt = stmt.where(
                 or_(
-                    func.lower(User.username).like(like_q),
-                    func.lower(User.email).like(like_q),
+                    func.lower(User.username).like(like_q, escape="\\"),
+                    func.lower(User.email).like(like_q, escape="\\"),
                 )
             )
         if plan == "pro":
@@ -551,7 +562,18 @@ def list_admin_users_paginated(
 
     rows_stmt = (
         select(
-            User,
+            User.id.label("user_id"),
+            User.username.label("username"),
+            User.email.label("email"),
+            User.is_admin.label("is_admin"),
+            User.bot_active.label("monitoring_active"),
+            case(
+                (
+                    and_(User.chat_id.is_not(None), func.trim(User.chat_id) != ""),
+                    True,
+                ),
+                else_=False,
+            ).label("telegram_linked"),
             active_subscriptions.c.plan_slug,
             active_subscriptions.c.plan_name,
             active_subscriptions.c.sub_created_at,
@@ -572,21 +594,23 @@ def list_admin_users_paginated(
     )
 
     items: List[AdminUserListItem] = []
-    for user, plan_slug, plan_name, sub_created_at, kw_count, alerts_today, total_projects in db.execute(rows_stmt).all():
-        effective_slug = plan_slug or "free"
-        effective_name = plan_name or "Gratuito"
+    for row in db.execute(rows_stmt).all():
+        effective_slug = row.plan_slug or "free"
+        effective_name = row.plan_name or "Gratuito"
         items.append(
             AdminUserListItem(
-                user=user,
+                user_id=int(row.user_id),
+                username=row.username,
+                email=row.email,
                 plan_slug=effective_slug,
                 plan_name=effective_name,
-                kw_count=int(kw_count or 0),
-                alerts_today=int(alerts_today or 0),
-                total_projects=int(total_projects or 0),
-                sub_created_at=sub_created_at,
-                telegram_linked=bool(user.chat_id and user.chat_id.strip()),
-                monitoring_active=bool(user.bot_active),
-                is_admin=bool(user.is_admin),
+                kw_count=int(row.kw_count or 0),
+                alerts_today=int(row.alerts_today or 0),
+                total_projects=int(row.total_projects or 0),
+                sub_created_at=row.sub_created_at,
+                telegram_linked=bool(row.telegram_linked),
+                monitoring_active=bool(row.monitoring_active),
+                is_admin=bool(row.is_admin),
             )
         )
 

@@ -84,14 +84,14 @@
       <tbody>
         {% for row in rows %}
         <tr>
-          <td style="color:var(--muted); font-size:.82rem">{{ row.user.id }}</td>
+          <td style="color:var(--muted); font-size:.82rem">{{ row.user_id }}</td>
           <td>
-            <span style="font-weight:600">{{ row.user.username }}</span>
+            <span style="font-weight:600">{{ row.username }}</span>
             {% if row.is_admin %}
               <span class="user-badge--admin">admin</span>
             {% endif %}
           </td>
-          <td style="color:var(--muted); font-size:.85rem">{{ row.user.email }}</td>
+          <td style="color:var(--muted); font-size:.85rem">{{ row.email }}</td>
           <td class="td-center">
             {% if row.is_admin %}
               <span class="plan-badge plan-badge--admin">Admin</span>
@@ -125,7 +125,7 @@
             {% if row.is_admin %}
               <span class="help" style="font-size:.82rem">Administrador</span>
             {% elif row.plan_slug == 'pro' %}
-              <form method="post" action="{{ url_for('admin.revoke_pro', user_id=row.user.id) }}">
+              <form method="post" action="{{ url_for('admin.revoke_pro', user_id=row.user_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="q" value="{{ filters.q }}">
                 <input type="hidden" name="plan" value="{{ filters.plan }}">
@@ -134,12 +134,12 @@
                 <input type="hidden" name="page" value="{{ users_page.page }}">
                 <button type="submit" class="btn ghost pill"
                         style="font-size:.82rem;padding:6px 14px;white-space:nowrap;color:var(--danger);border-color:rgba(239,68,68,.35)"
-                        onclick="return confirm('Voltar @{{ row.user.username }} para o plano gratuito?\nOs limites voltarao para o padrao Free.')">
+                        onclick="return confirm('Voltar @{{ row.username }} para o plano gratuito?\nOs limites voltarao para o padrao Free.')">
                   Voltar para Free
                 </button>
               </form>
             {% else %}
-              <form method="post" action="{{ url_for('admin.activate_pro', user_id=row.user.id) }}">
+              <form method="post" action="{{ url_for('admin.activate_pro', user_id=row.user_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="q" value="{{ filters.q }}">
                 <input type="hidden" name="plan" value="{{ filters.plan }}">
@@ -148,7 +148,7 @@
                 <input type="hidden" name="page" value="{{ users_page.page }}">
                 <button type="submit" class="btn primary pill"
                         style="font-size:.82rem;padding:6px 14px;white-space:nowrap"
-                        onclick="return confirm('Ativar Pro para @{{ row.user.username }}?\nO acesso sera liberado imediatamente.')">
+                        onclick="return confirm('Ativar Pro para @{{ row.username }}?\nO acesso sera liberado imediatamente.')">
                   Ativar Pro
                 </button>
               </form>

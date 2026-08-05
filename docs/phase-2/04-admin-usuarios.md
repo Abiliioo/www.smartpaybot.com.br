@@ -53,7 +53,13 @@ A paginacao usa tamanho fixo de 20 usuarios por pagina e nao aceita `page_size` 
 
 A listagem nao exibe telefone, `chat_id`, `password_hash`, tokens ou codigos de vinculacao. O filtro por Telegram mostra apenas o estado vinculado/nao vinculado.
 
+A consulta retorna uma projecao explicita de campos para o template. Objetos `User`, `Subscription` e `Plan` completos nao integram o resultado da listagem.
+
+`password_hash`, telefone, `chat_id` e codigos internos nao sao selecionados como colunas retornadas. O `chat_id` e usado apenas para calcular o estado vinculado/nao vinculado.
+
 As buscas usam SQLAlchemy com parametros e nao registram termos pesquisados em logs.
+
+Curingas de `LIKE`, como `%` e `_`, sao tratados literalmente na busca textual.
 
 ## Fora de escopo do SPB-210
 

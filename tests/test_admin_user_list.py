@@ -77,6 +77,7 @@ class AdminUserListTest(unittest.TestCase):
             plan_slug="pro",
             subscription_status="canceled",
         )
+        self.underscore_user = self._user("under_score", "under_score@example.test")
         self.keywordless = self._user("semkw", "semkw@example.test", chat_id="")
 
         self._keywords(self.free_user.id, ["excel", "python"])
@@ -106,6 +107,7 @@ class AdminUserListTest(unittest.TestCase):
                 bot_active=bot_active,
                 chat_id=chat_id,
                 phone=f"555-{username}",
+                telegram_link_code=f"code-{username}",
             )
             db.add(user)
             db.commit()
@@ -373,6 +375,58 @@ class AdminUserListTest(unittest.TestCase):
         self.assertNotIn("hash-anafree", html)
         self.assertNotIn("chat-pro", html)
         self.assertNotIn("555-anafree", html)
+        self.assertNotIn("code-anafree", html)
+
+    def test_repository_items_expose_only_explicit_user_fields(self) -> None:
+        with self.Session() as db:
+            page = list_admin_users_paginated(db, q="anafree")
+
+        self.assertEqual(page.total, 1)
+        item = page.items[0]
+        self.assertEqual(item.user_id, self.free_user.id)
+        self.assertEqual(item.username, "anafree")
+        self.assertEqual(item.email, "ana@example.test")
+        self.assertFalse(hasattr(item, "user"))
+        self.assertFalse(hasattr(item, "password_hash"))
+        self.assertFalse(hasattr(item, "phone"))
+        self.assertFalse(hasattr(item, "chat_id"))
+        self.assertFalse(hasattr(item, "telegram_link_code"))
+
+    def test_percent_search_is_literal_not_wildcard_all(self) -> None:
+        self._login(self.admin)
+
+        response = self._get_admin({"q": "%"})
+
+        html = self._html(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Nenhum usuario encontrado", html)
+        self.assertNotIn("anafree", html)
+
+    def test_underscore_search_is_literal_not_wildcard_all(self) -> None:
+        self._login(self.admin)
+
+        response = self._get_admin({"q": "_"})
+
+        html = self._html(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("under_score", html)
+        self.assertNotIn("anafree", html)
+
+    def test_username_with_underscore_can_be_found_literally(self) -> None:
+        self._login(self.admin)
+
+        response = self._get_admin({"q": "under_"})
+
+        html = self._html(response)
+        self.assertIn("under_score", html)
+        self.assertNotIn("anafree", html)
+
+    def test_backslash_search_does_not_error(self) -> None:
+        self._login(self.admin)
+
+        response = self._get_admin({"q": "\\"})
+
+        self.assertEqual(response.status_code, 200)
 
     def test_plan_actions_are_still_available(self) -> None:
         self._login(self.admin)
