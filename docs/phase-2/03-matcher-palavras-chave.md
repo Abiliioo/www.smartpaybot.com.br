@@ -119,7 +119,7 @@ Validacao de producao:
 
 ## Observabilidade local - SPB-203
 
-Status: Implementado localmente, aguardando revisao e deploy.
+Status: Implantado e validado em producao em 05/08/2026.
 
 O matcher registra um resumo agregado por ciclo com a regra ativa (`lexical_boundaries_v1`), janela de lookback, usuarios com keywords, total de keywords, projetos analisados, projetos com match, pares encontrados, projecoes criadas, descartes por limite diario, duplicados/existentes e duracao em milissegundos.
 

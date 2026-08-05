@@ -66,6 +66,21 @@ Semantica dos principais contadores:
 
 O resumo nao deve incluir titulo, link, keyword, texto de projeto, email, username, token ou identificador de usuario.
 
+Validacao de producao em 05/08/2026:
+
+- commit `5925c54` implantado;
+- servico permaneceu ativo e respondeu HTTP 200;
+- testes especificos de observabilidade passaram (`9 OK`);
+- testes lexicais passaram (`6 OK`);
+- suite completa passou (`33 OK`);
+- primeiro ciclo real recebeu 100 projetos, inseriu 2, atualizou 17 e ignorou 81;
+- o resumo agregado do primeiro ciclo registrou 3 usuarios com keywords, 13 keywords, 18 projetos avaliados, 1 projeto com match, 2 pares encontrados, 2 projecoes criadas, 0 bloqueios por limite, 0 duplicados/existentes e duracao de 22 ms;
+- notifier enviou 2 alertas e registrou 0 falhas;
+- segundo ciclo real recebeu 100 projetos, inseriu 0, atualizou 7 e ignorou 93;
+- o resumo agregado do segundo ciclo registrou 17 projetos avaliados, 1 projeto com match, 2 pares encontrados, 0 projecoes criadas, 2 duplicados/existentes e duracao de 9 ms;
+- o segundo ciclo confirmou idempotencia e deduplicacao;
+- nenhum dado sensivel apareceu no resumo agregado observado.
+
 ## Observabilidade proposta
 
 Metricas:
