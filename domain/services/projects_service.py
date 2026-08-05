@@ -1,6 +1,7 @@
 # domain/services/projects_service.py
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -15,6 +16,14 @@ from .plan_service import can_receive_alert_today
 from infrastructure.logging import get_logger
 
 _logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class FanoutProjectResult:
+    match_pairs: int = 0
+    created: int = 0
+    blocked_by_daily_limit: int = 0
+    duplicates_or_existing: int = 0
 
 
 def upsert_global_project(
@@ -104,3 +113,40 @@ def fanout_project_to_users(
         if ppu:
             created += 1
     return created
+
+
+def fanout_project_to_users_result(
+    db: Session,
+    *,
+    global_project,
+    users_keywords: Dict[int, List[str]],
+) -> FanoutProjectResult:
+    """
+    Cria projecoes e retorna contadores agregados do fanout do projeto.
+    """
+    title = global_project.title
+    pairs = match_users_for_title(title, users_keywords)
+
+    created = 0
+    blocked_by_daily_limit = 0
+    duplicates_or_existing = 0
+    for user_id, matched_kw in pairs:
+        if not can_receive_alert_today(db, user_id):
+            blocked_by_daily_limit += 1
+            continue
+        ppu = create_user_project_if_absent(
+            db,
+            user_id=user_id,
+            global_project=global_project,
+            matched_keyword=matched_kw,
+        )
+        if ppu:
+            created += 1
+        else:
+            duplicates_or_existing += 1
+    return FanoutProjectResult(
+        match_pairs=len(pairs),
+        created=created,
+        blocked_by_daily_limit=blocked_by_daily_limit,
+        duplicates_or_existing=duplicates_or_existing,
+    )

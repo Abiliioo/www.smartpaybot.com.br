@@ -38,6 +38,26 @@
 
 O sistema registra eventos via logging em rotas, workers, Telegram, ingestao, matcher e notifier.
 
+### Matcher - SPB-203
+
+O matcher registra um resumo agregado por ciclo para diagnostico operacional, sem persistir novas metricas e sem expor PII.
+
+Campos registrados:
+
+- `rule`;
+- `lookback_min`;
+- `users_with_keywords`;
+- `keywords_total`;
+- `projects_scanned`;
+- `projects_with_matches`;
+- `match_pairs_total`;
+- `projections_created`;
+- `blocked_by_daily_limit`;
+- `duplicates_or_existing`;
+- `duration_ms`.
+
+O resumo nao deve incluir titulo, link, keyword, texto de projeto, email, username, token ou identificador de usuario.
+
 ## Observabilidade proposta
 
 Metricas:

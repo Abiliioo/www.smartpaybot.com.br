@@ -117,16 +117,22 @@ Validacao de producao:
 | seo | SEO tecnico | match | sigla isolada |
 | vba | Excel/VBA | match | sigla apos separador |
 
+## Observabilidade local - SPB-203
+
+Status: Implementado localmente, aguardando revisao e deploy.
+
+O matcher registra um resumo agregado por ciclo com a regra ativa (`lexical_boundaries_v1`), janela de lookback, usuarios com keywords, total de keywords, projetos analisados, projetos com match, pares encontrados, projecoes criadas, descartes por limite diario, duplicados/existentes e duracao em milissegundos.
+
+O resumo nao inclui titulo de projeto, keyword, identificador de usuario, link, texto livre ou outro dado sensivel.
+
 ## Observabilidade futura
 
 Registrar, sem dados sensiveis:
 
-- keyword normalizada;
-- regra usada;
-- projeto global;
-- usuario;
-- resultado de match;
-- motivo de descarte em casos ambiguios.
+- distribuicao temporal dos ciclos;
+- historico de contadores;
+- alertas para quedas abruptas de volume;
+- motivo agregado de descarte em casos ambiguos.
 
 ## Testes
 
