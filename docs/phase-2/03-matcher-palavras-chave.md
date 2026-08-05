@@ -70,6 +70,24 @@ Riscos: pode ficar dificil de manter cedo demais.
 
 Comecar com tokenizacao simples ou regex lexical bem testada, sem dependencia externa. A primeira entrega deve focar em corrigir falsos positivos conhecidos e proteger termos curtos.
 
+## Implementacao local - SPB-201
+
+Status: Implementado localmente / aguardando revisao e deploy.
+
+A implementacao adotada centraliza a regra em `domain/services/keywords_service.py::keyword_matches_text()`.
+
+Estrategia efetiva:
+
+1. normalizar keyword e texto com a mesma funcao existente;
+2. dividir a keyword em tokens usando espaco, hifen e barra como separadores;
+3. escapar cada token com `re.escape`;
+4. aceitar espaco, hifen ou barra entre tokens;
+5. exigir que nao haja caractere alfanumerico imediatamente antes ou depois da expressao.
+
+Com isso, `excel` deixa de casar com `excelente`, enquanto `Excel/VBA`, `Excel-VBA`, `Mercado-Livre` e `mercado/livre` casam como separadores lexicais.
+
+Testes adicionados em `tests/test_keyword_matching.py` cobrem palavras simples, termos curtos, frases, pontuacao, acentos, caixa e caracteres especiais tratados literalmente.
+
 ## Matriz de casos
 
 | keyword | texto | esperado | justificativa |
@@ -78,7 +96,8 @@ Comecar com tokenizacao simples ou regex lexical bem testada, sem dependencia ex
 | excel | excelente | sem match | substring dentro de palavra |
 | excel | Excel-VBA | match | hifen como separador operacional |
 | mercado livre | Mercado Livre | match | frase exata normalizada |
-| mercado livre | Mercado-Livre | decisao pendente | decidir se hifen equivale a espaco em frases |
+| mercado livre | Mercado-Livre | match | hifen foi adotado como separador lexical equivalente |
+| mercado livre | mercado/livre | match | barra foi adotada como separador lexical equivalente |
 | mercado livre | mercado livreiro | sem match | `livre` nao deve casar dentro de `livreiro` |
 | python | Python/Django | match | barra como separador |
 | python | pythonista | sem match | substring dentro de palavra |

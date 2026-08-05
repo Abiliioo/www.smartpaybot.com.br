@@ -4,7 +4,7 @@ Estimativas: XS, S, M, L, XL. Prioridades: P0, P1, P2, P3.
 
 | ID | titulo | prioridade | valor | descricao | dependencias | criterios de aceite | testes | riscos | estimativa | sprint |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SPB-201 | Corrigir correspondencia parcial de palavras-chave | P0 | Reduz falsos positivos imediatamente | Trocar substring por regra lexical | SPB-202 | `excel` nao casa com `excelente`; matriz lexical passa | unitarios do matcher | perder matches com separadores | S | Sprint 1 |
+| SPB-201 | Corrigir correspondencia parcial de palavras-chave | P0 | Reduz falsos positivos imediatamente | Implementado localmente / aguardando revisao e deploy | SPB-202 | `excel` nao casa com `excelente`; matriz lexical passa | `tests/test_keyword_matching.py` | requer rollout controlado antes de producao | S | Sprint 1 |
 | SPB-202 | Adicionar testes lexicais do matcher | P0 | Evita regressao | Cobrir palavras, frases, acentos, hifen, barra e termos curtos | nenhuma | casos documentados automatizados | unittest/pytest futuro | ambiguidades em `ia` e frases | S | Sprint 1 |
 | SPB-203 | Registrar observabilidade minima de matches | P1 | Facilita diagnostico | Logar regra e contagem de matches sem PII sensivel | SPB-201 | logs sem segredos e com contadores | unitario/manual | excesso de log | M | Sprint 1 |
 | SPB-210 | Criar listagem administrativa com busca e filtros | P1 | Melhora suporte | Buscar por username/email e filtrar por plano/status/Telegram | nenhuma | filtros combinaveis e paginacao definida | funcional Admin | expor PII demais | M | Sprint 2 |

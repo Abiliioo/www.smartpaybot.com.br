@@ -10,7 +10,7 @@ from ..repositories import (
     create_or_get_global_project,
     create_user_project_if_absent,
 )
-from .keywords_service import normalize_text, clean_keyword
+from .keywords_service import clean_keyword, keyword_matches_text
 from .plan_service import can_receive_alert_today
 from infrastructure.logging import get_logger
 
@@ -56,9 +56,8 @@ def match_users_for_title(
 ) -> List[Tuple[int, str]]:
     """
     Para um título, retorna pares (user_id, matched_keyword) a notificar.
-    Matching por substring após normalização/remoção de acentos.
+    Matching lexical apos normalizacao/remocao de acentos.
     """
-    nt = normalize_text(title)
     results: List[Tuple[int, str]] = []
 
     for user_id, kws in users_keywords.items():
@@ -66,7 +65,7 @@ def match_users_for_title(
             nkw = clean_keyword(kw)
             if not nkw:
                 continue
-            if nkw in nt:
+            if keyword_matches_text(nkw, title):
                 results.append((user_id, nkw))
                 # se quiser limitar a uma keyword por user, faça um break aqui
     return results
