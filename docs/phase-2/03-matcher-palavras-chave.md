@@ -72,7 +72,7 @@ Comecar com tokenizacao simples ou regex lexical bem testada, sem dependencia ex
 
 ## Implementacao local - SPB-201
 
-Status: Implementado localmente / aguardando revisao e deploy.
+Status: Implantado e validado em producao em 04/08/2026 (05/08/2026 UTC).
 
 A implementacao adotada centraliza a regra em `domain/services/keywords_service.py::keyword_matches_text()`.
 
@@ -87,6 +87,14 @@ Estrategia efetiva:
 Com isso, `excel` deixa de casar com `excelente`, enquanto `Excel/VBA`, `Excel-VBA`, `Mercado-Livre` e `mercado/livre` casam como separadores lexicais.
 
 Testes adicionados em `tests/test_keyword_matching.py` cobrem palavras simples, termos curtos, frases, pontuacao, acentos, caixa e caracteres especiais tratados literalmente.
+
+Validacao de producao:
+
+- commit `b3fbbd8` implantado;
+- testes especificos e suite completa passaram antes do deploy;
+- ciclo automatico do coletor apos o deploy concluido com resultado `0`;
+- validacao direta do matcher passou;
+- nenhum falso positivo real de `excel` em `excelente` foi encontrado apos o deploy (`falsos_positivos_reais: 0`).
 
 ## Matriz de casos
 
