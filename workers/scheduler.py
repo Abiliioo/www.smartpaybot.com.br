@@ -24,6 +24,15 @@ _lock = threading.Lock()
 _scheduler: Optional[BackgroundScheduler] = None
 
 
+def _crawler_blocked(settings) -> bool:
+    """
+    True quando o scraping real do 99Freelas nao pode rodar neste processo.
+    APP_ENV=homologation nunca deve executar o crawler interno -- os dados de
+    homologacao vem de ingest sintetico, nunca de scraping real.
+    """
+    return getattr(settings, "APP_ENV", "development") == "homologation"
+
+
 def _pipeline_tick():
     """Executa uma rodada: ingest -> match -> notify (sem sobreposição)."""
     if not _lock.acquire(blocking=False):
@@ -33,8 +42,13 @@ def _pipeline_tick():
         logger.info("[pipeline] início")
         settings = get_settings()
 
-        # 1) Crawling (assíncrono)
-        asyncio.run(crawl_once(pages=settings.SCAN_PAGES))
+        # 1) Crawling (assíncrono) -- bloqueado em homologação (ver _crawler_blocked)
+        if _crawler_blocked(settings):
+            logger.warning(
+                "[scheduler] crawler real bloqueado: APP_ENV=homologation não executa scraping."
+            )
+        else:
+            asyncio.run(crawl_once(pages=settings.SCAN_PAGES))
 
         # 2) Matching
         match_recent_projects()
@@ -99,11 +113,22 @@ def _on_job_event(event) -> None:
 
 def start(interval_seconds: int | None = None) -> bool:
     global _scheduler
+    settings = get_settings()
+
+    # Guardrail central: nenhum chamador (boot, bot-toggle, código futuro)
+    # pode iniciar o scheduler de scraping real em homologação. Ação
+    # bloqueada em runtime -- não derruba o processo, apenas recusa.
+    if _crawler_blocked(settings):
+        logger.warning(
+            "[scheduler] início recusado: APP_ENV=homologation não pode executar "
+            "o scheduler de scraping real."
+        )
+        return False
+
     if is_running():
         logger.info("[scheduler] já está em execução.")
         return True
 
-    settings = get_settings()
     every = interval_seconds or int(getattr(settings, "SCAN_MIN_SECONDS", 180) or 180)
     every = max(60, every)
 

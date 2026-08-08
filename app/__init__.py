@@ -21,11 +21,11 @@ log = get_logger(__name__)
 def create_app() -> Flask:
     settings = get_settings()
 
-    if settings.FLASK_ENV == "production":
+    if settings.APP_ENV in ("production", "homologation"):
         if not settings.SECRET_KEY or settings.SECRET_KEY == INSECURE_SECRET_KEY_DEFAULT:
             raise RuntimeError(
                 "SECRET_KEY ausente ou com valor padrão inseguro. "
-                "Configure SECRET_KEY no .env de produção."
+                f"Configure SECRET_KEY explicitamente para APP_ENV={settings.APP_ENV}."
             )
 
     app = Flask(__name__, template_folder="templates", static_folder="static")

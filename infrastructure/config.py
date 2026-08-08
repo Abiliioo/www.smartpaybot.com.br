@@ -28,12 +28,41 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 INSECURE_SECRET_KEY_DEFAULT = "dev-secret-key-change-me"
 
+VALID_APP_ENVS = frozenset({"development", "homologation", "production"})
+
+
+def resolve_app_env(flask_env: str, app_env_raw: Optional[str]) -> str:
+    """
+    Resolve o valor efetivo de APP_ENV (fail-closed).
+
+    - APP_ENV definido e valido -> usa diretamente.
+    - APP_ENV definido e invalido -> RuntimeError.
+    - APP_ENV ausente + FLASK_ENV != "production" -> "development".
+    - APP_ENV ausente + FLASK_ENV == "production" -> RuntimeError
+      (nao ha fallback silencioso para production; precisa ser explicito).
+    """
+    raw = (app_env_raw or "").strip()
+    if raw:
+        if raw not in VALID_APP_ENVS:
+            raise RuntimeError(
+                f"APP_ENV invalido: {raw!r}. Valores permitidos: "
+                f"{', '.join(sorted(VALID_APP_ENVS))}."
+            )
+        return raw
+    if flask_env == "production":
+        raise RuntimeError(
+            "FLASK_ENV=production exige APP_ENV explicito como "
+            "'production' ou 'homologation'. Configure APP_ENV no .env."
+        )
+    return "development"
+
 
 @dataclass(frozen=True)
 class Settings:
     # Ambiente
     FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
     DEBUG: bool = _as_bool(os.getenv("DEBUG"), default=(os.getenv("FLASK_ENV", "development") == "development"))
+    APP_ENV: str = resolve_app_env(os.getenv("FLASK_ENV", "development"), os.getenv("APP_ENV"))
 
     # Novo: fuso horário “oficial” do app
     TZ_NAME: str = os.getenv("TZ_NAME", "America/Sao_Paulo")
@@ -53,6 +82,9 @@ class Settings:
 
     # Banco
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///app.db")
+    # Distingue "DATABASE_URL nao configurada" de "configurada igual ao default",
+    # necessario para o guardrail de homologacao em infrastructure/db.py.
+    DATABASE_URL_WAS_EXPLICIT: bool = os.getenv("DATABASE_URL") is not None
 
     # Redis (opcional)
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL")
