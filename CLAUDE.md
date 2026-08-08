@@ -1,5 +1,29 @@
 # SmartPayBot — Contexto para Claude
 
+## Idioma obrigatório
+
+Responda, comente o status, relate o progresso e produza todos os documentos exclusivamente em português do Brasil (pt-BR).
+
+Termos técnicos, nomes de arquivos, comandos, caminhos, slugs, hashes e mensagens de commit podem permanecer em inglês quando fizer sentido.
+
+A regra abrange: respostas ao proprietário, comentários de andamento, planos de execução, diagnósticos, auditorias, relatórios intermediários, relatórios finais, documentação Markdown, explicações técnicas, mensagens de validação, perguntas de esclarecimento, planos de implementação, relatórios de testes, relatórios de homologação, procedimentos de deploy, análises de segurança e análises operacionais.
+
+Não traduzir artificialmente: nomes de arquivos, nomes de funções, classes, variáveis, comandos, caminhos, slugs, hashes, nomes de branches, mensagens de commit já definidas, nomes de serviços, nomes de endpoints, ou termos técnicos cuja tradução prejudique a clareza.
+
+Esta regra:
+
+- vale para todas as próximas tarefas deste repositório;
+- deve ser seguida mesmo quando o prompt não repetir a instrução;
+- vale para qualquer modelo Claude utilizado no projeto;
+- tem prioridade sobre o idioma predominante dos logs, ferramentas, bibliotecas ou documentação técnica consultada durante a execução;
+- não autoriza traduzir código ou identificadores técnicos;
+- não autoriza alterar conteúdo técnico apenas para traduzir nomenclaturas;
+- não exige tradução de output produzido diretamente por ferramentas externas quando isso prejudicar a fidelidade do diagnóstico.
+
+Quando logs, comandos ou ferramentas retornarem conteúdo em inglês, o Claude deve: (1) preservar o conteúdo técnico original quando necessário; (2) explicar seu significado em português do Brasil.
+
+---
+
 ## O que é este projeto
 
 O **SmartPayBot** é um SaaS em construção que monitora oportunidades de freelas no **99Freelas**, filtra projetos por palavras-chave do usuário e envia alertas via **Telegram**. O objetivo final é gerar **receita recorrente** como produto pago.
