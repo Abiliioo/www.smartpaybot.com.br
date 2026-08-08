@@ -475,7 +475,7 @@ def list_admin_users_paginated(
     page_size: int = ADMIN_USERS_PAGE_SIZE,
 ) -> AdminUserListPage:
     normalized_q = (q or "").strip()[:100]
-    plan = plan if plan in {"all", "free", "pro"} else "all"
+    plan = plan if plan in {"all", "free", "pro", "admin"} else "all"
     monitoring = monitoring if monitoring in {"all", "active", "inactive"} else "all"
     telegram = telegram if telegram in {"all", "linked", "unlinked"} else "all"
     try:
@@ -532,14 +532,20 @@ def list_admin_users_paginated(
                 )
             )
         if plan == "pro":
-            stmt = stmt.where(active_subscriptions.c.plan_slug == "pro")
+            stmt = stmt.where(
+                User.is_admin.is_(False),
+                active_subscriptions.c.plan_slug == "pro",
+            )
         elif plan == "free":
             stmt = stmt.where(
+                User.is_admin.is_(False),
                 or_(
                     active_subscriptions.c.plan_slug.is_(None),
                     active_subscriptions.c.plan_slug != "pro",
-                )
+                ),
             )
+        elif plan == "admin":
+            stmt = stmt.where(User.is_admin.is_(True))
         if monitoring == "active":
             stmt = stmt.where(User.bot_active.is_(True))
         elif monitoring == "inactive":

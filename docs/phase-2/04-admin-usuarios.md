@@ -32,20 +32,21 @@ Capacidades atuais confirmadas:
 `GET /admin/` aceita os parametros:
 
 - `q`: busca opcional por username ou email, case-insensitive, limitada a 100 caracteres;
-- `plan`: `all`, `free` ou `pro`;
+- `plan`: `all`, `free`, `pro` ou `admin`;
 - `monitoring`: `all`, `active` ou `inactive`;
 - `telegram`: `all`, `linked` ou `unlinked`;
 - `page`: pagina atual, com fallback seguro para `1`.
 
 `monitoring` representa somente o status do monitoramento (`users.bot_active`). Ele nao representa conta ativa/inativa.
 
-`plan` considera o plano efetivo da assinatura ativa:
+`plan` representa categorias visuais mutuamente exclusivas, nao apenas a assinatura:
 
-- assinatura ativa Pro: `pro`;
-- assinatura ativa Free ou ausencia de assinatura ativa: `free`;
-- assinatura cancelada ou inativa: Free implicito.
+- `admin`: `User.is_admin` verdadeiro, independente de existir ou nao assinatura associada;
+- `pro`: `User.is_admin` falso e assinatura Pro ativa;
+- `free`: `User.is_admin` falso e sem assinatura Pro ativa (inclui ausencia de assinatura e assinatura cancelada/inativa);
+- `all`: todos os usuarios, sem restricao de categoria.
 
-Administradores continuam aparecendo na listagem. O badge visual `Admin` tem precedencia na interface, mas o filtro por plano usa a assinatura efetiva.
+Administrador tem precedencia sobre qualquer plano: um usuario com `is_admin=True` aparece somente em `admin`, mesmo que possua assinatura Pro ativa. Ele nunca aparece em `free` nem em `pro`.
 
 A paginacao usa tamanho fixo de 20 usuarios por pagina e nao aceita `page_size` enviado pelo usuario.
 

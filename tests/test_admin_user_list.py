@@ -245,6 +245,118 @@ class AdminUserListTest(unittest.TestCase):
         self.assertNotIn("anafree", html)
         self.assertNotIn("canceled", html)
 
+    def test_plan_free_filter_excludes_admin_without_pro(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "free"})
+
+        html = self._html(response)
+        self.assertIn("anafree", html)
+        self.assertNotIn("adminzero", html)
+        self.assertNotIn("adminpro", html)
+
+    def test_plan_pro_filter_excludes_admin_with_pro(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "pro"})
+
+        html = self._html(response)
+        self.assertIn("brunopro", html)
+        self.assertNotIn("adminpro", html)
+        self.assertNotIn("adminzero", html)
+
+    def test_plan_admin_filter_returns_only_admins(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "admin"})
+
+        html = self._html(response)
+        self.assertIn("adminzero", html)
+        self.assertNotIn("anafree", html)
+        self.assertNotIn("brunopro", html)
+
+    def test_plan_admin_with_pro_stays_admin_only(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        admin_response = self._get_admin({"plan": "admin"})
+        pro_response = self._get_admin({"plan": "pro"})
+
+        self.assertIn("adminpro", self._html(admin_response))
+        self.assertNotIn("adminpro", self._html(pro_response))
+
+    def test_plan_all_includes_free_pro_and_admin(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "all"})
+
+        html = self._html(response)
+        self.assertIn("anafree", html)
+        self.assertIn("brunopro", html)
+        self.assertIn("adminzero", html)
+        self.assertIn("adminpro", html)
+
+    def test_plan_admin_combined_with_monitoring_active(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "admin", "monitoring": "active"})
+
+        html = self._html(response)
+        self.assertIn("adminzero", html)
+        self.assertNotIn("adminpro", html)
+
+    def test_plan_admin_combined_with_telegram_linked(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "admin", "telegram": "linked"})
+
+        html = self._html(response)
+        self.assertIn("adminpro", html)
+        self.assertNotIn("adminzero", html)
+
+    def test_plan_admin_pagination_matches_row_filter(self) -> None:
+        self._seed_admin_pair()
+        self._seed_many_admins(25)
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "admin", "page": "1"})
+
+        html = self._html(response)
+        self.assertIn("Pagina 1 de 2", html)
+        self.assertIn("admbulk00", html)
+        self.assertNotIn("admbulk24", html)
+
+    def test_plan_invalid_value_behaves_as_all(self) -> None:
+        self._seed_admin_pair()
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "qualquer_coisa"})
+
+        html = self._html(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('option value="all" selected>Todos</option>', html)
+        self.assertIn("anafree", html)
+        self.assertIn("brunopro", html)
+        self.assertIn("adminzero", html)
+
+    def test_plan_admin_filter_is_preserved_in_pagination_links(self) -> None:
+        self._seed_admin_pair()
+        self._seed_many_admins(25)
+        self._login(self.admin)
+
+        response = self._get_admin({"plan": "admin", "page": "1"})
+
+        html = self._html(response)
+        self.assertIn("plan=admin", html)
+        self.assertNotIn("next=", html)
+        self.assertNotIn("return_url", html)
+
     def test_monitoring_active_filter(self) -> None:
         self._login(self.admin)
 
@@ -461,6 +573,28 @@ class AdminUserListTest(unittest.TestCase):
 
         self.assertEqual(len(page.items), 20)
         self.assertLessEqual(len(counts), 4)
+
+    def _seed_admin_pair(self) -> tuple[User, User]:
+        admin_no_pro = self._user(
+            "adminzero",
+            "adminzero@example.test",
+            is_admin=True,
+            bot_active=True,
+            chat_id=None,
+        )
+        admin_with_pro = self._user(
+            "adminpro",
+            "adminpro@example.test",
+            is_admin=True,
+            bot_active=False,
+            chat_id="chat-adminpro",
+            plan_slug="pro",
+        )
+        return admin_no_pro, admin_with_pro
+
+    def _seed_many_admins(self, count: int, prefix: str = "admbulk") -> None:
+        for index in range(count):
+            self._user(f"{prefix}{index:02d}", f"{prefix}{index:02d}@example.test", is_admin=True)
 
     def _seed_many_users(self, count: int) -> None:
         existing = self._count_users()

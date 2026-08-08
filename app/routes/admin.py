@@ -13,13 +13,13 @@ from domain.repositories import (
     list_admin_users_paginated,
     list_plans,
 )
-from domain.services.plan_service import FREE_SLUG, PRO_SLUG, set_user_plan
+from domain.services.plan_service import ADMIN_SLUG, FREE_SLUG, PRO_SLUG, set_user_plan
 
 log = get_logger(__name__)
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
-_PLAN_FILTERS = {"all", FREE_SLUG, PRO_SLUG}
+_PLAN_FILTERS = {"all", FREE_SLUG, PRO_SLUG, ADMIN_SLUG}
 _MONITORING_FILTERS = {"all", "active", "inactive"}
 _TELEGRAM_FILTERS = {"all", "linked", "unlinked"}
 
