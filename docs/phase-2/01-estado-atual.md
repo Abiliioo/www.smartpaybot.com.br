@@ -123,6 +123,10 @@ O frontend usa templates Jinja e CSS proprio em `app/static/css/style.css`, com 
 - Observabilidade ainda depende principalmente de logs.
 - SQLite e `NullPool` sao adequados ao beta, mas exigem cuidado com concorrencia.
 
+## Ambiente de homologacao (SPB-263)
+
+Arquitetura definida em `docs/adr/006-ambiente-homologacao-isolado.md` — implementacao pendente. Nao existe ambiente de homologacao funcional hoje; producao continua sendo o unico ambiente real.
+
 ## Incidentes resolvidos
 
 1. Coletor parou apos mudanca de `C:` para `D:`.

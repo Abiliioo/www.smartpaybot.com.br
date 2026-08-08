@@ -113,3 +113,13 @@ Registro cronológico de decisões de arquitetura e implementação. Serve para 
 **Motivo:** A funcionalidade necessária é mínima (listar usuários, alterar plano). Um framework de admin adicionaria dependências e opções desnecessárias.
 
 **Quando revisar:** Se o painel admin crescer para incluir edição de modelos, bulk actions, logs — considerar Flask-Admin ou solução similar.
+
+---
+
+### DT-011 — Ambiente de homologação como clone isolado, não branch/container
+
+**Decisão:** Ambiente de homologação (SPB-263) será logicamente isolado em clone, serviço, banco e secrets próprios na mesma VPS, conforme ADR-006.
+
+**Motivo:** Ver ADR-006 para contexto completo, alternativas descartadas e riscos P0.
+
+**Quando revisar:** Se a VPS deixar de comportar dois processos simultâneos, ou se o número de ambientes crescer além de produção/homologação.

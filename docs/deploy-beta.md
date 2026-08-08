@@ -51,7 +51,7 @@ Baseado na auditoria de produção realizada em 2026-06.
 ---
 
 ## Fase 1 — Provisionar o VPS
-*Hostinger VPS — Ubuntu 22.04 LTS. Mínimo: 1 vCPU / 1 GB RAM.*
+*Hostinger VPS (KVM 1) — Ubuntu 24.04 LTS. Recursos reais confirmados em 08/08/2026: 1 vCPU / 4 GB RAM / 50 GB disco.*
 
 - [ ] `[OBRIG]` **Apontar DNS** — registro A do domínio (ex: `smartpaybot.com.br`) para o IP da VPS  
   Propagação pode levar até 24h; fazer primeiro.  

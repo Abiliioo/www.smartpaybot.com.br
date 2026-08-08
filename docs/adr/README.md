@@ -9,3 +9,4 @@ Registro de decisoes arquiteturais propostas para a Fase 2.
 | [ADR-003](003-exclusao-desativacao-anonimizacao.md) | Desativacao, anonimizacao e exclusao permanente | Proposta |
 | [ADR-004](004-correspondencia-lexical.md) | Correspondencia lexical de palavras-chave | Proposta |
 | [ADR-005](005-sqlite-para-postgresql.md) | Criterios para evoluir de SQLite para PostgreSQL | Proposta |
+| [ADR-006](006-ambiente-homologacao-isolado.md) | Ambiente de homologacao isolado do SmartPayBot | Proposta |
