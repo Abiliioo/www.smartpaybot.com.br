@@ -125,7 +125,29 @@ O frontend usa templates Jinja e CSS proprio em `app/static/css/style.css`, com 
 
 ## Ambiente de homologacao (SPB-263)
 
-Arquitetura definida em `docs/adr/006-ambiente-homologacao-isolado.md` — implementacao pendente. Nao existe ambiente de homologacao funcional hoje; producao continua sendo o unico ambiente real.
+Arquitetura definida em `docs/adr/006-ambiente-homologacao-isolado.md`. Nao existe ambiente de homologacao fisico/funcional hoje — producao continua sendo o unico ambiente real em execucao.
+
+Guardrails de codigo da Fase B implantados em producao em 08/08/2026, commit `7e65bd9`:
+
+- B1 — `APP_ENV` (`development`/`homologation`/`production`, resolucao fail-closed), validacao de `DATABASE_URL` antes de `create_engine()`, `SECRET_KEY` obrigatoria e nao-default em `production`/`homologation`.
+- B2 — `workers/scheduler.py` recusa iniciar o scheduler de scraping real (`start()`, `start_scheduler()`, toggle de monitoramento do dashboard) e pula a etapa de crawling do pipeline quando `APP_ENV=homologation`, sem bloquear matcher/notifier.
+
+Producao esta configurada com `APP_ENV=production` e mantem `SCHEDULER=0` (arquitetura inalterada: coletor local -> POST `/internal/ingest/projects` -> VPS).
+
+Validacao do deploy B1/B2:
+
+- 32 testes de `tests/test_environment_guardrails.py` e 11 de `tests/test_scheduler_environment_guardrail.py`;
+- suite completa em producao: 116/116;
+- `py_compile` aprovado;
+- `app.db` permaneceu bit a bit inalterado durante os testes e o restart do servico;
+- `PRAGMA integrity_check = ok`;
+- `PRAGMA foreign_key_check` sem inconsistencias;
+- smoke HTTP aprovado apos restart;
+- ingest manual pos-deploy aprovado;
+- ciclo automatico do coletor aprovado (recebidos=100 -> matcher -> notifier);
+- Windows Scheduled Task do coletor terminou com `LastTaskResult=0`.
+
+B3 (isolamento de Telegram entre producao e homologacao) foi auditado tecnicamente, mas ainda nao implementado. B4 (cookie/banner de homologacao) permanece posterior a B3.
 
 ## Incidentes resolvidos
 

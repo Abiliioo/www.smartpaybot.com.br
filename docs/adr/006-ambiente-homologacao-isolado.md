@@ -70,11 +70,11 @@ Sem branch `staging` permanente. Deploy sempre referencia um hash explicito, nun
 
 ### 3. `APP_ENV` separado de `FLASK_ENV`
 
-Proposta arquitetural aceita para implementacao futura (nao implementada nesta fase): introduzir `APP_ENV` com valores `development` / `homologation` / `production`, identificando o contexto operacional. `FLASK_ENV` continua existindo e controlando o que ja controla hoje (secret key obrigatoria, `SESSION_COOKIE_SECURE`, `create_all`) por compatibilidade com o codigo atual. `APP_ENV` existe para permitir guardrails especificos de homologacao sem alterar a semantica ja estabelecida de `FLASK_ENV`.
+Implementado em 08/08/2026 (commit `7e65bd9`, `infrastructure/config.py`, funcao `resolve_app_env`), com producao configurada explicitamente como `APP_ENV=production`: `APP_ENV` com valores `development` / `homologation` / `production`, identificando o contexto operacional, resolucao fail-closed (valor invalido ou `FLASK_ENV=production` sem `APP_ENV` explicito recusam o boot). `FLASK_ENV` continua existindo e controlando o que ja controlava (secret key obrigatoria, `SESSION_COOKIE_SECURE`, `create_all`) por compatibilidade com o codigo atual; o guardrail de `SECRET_KEY` foi estendido para tambem reconhecer `APP_ENV`.
 
 ### 4. Banco isolado
 
-Homologacao usa `homolog.db` (ou caminho absoluto equivalente dentro do proprio diretorio de homologacao), nunca `app.db` de producao. Requisito futuro (nao implementado): quando `APP_ENV=homologation`, a aplicacao deve **recusar subir** se `DATABASE_URL` apontar para um caminho incompativel com homologacao.
+Homologacao usa `homolog.db` (ou caminho absoluto equivalente dentro do proprio diretorio de homologacao), nunca `app.db` de producao. Implementado em 08/08/2026 (commit `7e65bd9`, `infrastructure/db.py`, funcao `validate_database_url`, executada antes de `create_engine()`): quando `APP_ENV=homologation`, a aplicacao **recusa subir** se `DATABASE_URL` nao for explicita, nao for SQLite, for `:memory:`, ou nao apontar para um arquivo `homolog.db`. Producao mantem o comportamento anterior inalterado.
 
 ### 5. Telegram isolado
 
@@ -86,7 +86,7 @@ Bot Telegram exclusivo de homologacao, nunca reutilizando token ou chat_ids de p
 
 ### 7. Scheduler
 
-Homologacao inicia com `SCHEDULER=0`. Isso **nao e proteccao suficiente sozinha**, pelos dois vetores documentados no Contexto (`bot-toggle` e ingest). Guardrails adicionais (item 3-5 acima) serao implementados antes da ativacao real do ambiente — nenhum usuario sintetico de homologacao tera `chat_id` real vinculado, o que contem o pior caso mesmo que o scheduler seja ligado em runtime.
+Homologacao inicia com `SCHEDULER=0`. Isso **nao e proteccao suficiente sozinha**, pelos dois vetores documentados no Contexto (`bot-toggle` e ingest). Implementado em 08/08/2026 (commit `7e65bd9`, `workers/scheduler.py`): `start()` (e por extensao `start_scheduler()` e o toggle de monitoramento do dashboard) recusa iniciar o scheduler de scraping real quando `APP_ENV=homologation`, e o ciclo do pipeline pula a etapa de crawling nesse ambiente sem bloquear matcher/notifier. O guardrail de Telegram (item 5) permanece pendente — auditado tecnicamente, aguardando implementacao (B3).
 
 ### 8. Porta e processo
 
@@ -127,7 +127,7 @@ Requisitos, em camadas (nenhuma e por si so seguranca):
 
 Esta ADR cobre apenas a Fase A (arquitetura e formalizacao). Fases seguintes, a ajustar conforme a documentacao real mostrar dependencia diferente:
 
-- **Fase B** — `APP_ENV` + guardrails de ambiente no codigo.
+- **Fase B** — `APP_ENV` + guardrails de ambiente no codigo. **Concluida e implantada em producao em 08/08/2026 (commit `7e65bd9`)**: subfases B1 (APP_ENV, banco, SECRET_KEY) e B2 (scheduler/crawler). B3 (Telegram) auditada tecnicamente, aguardando implementacao.
 - **Fase C** — seed sintetico + protecao Telegram (bot dedicado).
 - **Fase D** — inspecao read-only real da VPS.
 - **Fase E** — clone + `.venv` + `.env` + `homolog.db` + systemd na porta 8001.
