@@ -57,6 +57,87 @@ def resolve_app_env(flask_env: str, app_env_raw: Optional[str]) -> str:
     return "development"
 
 
+VALID_TELEGRAM_MODES = frozenset({"disabled", "homologation", "production"})
+
+
+def resolve_telegram_mode(app_env: str, telegram_mode_raw: Optional[str]) -> str:
+    """
+    Resolve o valor efetivo de TELEGRAM_MODE (fail-closed).
+
+    - development: ausente -> "disabled"; "disabled"/"homologation" aceitos;
+      "production" rejeitado.
+    - homologation: exige "homologation" explicito (ausente/disabled/production -> erro).
+    - production: exige "production" explicito (ausente/disabled/homologation -> erro).
+    - qualquer valor fora de VALID_TELEGRAM_MODES -> erro, independente do ambiente.
+    """
+    raw = (telegram_mode_raw or "").strip()
+
+    if raw and raw not in VALID_TELEGRAM_MODES:
+        raise RuntimeError(
+            f"TELEGRAM_MODE invalido: {raw!r}. Valores permitidos: "
+            f"{', '.join(sorted(VALID_TELEGRAM_MODES))}."
+        )
+
+    if app_env == "development":
+        if not raw:
+            return "disabled"
+        if raw == "production":
+            raise RuntimeError(
+                "APP_ENV=development nao aceita TELEGRAM_MODE=production."
+            )
+        return raw
+
+    if app_env == "homologation":
+        if raw != "homologation":
+            raise RuntimeError(
+                "APP_ENV=homologation exige TELEGRAM_MODE=homologation explicito."
+            )
+        return raw
+
+    if app_env == "production":
+        if raw != "production":
+            raise RuntimeError(
+                "APP_ENV=production exige TELEGRAM_MODE=production explicito."
+            )
+        return raw
+
+    raise RuntimeError(f"APP_ENV desconhecido ao resolver TELEGRAM_MODE: {app_env!r}.")
+
+
+def resolve_telegram_expected_bot_id(telegram_mode: str, raw: Optional[str]) -> Optional[int]:
+    """
+    Resolve TELEGRAM_EXPECTED_BOT_ID (fail-closed). Nao e secret.
+
+    - TELEGRAM_MODE == "disabled": nenhuma identidade e necessaria -> None.
+    - TELEGRAM_MODE ativo: obrigatorio, deve ser inteiro positivo.
+    """
+    if telegram_mode == "disabled":
+        return None
+    value = (raw or "").strip()
+    if not value:
+        raise RuntimeError(
+            f"TELEGRAM_MODE={telegram_mode} exige TELEGRAM_EXPECTED_BOT_ID configurado."
+        )
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise RuntimeError(
+            f"TELEGRAM_EXPECTED_BOT_ID invalido (nao numerico): {value!r}."
+        )
+    if parsed <= 0:
+        raise RuntimeError(
+            f"TELEGRAM_EXPECTED_BOT_ID deve ser um inteiro positivo (recebido: {parsed})."
+        )
+    return parsed
+
+
+# Resolvidos uma vez aqui (nao dentro dos defaults do dataclass abaixo) para
+# evitar recomputar resolve_app_env/resolve_telegram_mode tres vezes ao
+# calcular os campos TELEGRAM_MODE e TELEGRAM_EXPECTED_BOT_ID.
+_app_env_for_telegram_defaults = resolve_app_env(os.getenv("FLASK_ENV", "development"), os.getenv("APP_ENV"))
+_telegram_mode_for_defaults = resolve_telegram_mode(_app_env_for_telegram_defaults, os.getenv("TELEGRAM_MODE"))
+
+
 @dataclass(frozen=True)
 class Settings:
     # Ambiente
@@ -74,6 +155,11 @@ class Settings:
     TELEGRAM_TOKEN: Optional[str] = os.getenv("TELEGRAM_TOKEN")
     TELEGRAM_BOT_USERNAME: Optional[str] = os.getenv("TELEGRAM_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET: Optional[str] = os.getenv("TELEGRAM_WEBHOOK_SECRET") or None
+    TELEGRAM_MODE: str = _telegram_mode_for_defaults
+    # Nao e secret -- ID numerico do bot, validado via getMe (identity guard).
+    TELEGRAM_EXPECTED_BOT_ID: Optional[int] = resolve_telegram_expected_bot_id(
+        _telegram_mode_for_defaults, os.getenv("TELEGRAM_EXPECTED_BOT_ID")
+    )
 
     INTERNAL_INGEST_TOKEN: Optional[str] = os.getenv("INTERNAL_INGEST_TOKEN") or None
 

@@ -8,15 +8,12 @@ from app import csrf
 from infrastructure.config import get_settings
 from infrastructure.logging import get_logger
 from infrastructure.db import SessionLocal
-from infrastructure.telegram import send_message
+from infrastructure.telegram import send_message, telegram_ready
 from domain.models import User
 from domain.repositories import get_user_by_telegram_code, save_chat_binding
 
 bp = Blueprint("webhook", __name__)
 log = get_logger(__name__)
-
-# Evita logar o aviso de "sem secret" em toda requisição
-_no_secret_warned = False
 
 
 def _send(chat_id: int | str, text: str) -> None:
@@ -28,38 +25,42 @@ def _send(chat_id: int | str, text: str) -> None:
 
 def _check_secret() -> bool:
     """
-    Valida X-Telegram-Bot-Api-Secret-Token quando TELEGRAM_WEBHOOK_SECRET está configurado.
-    Retorna True se a requisição pode prosseguir, False se deve ser rejeitada.
+    Valida X-Telegram-Bot-Api-Secret-Token. Só é chamada quando
+    TELEGRAM_MODE != "disabled" (ver telegram_webhook()). Quando ativo, o
+    secret é sempre obrigatório -- nunca aceitar webhook sem autenticação,
+    independente do ambiente.
     """
-    global _no_secret_warned
     settings = get_settings()
     expected = settings.TELEGRAM_WEBHOOK_SECRET
-    if expected:
-        incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-        if incoming != expected:
-            log.warning("Webhook Telegram rejeitado: secret inválido ou ausente")
-            return False
-        return True
-    if settings.FLASK_ENV == "production":
+    if not expected:
         log.error(
-            "TELEGRAM_WEBHOOK_SECRET ausente em produção — webhook recusado. "
-            "Configure no .env de produção."
+            "TELEGRAM_WEBHOOK_SECRET ausente com TELEGRAM_MODE=%s — webhook recusado.",
+            settings.TELEGRAM_MODE,
         )
         return False
-    if not _no_secret_warned:
-        log.warning(
-            "TELEGRAM_WEBHOOK_SECRET não configurado — webhook aceita requisições sem autenticação. "
-            "Configure em produção via .env."
-        )
-        _no_secret_warned = True
+    incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if incoming != expected:
+        log.warning("Webhook Telegram rejeitado: secret inválido ou ausente")
+        return False
     return True
 
 
 @bp.post("/telegram")
 @csrf.exempt  # Telegram não envia CSRF; precisamos isentar
 def telegram_webhook():
+    settings = get_settings()
+
+    if settings.TELEGRAM_MODE == "disabled":
+        return jsonify({"status": "telegram_disabled"}), 503
+
     if not _check_secret():
         return jsonify({"status": "forbidden"}), 403
+
+    # Identity guard ANTES de qualquer side effect no banco -- impede gravar
+    # vínculo/enviar resposta antes de confirmar que o bot é o esperado.
+    if not telegram_ready():
+        log.error("Webhook Telegram recusado: guardrail de identidade não confirmou o bot.")
+        return jsonify({"status": "telegram_not_ready"}), 503
 
     data = request.get_json(silent=True) or {}
     message = data.get("message") or {}

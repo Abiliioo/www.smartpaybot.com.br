@@ -28,6 +28,23 @@ def create_app() -> Flask:
                 f"Configure SECRET_KEY explicitamente para APP_ENV={settings.APP_ENV}."
             )
 
+    # Configuração Telegram — validação local/fail-fast, sem chamar a rede
+    # (getMe roda lazy, na primeira operação real; ver infrastructure/telegram.py).
+    if settings.TELEGRAM_MODE != "disabled":
+        missing = []
+        if not settings.TELEGRAM_TOKEN:
+            missing.append("TELEGRAM_TOKEN")
+        if not settings.TELEGRAM_EXPECTED_BOT_ID:
+            missing.append("TELEGRAM_EXPECTED_BOT_ID")
+        if settings.APP_ENV != "development" and not settings.TELEGRAM_WEBHOOK_SECRET:
+            missing.append("TELEGRAM_WEBHOOK_SECRET")
+        if missing:
+            raise RuntimeError(
+                "Configuração Telegram incompleta para APP_ENV="
+                f"{settings.APP_ENV} TELEGRAM_MODE={settings.TELEGRAM_MODE}: "
+                f"faltam {', '.join(missing)}."
+            )
+
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
     @app.context_processor

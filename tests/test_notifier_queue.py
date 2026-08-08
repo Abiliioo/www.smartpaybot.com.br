@@ -122,12 +122,12 @@ class NotifierQueueTest(unittest.TestCase):
                 or 0
             )
 
-    def _run_notify(self, send_result=True, *, max_batch=100, max_per_user=20):
+    def _run_notify(self, send_result=True, *, max_batch=100, max_per_user=20, telegram_ready=True):
         with patch.object(notifier, "SessionLocal", self.Session), patch.object(
             notifier, "send_message", return_value=send_result
-        ) as send:
+        ) as send, patch.object(notifier, "telegram_ready", return_value=telegram_ready) as ready:
             sent = notifier.notify_pending(max_batch=max_batch, max_per_user=max_per_user)
-            return sent, send
+            return sent, send, ready
 
     def _run_notify_filtered(
         self,
@@ -137,17 +137,18 @@ class NotifierQueueTest(unittest.TestCase):
         max_per_user=20,
         only_user_id=None,
         only_project_ids=None,
+        telegram_ready=True,
     ):
         with patch.object(notifier, "SessionLocal", self.Session), patch.object(
             notifier, "send_message", return_value=send_result
-        ) as send:
+        ) as send, patch.object(notifier, "telegram_ready", return_value=telegram_ready) as ready:
             sent = notifier.notify_pending(
                 max_batch=max_batch,
                 max_per_user=max_per_user,
                 only_user_id=only_user_id,
                 only_project_ids=only_project_ids,
             )
-            return sent, send
+            return sent, send, ready
 
     def test_user_without_chat_id_does_not_consume_limit(self) -> None:
         invalid = self._user("invalid", chat_id=None)
@@ -155,7 +156,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(invalid, 150, start_project_id=1000)
         self._bulk_alerts(valid, 5, start_project_id=2000)
 
-        sent, send = self._run_notify(max_batch=5, max_per_user=5)
+        sent, send, _ = self._run_notify(max_batch=5, max_per_user=5)
 
         self.assertEqual(sent, 5)
         self.assertEqual(send.call_count, 5)
@@ -169,7 +170,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(inactive, 150, start_project_id=3000)
         self._bulk_alerts(valid, 5, start_project_id=4000)
 
-        sent, send = self._run_notify(max_batch=5, max_per_user=5)
+        sent, send, _ = self._run_notify(max_batch=5, max_per_user=5)
 
         self.assertEqual(sent, 5)
         self.assertEqual(send.call_count, 5)
@@ -183,7 +184,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(invalid, 150, start_project_id=4100)
         self._bulk_alerts(valid, 5, start_project_id=5000)
 
-        sent, send = self._run_notify(max_batch=5, max_per_user=5)
+        sent, send, _ = self._run_notify(max_batch=5, max_per_user=5)
 
         self.assertEqual(sent, 5)
         self.assertEqual(send.call_count, 5)
@@ -194,7 +195,7 @@ class NotifierQueueTest(unittest.TestCase):
         valid = self._user("valid", chat_id="chat-valid")
         self._bulk_alerts(valid, 5, start_project_id=4300)
 
-        sent, send = self._run_notify(max_batch=100)
+        sent, send, _ = self._run_notify(max_batch=100)
 
         self.assertEqual(sent, 5)
         self.assertEqual(send.call_count, 5)
@@ -207,7 +208,7 @@ class NotifierQueueTest(unittest.TestCase):
             self._alert(exhausted, self._project(project_id), attempts=notifier.MAX_ATTEMPTS)
         self._bulk_alerts(valid, 5, start_project_id=4600)
 
-        sent, send = self._run_notify(max_batch=5, max_per_user=5)
+        sent, send, _ = self._run_notify(max_batch=5, max_per_user=5)
 
         self.assertEqual(sent, 5)
         self.assertEqual(send.call_count, 5)
@@ -221,7 +222,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._alert(valid, first, notified=True)
         self._alert(valid, second)
 
-        sent, send = self._run_notify(max_batch=10)
+        sent, send, _ = self._run_notify(max_batch=10)
 
         self.assertEqual(sent, 1)
         self.assertEqual(send.call_count, 1)
@@ -231,18 +232,56 @@ class NotifierQueueTest(unittest.TestCase):
         valid = self._user("valid", chat_id="chat-valid")
         self._bulk_alerts(valid, 1, start_project_id=6000)
 
-        sent, send = self._run_notify(send_result=False, max_batch=10)
+        sent, send, _ = self._run_notify(send_result=False, max_batch=10)
 
         self.assertEqual(sent, 0)
         self.assertEqual(send.call_count, 1)
         self.assertEqual(self._attempt_sum(valid), 1)
         self.assertEqual(self._pending_count(valid), 1)
 
+    def test_telegram_not_ready_blocks_send_without_consuming_attempts(self) -> None:
+        """
+        Guardrail bloqueado (disabled/identidade invalida/rede indisponivel)
+        e uma classe de falha DIFERENTE de falha real de entrega: nao pode
+        consumir notify_attempts, nao pode marcar notified_at, nao pode
+        chamar send_message.
+        """
+        valid = self._user("valid", chat_id="chat-valid")
+        self._bulk_alerts(valid, 3, start_project_id=6100)
+
+        sent, send, ready = self._run_notify(max_batch=10, telegram_ready=False)
+
+        self.assertEqual(sent, 0)
+        send.assert_not_called()
+        ready.assert_called_once()
+        self.assertEqual(self._attempt_sum(valid), 0)
+        self.assertEqual(self._notified_count(valid), 0)
+        self.assertEqual(self._pending_count(valid), 3)
+
+    def test_no_eligible_alerts_does_not_check_telegram_readiness(self) -> None:
+        """Sem nenhum alerta elegivel, o preflight de readiness nem deveria rodar."""
+        sent, send, ready = self._run_notify(max_batch=10, telegram_ready=True)
+
+        self.assertEqual(sent, 0)
+        ready.assert_not_called()
+        send.assert_not_called()
+
+    def test_telegram_ready_true_preserves_current_success_behavior(self) -> None:
+        valid = self._user("valid", chat_id="chat-valid")
+        self._bulk_alerts(valid, 2, start_project_id=6200)
+
+        sent, send, ready = self._run_notify(max_batch=10, telegram_ready=True)
+
+        ready.assert_called_once()
+        self.assertEqual(sent, 2)
+        self.assertEqual(send.call_count, 2)
+        self.assertEqual(self._notified_count(valid), 2)
+
     def test_success_sets_notified_at(self) -> None:
         valid = self._user("valid", chat_id="chat-valid")
         self._bulk_alerts(valid, 1, start_project_id=7000)
 
-        sent, _send = self._run_notify(max_batch=10)
+        sent, _send, _ = self._run_notify(max_batch=10)
 
         self.assertEqual(sent, 1)
         self.assertEqual(self._notified_count(valid), 1)
@@ -254,7 +293,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(many, 100, start_project_id=8000)
         self._bulk_alerts(few, 5, start_project_id=9000)
 
-        sent, send = self._run_notify(max_batch=20, max_per_user=10)
+        sent, send, _ = self._run_notify(max_batch=20, max_per_user=10)
 
         self.assertEqual(sent, 15)
         self.assertEqual(send.call_count, 15)
@@ -266,8 +305,8 @@ class NotifierQueueTest(unittest.TestCase):
         valid = self._user("valid", chat_id="chat-valid")
         self._bulk_alerts(valid, 2, start_project_id=10000)
 
-        first_sent, first_send = self._run_notify(max_batch=10)
-        second_sent, second_send = self._run_notify(max_batch=10)
+        first_sent, first_send, _ = self._run_notify(max_batch=10)
+        second_sent, second_send, _ = self._run_notify(max_batch=10)
 
         self.assertEqual(first_sent, 2)
         self.assertEqual(first_send.call_count, 2)
@@ -281,7 +320,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(first, 3, start_project_id=11000)
         self._bulk_alerts(second, 4, start_project_id=12000)
 
-        sent, send = self._run_notify_filtered(only_user_id=second.id)
+        sent, send, _ = self._run_notify_filtered(only_user_id=second.id)
 
         self.assertEqual(sent, 4)
         self.assertEqual(send.call_count, 4)
@@ -294,7 +333,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(requested, 1, start_project_id=13000)
         self._bulk_alerts(other, 5, start_project_id=14000)
 
-        sent, send = self._run_notify_filtered(max_batch=10, only_user_id=requested.id)
+        sent, send, _ = self._run_notify_filtered(max_batch=10, only_user_id=requested.id)
 
         self.assertEqual(sent, 1)
         self.assertEqual(send.call_count, 1)
@@ -305,7 +344,7 @@ class NotifierQueueTest(unittest.TestCase):
         valid = self._user("valid", chat_id="chat-valid")
         ids = self._bulk_alerts(valid, 4, start_project_id=15000)
 
-        sent, send = self._run_notify_filtered(only_project_ids=[ids[1], ids[3]])
+        sent, send, _ = self._run_notify_filtered(only_project_ids=[ids[1], ids[3]])
 
         self.assertEqual(sent, 2)
         self.assertEqual(send.call_count, 2)
@@ -323,7 +362,7 @@ class NotifierQueueTest(unittest.TestCase):
         valid = self._user("valid", chat_id="chat-valid")
         self._bulk_alerts(valid, 3, start_project_id=16000)
 
-        sent, send = self._run_notify_filtered(only_project_ids=[])
+        sent, send, _ = self._run_notify_filtered(only_project_ids=[])
 
         self.assertEqual(sent, 0)
         self.assertEqual(send.call_count, 0)
@@ -335,7 +374,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(requested, 1, start_project_id=17000)
         other_ids = self._bulk_alerts(other, 1, start_project_id=18000)
 
-        sent, send = self._run_notify_filtered(
+        sent, send, _ = self._run_notify_filtered(
             only_user_id=requested.id,
             only_project_ids=[other_ids[0]],
         )
@@ -351,7 +390,7 @@ class NotifierQueueTest(unittest.TestCase):
         recent_ids = self._bulk_alerts(valid, 5, start_project_id=20000)
         target_id = recent_ids[2]
 
-        sent, send = self._run_notify_filtered(
+        sent, send, _ = self._run_notify_filtered(
             max_batch=1,
             max_per_user=1,
             only_user_id=valid.id,
@@ -372,7 +411,7 @@ class NotifierQueueTest(unittest.TestCase):
         self._bulk_alerts(many, 50, start_project_id=21000)
         self._bulk_alerts(few, 5, start_project_id=22000)
 
-        sent, send = self._run_notify_filtered(max_batch=20, max_per_user=10)
+        sent, send, _ = self._run_notify_filtered(max_batch=20, max_per_user=10)
 
         self.assertEqual(sent, 15)
         self.assertEqual(send.call_count, 15)
@@ -393,7 +432,7 @@ class NotifierQueueTest(unittest.TestCase):
         )
         valid_id = self._bulk_alerts(valid, 1, start_project_id=26000)[0]
 
-        sent, send = self._run_notify_filtered(
+        sent, send, _ = self._run_notify_filtered(
             only_project_ids=[inactive_id, no_chat_id, exhausted_id, valid_id],
         )
 

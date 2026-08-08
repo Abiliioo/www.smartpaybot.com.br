@@ -9,7 +9,7 @@ from typing import Collection, Dict, Optional
 
 from infrastructure.logging import get_logger
 from infrastructure.db import SessionLocal
-from infrastructure.telegram import send_message
+from infrastructure.telegram import send_message, telegram_ready
 from domain.repositories import (
     count_eligible_unnotified_user_projects,
     count_pending_user_projects,
@@ -319,6 +319,20 @@ def notify_pending(
                 pending_total,
                 pending_total,
                 perf_counter() - started,
+            )
+            return 0
+
+        # Preflight do Telegram: só verifica readiness/identidade quando há
+        # de fato algo elegível para enviar (evita getMe desnecessário). Se
+        # o guardrail bloquear (disabled, identidade não confirmada, rede
+        # indisponível), isso é uma falha DIFERENTE de uma falha real de
+        # entrega -- não incrementa notify_attempts, não marca notified_at,
+        # não consome limite diário, não faz scraping de enriquecimento.
+        if not telegram_ready():
+            logger.warning(
+                "[notifier] Telegram nao esta pronto/seguro (guardrail) -- "
+                "elegiveis=%s ignorados nesta rodada, nenhuma tentativa consumida.",
+                eligible_total,
             )
             return 0
 

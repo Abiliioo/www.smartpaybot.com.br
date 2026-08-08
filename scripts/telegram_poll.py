@@ -20,27 +20,19 @@ import time
 # diretamente com: .venv\Scripts\python.exe scripts\telegram_poll.py
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
 from sqlalchemy import select
 
 from infrastructure.config import get_settings
 from infrastructure.db import SessionLocal
 from infrastructure.logging import configure_logging, get_logger
-from infrastructure.telegram import send_message
+from infrastructure.telegram import send_message, get_updates, telegram_ready
 from domain.models import User
 from domain.repositories import get_user_by_telegram_code, save_chat_binding
 
 log = get_logger("telegram_poll")
 
-_TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
-
 POLL_TIMEOUT = 30   # long-poll: segundos que a API do Telegram aguarda antes de retornar vazio
-RETRY_SLEEP = 5     # segundos de espera após erro de rede
-
-
-def _masked_token(token: str) -> str:
-    """Exibe só os primeiros 8 caracteres do token para debug seguro."""
-    return token[:8] + "..." if len(token) > 8 else "***"
+RETRY_SLEEP = 5     # segundos de espera após erro/guardrail antes de tentar novamente
 
 
 def _send(chat_id: int | str, text: str) -> None:
@@ -125,9 +117,23 @@ def run_polling() -> None:
     settings = get_settings()
     configure_logging(settings.LOG_LEVEL)
 
-    token = settings.TELEGRAM_TOKEN
-    if not token:
-        print("ERRO: TELEGRAM_TOKEN não configurado no .env. Abortando.", flush=True)
+    if settings.TELEGRAM_MODE == "disabled":
+        print(
+            "TELEGRAM_MODE=disabled — polling abortado antes de qualquer chamada de rede.\n"
+            "Configure TELEGRAM_MODE=homologation (e TELEGRAM_EXPECTED_BOT_ID) para usar este script.",
+            flush=True,
+        )
+        sys.exit(1)
+
+    # Identity guard ANTES de iniciar o long-poll — nunca conversar com um
+    # bot que não seja o esperado (protege especialmente contra apontar por
+    # engano para o token de produção a partir de um ambiente local).
+    if not telegram_ready():
+        print(
+            "ERRO: guardrail Telegram não confirmou a identidade do bot "
+            "(TELEGRAM_EXPECTED_BOT_ID/getMe). Abortando antes de iniciar o polling.",
+            flush=True,
+        )
         sys.exit(1)
 
     bot_name = f"@{settings.TELEGRAM_BOT_USERNAME}" if settings.TELEGRAM_BOT_USERNAME else "(bot_username não definido)"
@@ -135,9 +141,11 @@ def run_polling() -> None:
     print("", flush=True)
     print("=" * 50, flush=True)
     print("  SmartPayBot — Telegram Polling (dev)", flush=True)
-    print(f"  Bot     : {bot_name}", flush=True)
-    print(f"  Token   : {_masked_token(token)}", flush=True)
-    print(f"  Timeout : {POLL_TIMEOUT}s por ciclo", flush=True)
+    print(f"  Bot          : {bot_name}", flush=True)
+    print("  Telegram     : configurado", flush=True)
+    print(f"  Modo         : {settings.TELEGRAM_MODE}", flush=True)
+    print(f"  Bot esperado : {settings.TELEGRAM_EXPECTED_BOT_ID}", flush=True)
+    print(f"  Timeout      : {POLL_TIMEOUT}s por ciclo", flush=True)
     print("=" * 50, flush=True)
     print("  Abra o bot no Telegram e envie:", flush=True)
     print("  /start <codigo>", flush=True)
@@ -146,67 +154,46 @@ def run_polling() -> None:
     print("  Ctrl+C para parar", flush=True)
     print("", flush=True)
 
-    base_url = _TELEGRAM_API.format(token=token, method="{method}")
     offset: int | None = None
 
-    session = requests.Session()
     try:
         while True:
-            params: dict = {
-                "timeout": POLL_TIMEOUT,
-                "allowed_updates": ["message"],
-            }
-            if offset is not None:
-                params["offset"] = offset
-
             log.debug("getUpdates (offset=%s, timeout=%ds)...", offset, POLL_TIMEOUT)
 
-            try:
-                resp = session.get(
-                    base_url.format(method="getUpdates"),
-                    params=params,
-                    timeout=POLL_TIMEOUT + 10,  # margem acima do long-poll
-                )
-                resp.raise_for_status()
-                data = resp.json()
+            data = get_updates(offset=offset, timeout=POLL_TIMEOUT, allowed_updates=["message"])
 
-                if not data.get("ok"):
-                    log.warning("getUpdates retornou ok=false: %s", data)
-                    time.sleep(RETRY_SLEEP)
+            if data is None:
+                # get_updates() já loga a causa sanitizada (guardrail ou rede).
+                time.sleep(RETRY_SLEEP)
+                continue
+
+            if not data.get("ok"):
+                log.warning("getUpdates retornou ok=false: %s", data)
+                time.sleep(RETRY_SLEEP)
+                continue
+
+            updates: list[dict] = data.get("result") or []
+
+            if updates:
+                log.info("Recebidos %d update(s)", len(updates))
+
+            for update in updates:
+                update_id: int = update["update_id"]
+                offset = update_id + 1
+
+                message = update.get("message")
+                if not message:
+                    log.debug("update_id=%s sem campo 'message' — ignorado", update_id)
                     continue
 
-                updates: list[dict] = data.get("result") or []
-
-                if updates:
-                    log.info("Recebidos %d update(s)", len(updates))
-
-                for update in updates:
-                    update_id: int = update["update_id"]
-                    offset = update_id + 1
-
-                    message = update.get("message")
-                    if not message:
-                        log.debug("update_id=%s sem campo 'message' — ignorado", update_id)
-                        continue
-
-                    try:
-                        _process_message(message)
-                    except Exception:
-                        log.exception("Erro ao processar update_id=%s", update_id)
-
-            except requests.Timeout:
-                # Long-poll expirou sem updates — comportamento normal
-                log.debug("Long-poll expirou sem updates — aguardando próximo ciclo")
-                continue
-            except requests.RequestException as e:
-                log.error("Erro de rede: %s. Aguardando %ds...", e, RETRY_SLEEP)
-                time.sleep(RETRY_SLEEP)
+                try:
+                    _process_message(message)
+                except Exception:
+                    log.exception("Erro ao processar update_id=%s", update_id)
 
     except KeyboardInterrupt:
         print("\nPolling encerrado.", flush=True)
         log.info("Polling encerrado pelo usuário.")
-    finally:
-        session.close()
 
 
 if __name__ == "__main__":

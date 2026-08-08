@@ -12,7 +12,25 @@ from infrastructure.config import resolve_app_env
 from infrastructure.db import validate_database_url
 
 
-_ENV_KEYS = ("APP_ENV", "FLASK_ENV", "DATABASE_URL", "SECRET_KEY", "SCHEDULER")
+_ENV_KEYS = (
+    "APP_ENV",
+    "FLASK_ENV",
+    "DATABASE_URL",
+    "SECRET_KEY",
+    "SCHEDULER",
+    "TELEGRAM_MODE",
+    "TELEGRAM_TOKEN",
+    "TELEGRAM_EXPECTED_BOT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+)
+
+# Desde B3, APP_ENV=homologation/production tambem exige TELEGRAM_MODE
+# explicito (e TELEGRAM_EXPECTED_BOT_ID) so para Settings() ser construido
+# com sucesso -- por isso os testes abaixo que usam esses APP_ENV precisam
+# fornecer, no minimo, esses dois valores sinteticos.
+_SYNTHETIC_BOT_ID = "123456789"
+_SYNTHETIC_TELEGRAM_TOKEN = "123456789:synthetic-b1-test-token"
+_SYNTHETIC_WEBHOOK_SECRET = "synthetic-b1-webhook-secret"
 
 
 @contextlib.contextmanager
@@ -92,13 +110,15 @@ class SettingsAppEnvIntegrationTest(unittest.TestCase):
 
     def test_settings_homologation_explicit(self) -> None:
         with reloaded_settings(
-            FLASK_ENV="production", APP_ENV="homologation", SECRET_KEY="h" * 32
+            FLASK_ENV="production", APP_ENV="homologation", SECRET_KEY="h" * 32,
+            TELEGRAM_MODE="homologation", TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID,
         ) as cfg:
             self.assertEqual(cfg.get_settings().APP_ENV, "homologation")
 
     def test_settings_production_explicit(self) -> None:
         with reloaded_settings(
-            FLASK_ENV="production", APP_ENV="production", SECRET_KEY="p" * 32
+            FLASK_ENV="production", APP_ENV="production", SECRET_KEY="p" * 32,
+            TELEGRAM_MODE="production", TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID,
         ) as cfg:
             self.assertEqual(cfg.get_settings().APP_ENV, "production")
 
@@ -186,6 +206,8 @@ class DatabaseUrlGuardrailBeforeCreateEngineTest(unittest.TestCase):
             APP_ENV="homologation",
             DATABASE_URL="sqlite:///app.db",
             SECRET_KEY="h" * 32,
+            TELEGRAM_MODE="homologation",
+            TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID,
         ):
             with mock.patch("sqlalchemy.create_engine") as mocked_create_engine:
                 with self.assertRaises(RuntimeError):
@@ -207,22 +229,38 @@ class SecretKeyGuardrailTest(unittest.TestCase):
     """
 
     def test_production_with_strong_secret_boots(self) -> None:
-        with reloaded_settings(FLASK_ENV="production", APP_ENV="production", SECRET_KEY="s" * 32):
+        with reloaded_settings(
+            FLASK_ENV="production", APP_ENV="production", SECRET_KEY="s" * 32,
+            TELEGRAM_MODE="production", TELEGRAM_TOKEN=_SYNTHETIC_TELEGRAM_TOKEN,
+            TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID, TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_WEBHOOK_SECRET,
+        ):
             app_module.create_app()
 
     def test_homologation_with_strong_secret_boots(self) -> None:
         with reloaded_settings(
-            FLASK_ENV="production", APP_ENV="homologation", SECRET_KEY="h" * 32
+            FLASK_ENV="production", APP_ENV="homologation", SECRET_KEY="h" * 32,
+            TELEGRAM_MODE="homologation", TELEGRAM_TOKEN=_SYNTHETIC_TELEGRAM_TOKEN,
+            TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID, TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_WEBHOOK_SECRET,
         ):
             app_module.create_app()
 
     def test_production_with_default_secret_is_rejected(self) -> None:
-        with reloaded_settings(FLASK_ENV="production", APP_ENV="production"):
+        # TELEGRAM_MODE/EXPECTED_BOT_ID sao necessarios so para Settings()
+        # ser construido com sucesso e o teste alcancar create_app() -- a
+        # rejeicao esperada aqui e por SECRET_KEY, verificada antes da
+        # checagem de Telegram em app/__init__.py.
+        with reloaded_settings(
+            FLASK_ENV="production", APP_ENV="production",
+            TELEGRAM_MODE="production", TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID,
+        ):
             with self.assertRaises(RuntimeError):
                 app_module.create_app()
 
     def test_homologation_with_default_secret_is_rejected(self) -> None:
-        with reloaded_settings(FLASK_ENV="production", APP_ENV="homologation"):
+        with reloaded_settings(
+            FLASK_ENV="production", APP_ENV="homologation",
+            TELEGRAM_MODE="homologation", TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID,
+        ):
             with self.assertRaises(RuntimeError):
                 app_module.create_app()
 
@@ -244,6 +282,10 @@ class ProductionCompatibilityTest(unittest.TestCase):
             SECRET_KEY="prod-secret-" + "x" * 20,
             DATABASE_URL="sqlite:////var/www/smartpaybot/app.db",
             SCHEDULER="0",
+            TELEGRAM_MODE="production",
+            TELEGRAM_TOKEN=_SYNTHETIC_TELEGRAM_TOKEN,
+            TELEGRAM_EXPECTED_BOT_ID=_SYNTHETIC_BOT_ID,
+            TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_WEBHOOK_SECRET,
         ) as cfg:
             settings = cfg.get_settings()
             self.assertFalse(settings.SCHEDULER_ENABLED)

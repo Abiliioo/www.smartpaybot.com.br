@@ -147,6 +147,8 @@ Validacao do deploy B1/B2:
 - ciclo automatico do coletor aprovado (recebidos=100 -> matcher -> notifier);
 - Windows Scheduled Task do coletor terminou com `LastTaskResult=0`.
 
+B3 (isolamento de Telegram) foi implementado localmente com testes (`TELEGRAM_MODE` fail-closed, identity guard via `TELEGRAM_EXPECTED_BOT_ID`/`getMe` lazy/cacheado, toda chamada de rede Telegram centralizada), **ainda aguardando deploy** — nao implantado em producao. B4 (cookie/banner de homologacao) permanece posterior.
+
 B3 (isolamento de Telegram entre producao e homologacao) foi auditado tecnicamente, mas ainda nao implementado. B4 (cookie/banner de homologacao) permanece posterior a B3.
 
 ## Incidentes resolvidos
