@@ -101,6 +101,24 @@ class TelegramWebhookGuardrailTest(unittest.TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertIsNone(self._user_chat_id())
 
+    def test_secret_incorrect_never_calls_identity_guard(self) -> None:
+        """
+        Auditoria forense (Etapa 8): ordem correta e secret ANTES de
+        identity -- getMe nao precisa (e nao deve) ser chamado quando o
+        secret ja falhou.
+        """
+        with patch.object(
+            webhook_routes, "get_settings",
+            return_value=_settings_stub("homologation", secret=_SYNTHETIC_SECRET),
+        ), patch.object(webhook_routes, "telegram_ready") as ready_mock:
+            resp = self._post(
+                "/start link-code-123",
+                headers={"X-Telegram-Bot-Api-Secret-Token": "wrong-secret"},
+            )
+
+        self.assertEqual(resp.status_code, 403)
+        ready_mock.assert_not_called()
+
     def test_active_secret_correct_identity_invalid_returns_503_no_side_effect(self) -> None:
         with patch.object(
             webhook_routes, "get_settings",

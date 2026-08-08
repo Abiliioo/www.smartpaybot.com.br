@@ -59,6 +59,7 @@ def _settings_stub(**overrides):
         "TELEGRAM_MODE": "homologation",
         "TELEGRAM_TOKEN": _SYNTHETIC_TOKEN,
         "TELEGRAM_EXPECTED_BOT_ID": _SYNTHETIC_BOT_ID,
+        "TELEGRAM_WEBHOOK_SECRET": _SYNTHETIC_SECRET,
     }
     base.update(overrides)
     return mock.Mock(**base)
@@ -467,6 +468,98 @@ class AllOperationsRespectGuardTest(unittest.TestCase):
         get_mock.assert_called_once()  # so o getMe (que falhou), nunca o getUpdates real
 
 
+class SetWebhookSecretHandlingTest(unittest.TestCase):
+    """
+    Etapa 5 da auditoria forense: set_webhook() nunca pode registrar um
+    webhook sem secret. O secret enviado ao Telegram e sempre
+    settings.TELEGRAM_WEBHOOK_SECRET -- nao depende do chamador passar o
+    valor certo.
+    """
+
+    def setUp(self) -> None:
+        telegram_module._validated_token_fingerprints.clear()
+
+    def tearDown(self) -> None:
+        telegram_module._validated_token_fingerprints.clear()
+
+    def test_production_sends_configured_secret_automatically(self) -> None:
+        settings = _settings_stub(TELEGRAM_MODE="production", TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_SECRET)
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://example.test/webhook")
+
+        self.assertTrue(ok)
+        sent_data = post_mock.call_args.kwargs["data"]
+        self.assertEqual(sent_data["secret_token"], _SYNTHETIC_SECRET)
+
+    def test_homologation_sends_configured_secret_automatically(self) -> None:
+        settings = _settings_stub(TELEGRAM_MODE="homologation", TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_SECRET)
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://example.test/webhook")
+
+        self.assertTrue(ok)
+        sent_data = post_mock.call_args.kwargs["data"]
+        self.assertEqual(sent_data["secret_token"], _SYNTHETIC_SECRET)
+
+    def test_caller_passing_matching_secret_still_sends_configured_value(self) -> None:
+        settings = _settings_stub(TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_SECRET)
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://example.test/webhook", secret_token=_SYNTHETIC_SECRET)
+
+        self.assertTrue(ok)
+        sent_data = post_mock.call_args.kwargs["data"]
+        self.assertEqual(sent_data["secret_token"], _SYNTHETIC_SECRET)
+
+    def test_active_mode_without_configured_secret_blocks_before_requests(self) -> None:
+        settings = _settings_stub(TELEGRAM_WEBHOOK_SECRET=None)
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            ok = telegram_module.set_webhook("https://example.test/webhook")
+
+        self.assertFalse(ok)
+        post_mock.assert_not_called()
+
+    def test_divergent_explicit_secret_blocks_before_requests(self) -> None:
+        settings = _settings_stub(TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_SECRET)
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            ok = telegram_module.set_webhook(
+                "https://example.test/webhook", secret_token="different-value-not-configured"
+            )
+
+        self.assertFalse(ok)
+        post_mock.assert_not_called()
+
+    def test_disabled_mode_set_webhook_touches_no_network(self) -> None:
+        settings = _settings_stub(TELEGRAM_MODE="disabled")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get") as get_mock, mock.patch("requests.post") as post_mock:
+            ok = telegram_module.set_webhook("https://example.test/webhook")
+
+        self.assertFalse(ok)
+        get_mock.assert_not_called()
+        post_mock.assert_not_called()
+
+    def test_secret_never_appears_in_logs(self) -> None:
+        settings = _settings_stub(TELEGRAM_WEBHOOK_SECRET=None)
+        with self.assertLogs("infrastructure.telegram", level="WARNING") as captured:
+            with mock.patch.object(telegram_module, "get_settings", return_value=settings):
+                telegram_module.set_webhook("https://example.test/webhook", secret_token="some-value")
+        full_log = "\n".join(captured.output)
+        self.assertNotIn(_SYNTHETIC_SECRET, full_log)
+        self.assertNotIn("some-value", full_log)
+
+
 class LoggingDoesNotLeakSecretsTest(unittest.TestCase):
     """Etapa 13 -- nenhum token/secret aparece em log, nem em RequestException."""
 
@@ -510,13 +603,111 @@ class LoggingDoesNotLeakSecretsTest(unittest.TestCase):
         self.assertNotIn(_SYNTHETIC_TOKEN, full_log)
         self.assertNotIn(url_with_token, full_log)
 
-    def test_webhook_secret_never_appears_in_module_source_logs(self) -> None:
-        # Garantia estatica leve: nenhuma chamada de log no modulo referencia
-        # TELEGRAM_WEBHOOK_SECRET diretamente (ela pertence ao webhook, nao a
-        # este modulo -- mas fica documentado aqui como parte da suite B3).
+    def test_no_logger_call_interpolates_secret_value_variables(self) -> None:
+        """
+        Garantia estatica: nenhuma chamada de log interpola uma VARIAVEL que
+        carregue o valor do secret/token (ex.: `logger.warning("...%s", token)`
+        ou `..., configured_secret)`). Mencionar o NOME do campo em uma string
+        literal (ex.: "TELEGRAM_WEBHOOK_SECRET nao configurado") e seguro e
+        esperado -- e apenas texto descritivo, nao o valor. O invariante real
+        (nenhum VALOR sintetico de secret aparece em log de verdade) e
+        coberto pelos testes de assertLogs acima, que capturam saida real.
+        """
         import inspect
+        import re
+
         source = inspect.getsource(telegram_module)
-        self.assertNotIn("TELEGRAM_WEBHOOK_SECRET", source)
+        log_calls = re.findall(r"log(?:ger)?\.(?:error|warning|info|debug|exception)\(([^)]*)\)", source, re.DOTALL)
+        risky_variable_names = ("token", "secret_token", "configured_secret", "resolved_token")
+        for call_args in log_calls:
+            # Ignora o primeiro argumento (a string de formato) -- olha so
+            # para os argumentos de interpolacao passados depois da virgula.
+            parts = [p.strip() for p in call_args.split(",")][1:]
+            for part in parts:
+                self.assertNotIn(part, risky_variable_names, msg=f"log interpola variavel arriscada: {call_args!r}")
+
+    def test_getme_timeout_log_never_contains_token(self) -> None:
+        import requests
+
+        settings = _settings_stub(TELEGRAM_TOKEN=_SYNTHETIC_TOKEN)
+        url_with_token = f"https://api.telegram.org/bot{_SYNTHETIC_TOKEN}/getMe"
+        exc = requests.exceptions.Timeout(f"timed out calling {url_with_token}")
+
+        with self.assertLogs("infrastructure.telegram", level="ERROR") as captured:
+            with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+                 mock.patch("requests.get", side_effect=exc):
+                telegram_module.telegram_ready()
+
+        full_log = "\n".join(captured.output)
+        self.assertNotIn(_SYNTHETIC_TOKEN, full_log)
+        self.assertNotIn(url_with_token, full_log)
+
+    def test_get_webhook_info_error_log_never_contains_token(self) -> None:
+        import requests
+
+        settings = _settings_stub(TELEGRAM_TOKEN=_SYNTHETIC_TOKEN)
+        url_with_token = f"https://api.telegram.org/bot{_SYNTHETIC_TOKEN}/getWebhookInfo"
+        exc = requests.exceptions.ConnectionError(f"boom at {url_with_token}")
+
+        with self.assertLogs("infrastructure.telegram", level="ERROR") as captured:
+            with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+                 mock.patch("requests.get", side_effect=[_get_me_response(), exc]):
+                telegram_module.get_webhook_info()
+
+        full_log = "\n".join(captured.output)
+        self.assertNotIn(_SYNTHETIC_TOKEN, full_log)
+        self.assertNotIn(url_with_token, full_log)
+
+    def test_set_webhook_error_log_never_contains_token(self) -> None:
+        import requests
+
+        settings = _settings_stub(TELEGRAM_TOKEN=_SYNTHETIC_TOKEN, TELEGRAM_WEBHOOK_SECRET=_SYNTHETIC_SECRET)
+        url_with_token = f"https://api.telegram.org/bot{_SYNTHETIC_TOKEN}/setWebhook"
+        exc = requests.exceptions.ConnectionError(f"boom at {url_with_token}")
+
+        with self.assertLogs("infrastructure.telegram", level="ERROR") as captured:
+            with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+                 mock.patch("requests.get", return_value=_get_me_response()), \
+                 mock.patch("requests.post", side_effect=exc):
+                telegram_module.set_webhook("https://example.test/webhook")
+
+        full_log = "\n".join(captured.output)
+        self.assertNotIn(_SYNTHETIC_TOKEN, full_log)
+        self.assertNotIn(_SYNTHETIC_SECRET, full_log)
+        self.assertNotIn(url_with_token, full_log)
+
+    def test_delete_webhook_error_log_never_contains_token(self) -> None:
+        import requests
+
+        settings = _settings_stub(TELEGRAM_TOKEN=_SYNTHETIC_TOKEN)
+        url_with_token = f"https://api.telegram.org/bot{_SYNTHETIC_TOKEN}/deleteWebhook"
+        exc = requests.exceptions.ConnectionError(f"boom at {url_with_token}")
+
+        with self.assertLogs("infrastructure.telegram", level="ERROR") as captured:
+            with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+                 mock.patch("requests.get", return_value=_get_me_response()), \
+                 mock.patch("requests.post", side_effect=exc):
+                telegram_module.delete_webhook()
+
+        full_log = "\n".join(captured.output)
+        self.assertNotIn(_SYNTHETIC_TOKEN, full_log)
+        self.assertNotIn(url_with_token, full_log)
+
+    def test_get_updates_error_log_never_contains_token(self) -> None:
+        import requests
+
+        settings = _settings_stub(TELEGRAM_TOKEN=_SYNTHETIC_TOKEN)
+        url_with_token = f"https://api.telegram.org/bot{_SYNTHETIC_TOKEN}/getUpdates"
+        exc = requests.exceptions.ConnectionError(f"boom at {url_with_token}")
+
+        with self.assertLogs("infrastructure.telegram", level="ERROR") as captured:
+            with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+                 mock.patch("requests.get", side_effect=[_get_me_response(), exc]):
+                telegram_module.get_updates(offset=1)
+
+        full_log = "\n".join(captured.output)
+        self.assertNotIn(_SYNTHETIC_TOKEN, full_log)
+        self.assertNotIn(url_with_token, full_log)
 
 
 if __name__ == "__main__":

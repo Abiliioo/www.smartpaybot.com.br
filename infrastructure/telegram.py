@@ -204,19 +204,39 @@ def set_webhook(
     drop_pending: bool = False,
     secret_token: Optional[str] = None,
 ) -> bool:
+    """
+    Registra o webhook. O secret enviado ao Telegram e SEMPRE
+    settings.TELEGRAM_WEBHOOK_SECRET -- nunca depende de um chamador externo
+    lembrar de passar o valor certo. Se nao houver secret configurado, a
+    operacao e bloqueada (nunca registra webhook sem secret). Se
+    secret_token for informado explicitamente e divergir do configurado,
+    tambem bloqueia antes de qualquer requisicao (evita registrar um
+    webhook com secret diferente do que o proprio endpoint valida).
+    """
     try:
         resolved_token = _guard(token)
     except TelegramGuardError as e:
         logger.warning("set_webhook bloqueado pelo guardrail: %s", e)
         return False
+
+    configured_secret = get_settings().TELEGRAM_WEBHOOK_SECRET
+    if not configured_secret:
+        logger.warning(
+            "set_webhook bloqueado: TELEGRAM_WEBHOOK_SECRET nao configurado -- "
+            "nunca registrar webhook sem secret."
+        )
+        return False
+    if secret_token is not None and secret_token != configured_secret:
+        logger.warning("set_webhook bloqueado: secret_token informado diverge do configurado.")
+        return False
+
     try:
         url = _TELEGRAM_API.format(token=resolved_token, method="setWebhook")
         data: Dict[str, Any] = {
             "url": webhook_url,
             "drop_pending_updates": str(drop_pending).lower(),
+            "secret_token": configured_secret,
         }
-        if secret_token:
-            data["secret_token"] = secret_token
         r = requests.post(url, data=data, timeout=15)
         ok = r.ok and r.json().get("ok", False)
         if not ok:
