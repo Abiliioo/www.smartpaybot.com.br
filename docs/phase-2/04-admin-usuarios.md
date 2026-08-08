@@ -4,7 +4,7 @@
 
 O Admin atual fica em `/admin/`, protegido por `login_required` e `admin_required`.
 
-Status SPB-210: Implementado localmente, aguardando revisao e deploy.
+Status SPB-210: Implantado e validado em producao em 07/08/2026, commit `c21786e` (fix(admin): separate admin from plan filters). Filtros `Todos`, `Free`, `Pro` e `Admin` sao mutuamente exclusivos e foram validados visualmente em producao apos o deploy.
 
 Capacidades atuais confirmadas:
 
@@ -49,6 +49,8 @@ Capacidades atuais confirmadas:
 Administrador tem precedencia sobre qualquer plano: um usuario com `is_admin=True` aparece somente em `admin`, mesmo que possua assinatura Pro ativa. Ele nunca aparece em `free` nem em `pro`.
 
 A paginacao usa tamanho fixo de 20 usuarios por pagina e nao aceita `page_size` enviado pelo usuario.
+
+Cobertura de testes: `tests/test_admin_user_list.py` (40 testes, incluindo os casos de exclusividade Free/Pro/Admin). Suite completa validada em 73 testes antes do deploy.
 
 ## Protecao de PII
 

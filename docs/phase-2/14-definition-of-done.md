@@ -15,6 +15,17 @@ Uma entrega da Fase 2 so deve ser considerada concluida quando:
 - rollout e rollback estao claros;
 - documentacao foi atualizada quando a decisao muda arquitetura.
 
+## Fechamento documental
+
+Toda sprint ou mudanca relevante deve, quando aplicavel, antes de ser considerada encerrada:
+
+- atualizar a documentacao tecnica afetada (ex.: `docs/phase-2/*`);
+- atualizar o status da entrega em `docs/phase-2/13-backlog.md`;
+- registrar a mudanca relevante em `CHANGELOG.md`;
+- criar ou atualizar uma ADR em `docs/adr/` quando houver decisao arquitetural relevante.
+
+Micro correcoes simples (hotfixes pontuais sem decisao arquitetural nova) nao exigem ADR.
+
 ## Gates por tipo
 
 ### Matcher

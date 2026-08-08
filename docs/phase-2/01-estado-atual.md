@@ -83,9 +83,11 @@ Nao ha modelos atuais para reset de senha, auditoria administrativa, caixa inter
 
 ## Admin atual
 
-`app/routes/admin.py` e `app/templates/admin.html` entregam:
+`app/routes/admin.py` e `app/templates/admin.html` entregam (SPB-210, implantado e validado em producao em 07/08/2026, commit `c21786e`):
 
-- listagem simples de usuarios;
+- listagem de usuarios com busca por username/email;
+- filtros combinaveis por plano (`Todos`, `Free`, `Pro`, `Admin`, mutuamente exclusivos), monitoramento e Telegram vinculado;
+- paginacao;
 - plano atual;
 - data de subscription;
 - quantidade de keywords;
@@ -96,7 +98,7 @@ Nao ha modelos atuais para reset de senha, auditoria administrativa, caixa inter
 - voltar para Free;
 - alterar plano por rota.
 
-Ainda nao existe busca, filtros, pagina de detalhe, ativacao/desativacao de conta, exclusao, anonimizacao, reset administrativo de senha ou auditoria estruturada.
+Ainda nao existe pagina de detalhe, ativacao/desativacao de conta, exclusao, anonimizacao, reset administrativo de senha ou auditoria estruturada.
 
 ## Frontend atual
 
