@@ -18,7 +18,10 @@ _ENV_KEYS = (
     "APP_ENV",
     "FLASK_ENV",
     "TELEGRAM_MODE",
+    "TELEGRAM_TOKEN",
     "TELEGRAM_EXPECTED_BOT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "TELEGRAM_BOT_USERNAME",
     "SECRET_KEY",
     "DATABASE_URL",
 )
@@ -225,8 +228,13 @@ class AppStartupTelegramConfigTest(unittest.TestCase):
             TELEGRAM_MODE="production",
             TELEGRAM_EXPECTED_BOT_ID=str(_SYNTHETIC_BOT_ID),
         ):
-            with self.assertRaises(RuntimeError):
+            # TELEGRAM_TOKEN deliberadamente ausente (nao passado em
+            # overrides, e _ENV_KEYS garante que nenhum valor real do
+            # ambiente vaze para dentro do reload) -- o motivo da recusa
+            # deve ser especificamente TELEGRAM_TOKEN, nao outra chave.
+            with self.assertRaises(RuntimeError) as ctx:
                 app_module.create_app()
+            self.assertIn("TELEGRAM_TOKEN", str(ctx.exception))
 
     def test_production_webhook_secret_ausente_boot_recusado(self) -> None:
         import app as app_module
@@ -237,12 +245,16 @@ class AppStartupTelegramConfigTest(unittest.TestCase):
             SECRET_KEY="s" * 32,
             TELEGRAM_MODE="production",
             TELEGRAM_EXPECTED_BOT_ID=str(_SYNTHETIC_BOT_ID),
-        ), mock.patch.dict(os.environ, {"TELEGRAM_TOKEN": _SYNTHETIC_TOKEN}):
-            # TELEGRAM_TOKEN setado via os.environ direto (nao esta em
-            # _ENV_KEYS) so afeta este teste; TELEGRAM_WEBHOOK_SECRET
-            # permanece ausente.
-            with self.assertRaises(RuntimeError):
+            TELEGRAM_TOKEN=_SYNTHETIC_TOKEN,
+        ):
+            # TELEGRAM_TOKEN fornecido diretamente ao reload (via
+            # overrides, antes do reload do modulo -- diferente de
+            # mock.patch.dict apos o reload, que nao afeta o default do
+            # dataclass ja calculado). TELEGRAM_WEBHOOK_SECRET
+            # deliberadamente ausente: deve ser o unico motivo da recusa.
+            with self.assertRaises(RuntimeError) as ctx:
                 app_module.create_app()
+            self.assertIn("TELEGRAM_WEBHOOK_SECRET", str(ctx.exception))
 
     def test_homologation_expected_id_ausente_recusado(self) -> None:
         # A ausencia de TELEGRAM_EXPECTED_BOT_ID ja e recusada uma camada
@@ -265,7 +277,8 @@ class AppStartupTelegramConfigTest(unittest.TestCase):
             FLASK_ENV="development",
             TELEGRAM_MODE="homologation",
             TELEGRAM_EXPECTED_BOT_ID=str(_SYNTHETIC_BOT_ID),
-        ), mock.patch.dict(os.environ, {"TELEGRAM_TOKEN": _SYNTHETIC_TOKEN}):
+            TELEGRAM_TOKEN=_SYNTHETIC_TOKEN,
+        ):
             app_module.create_app()  # nao deve levantar
 
     def test_disabled_mode_skips_telegram_config_check(self) -> None:
@@ -273,6 +286,38 @@ class AppStartupTelegramConfigTest(unittest.TestCase):
 
         with reloaded_settings(FLASK_ENV="development"):
             app_module.create_app()  # TELEGRAM_MODE=disabled -- nao exige nada
+
+    def test_real_environment_does_not_contaminate_controlled_reload(self) -> None:
+        """
+        Reproduz o cenario exato encontrado na VPS: valores sinteticos
+        "de producao real" presentes em os.environ (simulando um .env real
+        ja carregado por load_dotenv() no import inicial do processo), sem
+        serem passados como overrides para reloaded_settings(). O reload
+        controlado deve ignorar esses valores ambientais -- prova de que
+        um .env/os.environ externo nao pode contaminar o teste controlado.
+        """
+        import app as app_module
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_TOKEN": "synthetic-real-env-token",
+                "TELEGRAM_WEBHOOK_SECRET": "synthetic-real-env-secret",
+            },
+        ):
+            with reloaded_settings(
+                APP_ENV="production",
+                FLASK_ENV="production",
+                SECRET_KEY="s" * 32,
+                TELEGRAM_MODE="production",
+                TELEGRAM_EXPECTED_BOT_ID=str(_SYNTHETIC_BOT_ID),
+            ) as cfg:
+                settings = cfg.get_settings()
+                self.assertFalse(settings.TELEGRAM_TOKEN)
+                self.assertFalse(settings.TELEGRAM_WEBHOOK_SECRET)
+                with self.assertRaises(RuntimeError) as ctx:
+                    app_module.create_app()
+                self.assertIn("TELEGRAM_TOKEN", str(ctx.exception))
 
 
 class TelegramIdentityGuardTest(unittest.TestCase):
