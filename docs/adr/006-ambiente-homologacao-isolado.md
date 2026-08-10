@@ -78,7 +78,7 @@ Homologacao usa `homolog.db` (ou caminho absoluto equivalente dentro do proprio 
 
 ### 5. Telegram isolado
 
-Bot Telegram exclusivo de homologacao, nunca reutilizando token ou chat_ids de producao. Duas barreiras, implementadas localmente (B3, **ainda nao implantadas em producao** — pendente de deploy):
+Bot Telegram exclusivo de homologacao, nunca reutilizando token ou chat_ids de producao. Duas barreiras, implementadas, testadas e **implantadas e validadas em producao em 09/08/2026** (B3, commits `0c41b25`, `18ac2b1` e `fc3b91c` — detalhes da validacao em `docs/phase-2/01-estado-atual.md`):
 
 - **Intencao declarada**: `TELEGRAM_MODE` (`disabled` / `homologation` / `production`), com resolucao fail-closed simetrica a `APP_ENV` — `homologation` e `production` exigem o proprio valor explicito, sem fallback entre si; `development` aceita `disabled`/`homologation` e rejeita `production`.
 - **Identidade fisica**: `TELEGRAM_EXPECTED_BOT_ID` (nao e secret — ID numerico do bot). `infrastructure/telegram.py` centraliza toda chamada de rede Telegram (`send_message`, `get_webhook_info`, `set_webhook`, `delete_webhook`, `get_updates`) atras de um identity guard que valida via `getMe` (lazy, na primeira operacao real — nunca no boot, para nao acoplar disponibilidade do Telegram ao boot do Flask/Gunicorn) que `result.id == TELEGRAM_EXPECTED_BOT_ID` e `result.is_bot == True`. Validacao bem-sucedida e cacheada por processo (por fingerprint do token); falha nunca e cacheada, permitindo nova tentativa na proxima operacao. Falha de identidade bloqueia apenas a operacao Telegram — nunca derruba o processo Flask.
@@ -91,7 +91,7 @@ Homologacao usara um bot Telegram dedicado (criacao manual no BotFather, fora do
 
 ### 7. Scheduler
 
-Homologacao inicia com `SCHEDULER=0`. Isso **nao e proteccao suficiente sozinha**, pelos dois vetores documentados no Contexto (`bot-toggle` e ingest). Implementado em 08/08/2026 (commit `7e65bd9`, `workers/scheduler.py`): `start()` (e por extensao `start_scheduler()` e o toggle de monitoramento do dashboard) recusa iniciar o scheduler de scraping real quando `APP_ENV=homologation`, e o ciclo do pipeline pula a etapa de crawling nesse ambiente sem bloquear matcher/notifier. O guardrail de Telegram (item 5) foi implementado localmente (B3), ainda nao implantado em producao.
+Homologacao inicia com `SCHEDULER=0`. Isso **nao e proteccao suficiente sozinha**, pelos dois vetores documentados no Contexto (`bot-toggle` e ingest). Implementado em 08/08/2026 (commit `7e65bd9`, `workers/scheduler.py`): `start()` (e por extensao `start_scheduler()` e o toggle de monitoramento do dashboard) recusa iniciar o scheduler de scraping real quando `APP_ENV=homologation`, e o ciclo do pipeline pula a etapa de crawling nesse ambiente sem bloquear matcher/notifier. O guardrail de Telegram (item 5) foi implementado, testado e implantado/validado em producao em 09/08/2026 (B3).
 
 ### 8. Porta e processo
 
@@ -132,8 +132,9 @@ Requisitos, em camadas (nenhuma e por si so seguranca):
 
 Esta ADR cobre apenas a Fase A (arquitetura e formalizacao). Fases seguintes, a ajustar conforme a documentacao real mostrar dependencia diferente:
 
-- **Fase B** — `APP_ENV` + guardrails de ambiente no codigo. **Concluida e implantada em producao em 08/08/2026 (commit `7e65bd9`)**: subfases B1 (APP_ENV, banco, SECRET_KEY) e B2 (scheduler/crawler). B3 (Telegram) auditada tecnicamente, aguardando implementacao.
-- **Fase C** — seed sintetico + protecao Telegram (bot dedicado). Guardrails de codigo (`TELEGRAM_MODE` + identity guard via `TELEGRAM_EXPECTED_BOT_ID`) implementados localmente com testes, **aguardando deploy**; bot Telegram dedicado de homologacao ainda nao criado (acao manual no BotFather, fora do codigo).
+- **Fase B** — `APP_ENV` + guardrails de ambiente no codigo. **Concluida e implantada em producao**: subfases B1 e B2 (APP_ENV, banco, SECRET_KEY, scheduler/crawler) em 08/08/2026 (commit `7e65bd9`); B3 (Telegram — `TELEGRAM_MODE` + identity guard) em 09/08/2026 (commits `0c41b25`, `18ac2b1`, `fc3b91c`), com validacao operacional completa em producao (runtime, webhook, ciclo automatico do coletor — ver `docs/phase-2/01-estado-atual.md`).
+- **Fase C** — seed sintetico + protecao Telegram (bot dedicado). Guardrails de codigo do lado do B3 ja implementados, testados e implantados/validados em producao; permanece pendente apenas a criacao manual do bot Telegram dedicado de homologacao (acao no BotFather, fora do codigo, necessaria somente quando a homologacao fisica for criada).
+- **Proximo bloco (B4)** — isolamento visual e de sessao da homologacao: cookie/sessao separado do de producao, banner global inequivoco de "HOMOLOGACAO", diferenciacao visual clara de producao, e os demais guardrails previstos na sequencia desta ADR. Ainda nao iniciado.
 - **Fase D** — inspecao read-only real da VPS.
 - **Fase E** — clone + `.venv` + `.env` + `homolog.db` + systemd na porta 8001.
 - **Fase F** — DNS/Nginx/SSL para `homolog.smartpaybot.com.br`.

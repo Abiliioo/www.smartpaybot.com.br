@@ -122,6 +122,7 @@ O frontend usa templates Jinja e CSS proprio em `app/static/css/style.css`, com 
 - Preferencias de notificacao por canal nao existem.
 - Observabilidade ainda depende principalmente de logs.
 - SQLite e `NullPool` sao adequados ao beta, mas exigem cuidado com concorrencia.
+- O diretorio `backups/` pode aparecer como untracked na VPS: `.gitignore` protege `*.bak`, mas nao ha uma entrada dedicada `backups/` cobrindo outros tipos de arquivo que venham a existir nessa pasta. Avaliar futuramente adicionar `backups/` ao `.gitignore` (nao alterado neste registro, divida pequena).
 
 ## Ambiente de homologacao (SPB-263)
 
@@ -147,9 +148,16 @@ Validacao do deploy B1/B2:
 - ciclo automatico do coletor aprovado (recebidos=100 -> matcher -> notifier);
 - Windows Scheduled Task do coletor terminou com `LastTaskResult=0`.
 
-B3 (isolamento de Telegram) foi implementado localmente com testes (`TELEGRAM_MODE` fail-closed, identity guard via `TELEGRAM_EXPECTED_BOT_ID`/`getMe` lazy/cacheado, toda chamada de rede Telegram centralizada), **ainda aguardando deploy** — nao implantado em producao. B4 (cookie/banner de homologacao) permanece posterior.
+B3 (isolamento de Telegram: `TELEGRAM_MODE` fail-closed, identity guard via `TELEGRAM_EXPECTED_BOT_ID`/`getMe` lazy/cacheado, toda chamada de rede Telegram centralizada) foi implementado, hardened (commit `18ac2b1` — `set_webhook` passou a sempre enviar `TELEGRAM_WEBHOOK_SECRET` configurado e bloquear registro de webhook sem secret) e teve o isolamento dos proprios testes corrigido (commit `fc3b91c` — o helper de ambiente controlado dos testes de `tests/test_telegram_guardrails.py` nao neutralizava `TELEGRAM_TOKEN`/`TELEGRAM_WEBHOOK_SECRET`/`TELEGRAM_BOT_USERNAME`, permitindo que valores reais ja presentes no processo contaminassem os testes de configuracao "ausente"). **Implantado e validado em producao em 09/08/2026** (commits `0c41b25`, `18ac2b1`, `fc3b91c`; HEAD de producao `fc3b91c`):
 
-B3 (isolamento de Telegram entre producao e homologacao) foi auditado tecnicamente, mas ainda nao implementado. B4 (cookie/banner de homologacao) permanece posterior a B3.
+- suite completa: 190/190 (`tests.test_telegram_guardrails` isolado: 64/64); `py_compile` aprovado;
+- systemd `smartpaybot` ativo, Gunicorn em `127.0.0.1:8000`, Flask `ENV=production`/`DEBUG=False`, scheduler desabilitado por configuracao;
+- `TELEGRAM_MODE=production`, identity guard real confirmado (`telegram_ready()=True`, `getMe` validou o token configurado contra `TELEGRAM_EXPECTED_BOT_ID`);
+- smoke HTTP aprovado (Home/Login=200); `POST /webhook/telegram` sem secret recusado com 403; `getWebhookInfo` via guard confirmou `WEBHOOK_API_OK=True`, `pending_update_count=0`, `last_error_date=None`; logs sem `Traceback`/`RuntimeError`/`ERROR`/`CRITICAL`, apenas o warning esperado do webhook sem secret;
+- banco: `PRAGMA integrity_check=ok`, `PRAGMA foreign_key_check` vazio, intacto durante deploy/testes pre-restart;
+- primeiro ciclo automatico do coletor (Windows Scheduled Task `SmartPayBot Collector`) apos a reativacao terminou com `LastTaskResult=0`, pipeline `ingest -> matcher -> notifier` executado sem `Telegram nao esta pronto/seguro`, identity mismatch, `Traceback`, `RuntimeError`, `ERROR` ou `CRITICAL`.
+
+Escopo do SPB-263 que permanece em aberto: criacao fisica do ambiente de homologacao (`homolog.smartpaybot.com.br`, Fases D-I da ADR-006) e o proximo bloco de guardrails, **B4 — isolamento visual e de sessao da homologacao** (cookie/sessao separado, banner global de "HOMOLOGACAO", diferenciacao visual inequivoca de producao), ainda nao iniciado.
 
 ## Incidentes resolvidos
 
