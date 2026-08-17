@@ -17,6 +17,7 @@ Atualizar este documento a cada gate atravessado.
 - Fases E-I do SPB-263 (clone fisico de homologacao, DNS/Nginx/TLS, protecao externa, isolamento end-to-end, closeout) nao iniciadas.
 - ADR-006 (ambiente de homologacao isolado): status **Proposta**.
 - SPB-263: **EM ANDAMENTO**.
+- Deploy de producao passa a ter automacao local disponivel via `scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh` (ver `docs/runbooks/deploy-producao.md`), substituindo a sequencia manual de comandos SSH por um unico comando com preflight, gates fail-closed, testes, smoke e rollback automatico. A chave SSH permanece sob controle do operador; nenhum deploy foi executado por esta automacao ate o momento.
 
 ## Principio de priorizacao
 
