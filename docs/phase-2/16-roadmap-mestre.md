@@ -13,7 +13,7 @@ Atualizar este documento a cada gate atravessado.
 - SPB-263 Fase D (inspecao read-only da VPS) concluida em 16/08/2026, sem bloqueadores.
 - SPB-263 B4 implementado, testado (204/204) e auditado localmente na branch `feat/spb-263-homologation-ui-session`, commit:
   `643d2b98ed764f4f487799d988a783686e14f7cb`
-- B4 ainda NAO publicado, NAO integrado em `main`, NAO deployado em producao.
+- B4 implementado, testado e auditado. Ainda nao implantado em producao. Proximo gate: integracao em `main` e deploy controlado.
 - Fases E-I do SPB-263 (clone fisico de homologacao, DNS/Nginx/TLS, protecao externa, isolamento end-to-end, closeout) nao iniciadas.
 - ADR-006 (ambiente de homologacao isolado): status **Proposta**.
 - SPB-263: **EM ANDAMENTO**.
