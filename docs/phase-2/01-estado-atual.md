@@ -157,7 +157,16 @@ B3 (isolamento de Telegram: `TELEGRAM_MODE` fail-closed, identity guard via `TEL
 - banco: `PRAGMA integrity_check=ok`, `PRAGMA foreign_key_check` vazio, intacto durante deploy/testes pre-restart;
 - primeiro ciclo automatico do coletor (Windows Scheduled Task `SmartPayBot Collector`) apos a reativacao terminou com `LastTaskResult=0`, pipeline `ingest -> matcher -> notifier` executado sem `Telegram nao esta pronto/seguro`, identity mismatch, `Traceback`, `RuntimeError`, `ERROR` ou `CRITICAL`.
 
-Escopo do SPB-263 que permanece em aberto: criacao fisica do ambiente de homologacao (`homolog.smartpaybot.com.br`, Fases D-I da ADR-006) e o proximo bloco de guardrails, **B4 — isolamento visual e de sessao da homologacao** (cookie/sessao separado, banner global de "HOMOLOGACAO", diferenciacao visual inequivoca de producao), ainda nao iniciado.
+Fase D (inspecao read-only real da VPS) **concluida em 16/08/2026**, sem bloqueadores (detalhes completos em `docs/adr/006-ambiente-homologacao-isolado.md`):
+
+- apenas o clone de producao existe hoje em `/home/deploy/apps/` e apenas `smartpaybot.service` existe no systemd — sem colisao de diretorio/unit com a futura homologacao;
+- porta `8001` livre, bind loopback confirmado (`8000`/`8001` acessiveis apenas em `127.0.0.1`);
+- UFW ativo (`incoming=deny`, `22`/`80`/`443` liberados), nftables/iptables consistentes; decisao: `8001` nao sera aberta no firewall, homologacao seguira acessivel externamente somente via Nginx em `443`;
+- Nginx atual mapeado (producao -> `127.0.0.1:8000`, `nginx -t` OK), ainda sem configuracao para `homolog.smartpaybot.com.br`;
+- certificado SSL atual (`smartpaybot.com.br`, valido 17/06/2026-15/09/2026) nao cobre o subdominio de homologacao — certificado dedicado sera emitido na Fase F;
+- recursos confirmados compativeis com uma segunda instancia (disco ~6% de uso, RAM ~3,8 GiB total/~3,3 GiB disponivel, swap 0, `load average` 0.00).
+
+Escopo do SPB-263 que permanece em aberto: **B4 — isolamento visual e de sessao da homologacao** (cookie/sessao separado preservando o cookie legado de producao, banner global de "HOMOLOGACAO", diferenciacao visual inequivoca, testes de regressao de producao, `APP_ENV` como fonte de verdade) — proximo bloco, deve ocorrer antes da criacao fisica completa da homologacao; e as Fases E-I da ADR-006 (clone/systemd/porta 8001, DNS/Nginx/SSL, protecao externa + noindex, matriz de isolamento/smoke, fechamento documental). Nenhum item ainda iniciado.
 
 ## Incidentes resolvidos
 

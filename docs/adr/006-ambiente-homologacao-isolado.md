@@ -31,7 +31,7 @@ Recursos reais da VPS (confirmados pelo proprietario no painel Hostinger em 08/0
 | Backup Hostinger | Semanal, 2 snapshots exibidos |
 | Firewall Hostinger (painel) | 0 regras configuradas |
 
-O painel exibindo "0 regras de firewall" **nao comprova** ausencia de firewall dentro do proprio Ubuntu — UFW/nftables/iptables ainda precisam ser auditados por comandos read-only na VPS (ver "Pendencias").
+O painel exibindo "0 regras de firewall" **nao comprova** ausencia de firewall dentro do proprio Ubuntu — refletia apenas a ausencia de regras no firewall gerenciado pelo painel Hostinger, distinto do firewall do proprio SO. A Fase D (inspecao read-only real da VPS, 16/08/2026) confirmou UFW ativo dentro do Ubuntu, com politica `incoming=deny`/`outgoing=allow`/`routed=disabled` e liberacao apenas de `22/tcp` (OpenSSH) e `80,443/tcp` (Nginx Full), tambem para IPv6; nftables/iptables refletem a mesma politica (`INPUT`/`FORWARD` com `DROP` padrao, `OUTPUT` `ACCEPT`). Ver secao "Plano de fases subsequentes" (Fase D).
 
 ## Numeracao
 
@@ -100,13 +100,13 @@ Homologacao inicia com `SCHEDULER=0`. Isso **nao e proteccao suficiente sozinha*
 | Porta | `127.0.0.1:8000` | `127.0.0.1:8001` |
 | Servico systemd | `smartpaybot.service` | `smartpaybot-homolog.service` |
 
-Ambos bindados exclusivamente em `127.0.0.1` — nunca expostos diretamente a interfaces publicas.
+Ambos bindados exclusivamente em `127.0.0.1` — nunca expostos diretamente a interfaces publicas. Confirmado na Fase D (16/08/2026, `ss`): `8000` ocupada exclusivamente pelo Gunicorn de producao, `8001` livre, nenhum processo escutando publicamente em nenhuma das duas. **Decisao**: a porta `8001` nao sera aberta no UFW; o futuro Gunicorn de homologacao permanece bindado somente em `127.0.0.1:8001`, acessivel externamente apenas atraves do Nginx em `443` (Fase F).
 
 ### 9. Recursos
 
 VPS real (ver Contexto): 1 vCPU, 4 GB RAM, 50 GB disco, 4 TB banda. Com esses numeros, **homologacao pode permanecer ativa 24/7 desde o inicio** (revisando a conclusao antiga baseada na estimativa incorreta de 1 GB). Ponto de atencao permanece a CPU: apenas 1 vCPU compartilhado entre producao e homologacao exige monitorar `load average` quando ambos estiverem sob uso simultaneo. Configuracao: 1 worker Gunicorn, `SCHEDULER=0`, nenhum crawler real, nenhum job pesado continuo.
 
-Essa conclusao **ainda precisa ser confirmada** na inspeccao read-only real da VPS (`free -h`, `uptime`, `df -h`, `ss -ltnp`), nao apenas no painel Hostinger.
+Essa conclusao foi **confirmada** na inspecao read-only real da VPS (Fase D, 16/08/2026): disco raiz ~48 GB, uso ~2,7 GB (~6%), ~45 GB livres, clone de producao ocupando ~123 MB; memoria total ~3,8 GiB, ~3,3 GiB disponivel, swap 0; `load average` observado 0.00/0.00/0.00. A ausencia de swap nao e bloqueadora no estado atual, mas permanece caracteristica operacional a monitorar. Uma segunda instancia Gunicorn (1 worker, `SCHEDULER=0`, sem crawler real) e compativel com os recursos observados.
 
 ### 10. Protecao externa
 
@@ -123,8 +123,10 @@ Requisitos, em camadas (nenhuma e por si so seguranca):
 
 ## Pendencias explicitas
 
-- Inspecao read-only real da VPS (systemd, Nginx, portas, recursos, permissoes, SSL) — comandos ja identificados na auditoria previa, nao executados.
-- Firewall interno do Ubuntu (`ufw status verbose`, `nft list ruleset`) — "0 regras" no painel Hostinger nao comprova ausencia de firewall no SO. Requisito fixado: `8000` e `8001` devem permanecer acessiveis apenas em `127.0.0.1`, nunca expostos externamente.
+- ~~Inspecao read-only real da VPS (systemd, Nginx, portas, recursos, permissoes, SSL)~~ — **concluida na Fase D (16/08/2026)**, ver secao "Plano de fases subsequentes".
+- ~~Firewall interno do Ubuntu (`ufw status verbose`, `nft list ruleset`)~~ — **concluida na Fase D**: UFW ativo, `8000`/`8001` confirmados acessiveis apenas em `127.0.0.1`, nao expostos externamente. Requisito original mantido como fato confirmado.
+- Emissao de certificado TLS para `homolog.smartpaybot.com.br` (Fase F) — o certificado atual (`smartpaybot.com.br`, ECDSA, SAN `smartpaybot.com.br`/`www.smartpaybot.com.br`, validade 17/06/2026 a 15/09/2026) nao cobre o subdominio de homologacao. Preferencia arquitetural: certificado separado para homologacao, em vez de acoplar o subdominio ao certificado atual de producao, salvo impedimento operacional descoberto na propria Fase F.
+- Configuracao de Nginx para `homolog.smartpaybot.com.br` (Fase F) — ainda nao existe `server_name`/`proxy_pass` para homologacao; producao (`smartpaybot`, sites-enabled) segue com `proxy_pass http://127.0.0.1:8000` inalterado.
 - Inspecao manual da configuracao real da Cloudflare (proxy ligado/desligado, Access disponivel) antes de decidir entre Cloudflare Access e Basic Auth.
 - Criacao manual do bot Telegram de homologacao no BotFather.
 
@@ -134,8 +136,8 @@ Esta ADR cobre apenas a Fase A (arquitetura e formalizacao). Fases seguintes, a 
 
 - **Fase B** — `APP_ENV` + guardrails de ambiente no codigo. **Concluida e implantada em producao**: subfases B1 e B2 (APP_ENV, banco, SECRET_KEY, scheduler/crawler) em 08/08/2026 (commit `7e65bd9`); B3 (Telegram — `TELEGRAM_MODE` + identity guard) em 09/08/2026 (commits `0c41b25`, `18ac2b1`, `fc3b91c`), com validacao operacional completa em producao (runtime, webhook, ciclo automatico do coletor — ver `docs/phase-2/01-estado-atual.md`).
 - **Fase C** — seed sintetico + protecao Telegram (bot dedicado). Guardrails de codigo do lado do B3 ja implementados, testados e implantados/validados em producao; permanece pendente apenas a criacao manual do bot Telegram dedicado de homologacao (acao no BotFather, fora do codigo, necessaria somente quando a homologacao fisica for criada).
-- **Proximo bloco (B4)** — isolamento visual e de sessao da homologacao: cookie/sessao separado do de producao, banner global inequivoco de "HOMOLOGACAO", diferenciacao visual clara de producao, e os demais guardrails previstos na sequencia desta ADR. Ainda nao iniciado.
-- **Fase D** — inspecao read-only real da VPS.
+- **Proximo bloco (B4)** — isolamento visual e de sessao da homologacao: cookie/sessao de homologacao separado (producao preserva o cookie legado), banner global inequivoco de "HOMOLOGACAO", diferenciacao visual clara de producao, testes de regressao de producao, `APP_ENV` como fonte de verdade, e os demais guardrails previstos na sequencia desta ADR. Deve acontecer **antes** da criacao fisica completa da homologacao (Fase E em diante). Ainda nao iniciado.
+- **Fase D** — inspecao read-only real da VPS. **Concluida em 16/08/2026**, sem bloqueadores: dois clones independentes seguem aprovados (apenas `/home/deploy/apps/www.smartpaybot.com.br` existe hoje, sem colisao de diretorio); systemd separado aprovado (apenas `smartpaybot.service` existe, sem colisao de unit); porta `8001` livre, bind loopback confirmado para `8000`/`8001`; firewall (UFW + nftables/iptables) confirmado ativo e consistente com a arquitetura prevista (ver item 8 e "Pendencias explicitas"); recursos confirmados (ver item 9); Nginx atual mapeado (`smartpaybot.com.br`/`www.smartpaybot.com.br` -> `127.0.0.1:8000`, `nginx -t` OK, nenhuma config de homologacao ainda); certificado SSL atual mapeado e confirmado como nao cobrindo `homolog.smartpaybot.com.br` (requisito registrado para a Fase F).
 - **Fase E** — clone + `.venv` + `.env` + `homolog.db` + systemd na porta 8001.
 - **Fase F** — DNS/Nginx/SSL para `homolog.smartpaybot.com.br`.
 - **Fase G** — Cloudflare Access ou Basic Auth + noindex.
