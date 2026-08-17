@@ -6,7 +6,11 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from flask_login import LoginManager, current_user
 
-from infrastructure.config import get_settings, INSECURE_SECRET_KEY_DEFAULT
+from infrastructure.config import (
+    get_settings,
+    INSECURE_SECRET_KEY_DEFAULT,
+    session_cookie_name_for_app_env,
+)
 from infrastructure.logging import get_logger
 
 from app.security import AppUser
@@ -49,16 +53,27 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"current_year": datetime.utcnow().year}
+        return {
+            "current_year": datetime.utcnow().year,
+            "app_env": settings.APP_ENV,
+            "is_homologation": settings.APP_ENV == "homologation",
+        }
 
     # Config essenciais
     app.config["SECRET_KEY"] = settings.SECRET_KEY
     app.config["WTF_CSRF_ENABLED"] = settings.CSRF_ENABLED
+    app.config["APP_ENV"] = settings.APP_ENV
 
-    # Sessão segura — SECURE só em prod (HTTPS); HTTPONLY e SAMESITE sempre
-    app.config["SESSION_COOKIE_SECURE"] = settings.FLASK_ENV == "production"
+    # Sessão isolada por APP_ENV (SPB-263 B4) — nunca por hostname/porta.
+    # Nome do cookie: producao/development preservam "session" (legado);
+    # homologacao usa nome distinto, nunca configuravel via .env, para que
+    # o operador nao consiga reutilizar o cookie de producao por engano.
+    app.config["SESSION_COOKIE_NAME"] = session_cookie_name_for_app_env(settings.APP_ENV)
+    app.config["SESSION_COOKIE_SECURE"] = settings.APP_ENV in ("production", "homologation")
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_DOMAIN"] = None
+    app.config["SESSION_COOKIE_PATH"] = "/"
 
     # CSRF
     csrf.init_app(app)

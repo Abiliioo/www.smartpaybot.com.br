@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}SmartPayBot{% endblock %}</title>
+  <title>{% if is_homologation %}[HOMOLOGAÇÃO] {% endif %}{% block title %}SmartPayBot{% endblock %}</title>
 
   <!-- CSRF para fetch/AJAX -->
   <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -18,7 +18,7 @@
   <!-- Página pode injetar CSS extra aqui -->
   {% block head_extra %}{% endblock %}
 </head>
-<body>
+<body class="{% if is_homologation %}env-homologation{% endif %}">
   <!-- Acessibilidade: pular direto para o conteúdo -->
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 

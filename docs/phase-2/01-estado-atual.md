@@ -166,7 +166,13 @@ Fase D (inspecao read-only real da VPS) **concluida em 16/08/2026**, sem bloquea
 - certificado SSL atual (`smartpaybot.com.br`, valido 17/06/2026-15/09/2026) nao cobre o subdominio de homologacao — certificado dedicado sera emitido na Fase F;
 - recursos confirmados compativeis com uma segunda instancia (disco ~6% de uso, RAM ~3,8 GiB total/~3,3 GiB disponivel, swap 0, `load average` 0.00).
 
-Escopo do SPB-263 que permanece em aberto: **B4 — isolamento visual e de sessao da homologacao** (cookie/sessao separado preservando o cookie legado de producao, banner global de "HOMOLOGACAO", diferenciacao visual inequivoca, testes de regressao de producao, `APP_ENV` como fonte de verdade) — proximo bloco, deve ocorrer antes da criacao fisica completa da homologacao; e as Fases E-I da ADR-006 (clone/systemd/porta 8001, DNS/Nginx/SSL, protecao externa + noindex, matriz de isolamento/smoke, fechamento documental). Nenhum item ainda iniciado.
+B4 (isolamento visual e de sessao: `SESSION_COOKIE_NAME` derivado de `APP_ENV` — "session" em producao/development, "smartpaybot_homolog_session" em homologacao; `SESSION_COOKIE_SECURE` derivado de `APP_ENV` em vez de `FLASK_ENV`; banner "HOMOLOGACAO — AMBIENTE DE TESTES" no header, classe `env-homologation` no body e prefixo `[HOMOLOGACAO]` no `<title>`, todos condicionados somente a `APP_ENV`, nunca a hostname) **implementado e testado localmente nesta branch (`feat/spb-263-homologation-ui-session`), ainda NAO implantado em producao**:
+
+- suite completa local: 204/204 (14 testes novos dedicados em `tests/test_homologation_ui_session.py`, incluindo prova de que Host header nao altera banner/cookie); `py_compile` aprovado;
+- auditoria de `login_user()` confirmou ausencia de `remember=True` em qualquer fluxo — nenhum guardrail de `REMEMBER_COOKIE_*` foi necessario neste bloco;
+- producao preserva exatamente o cookie legado `"session"` (evita logout global quando implantado).
+
+Escopo do SPB-263 que permanece em aberto: deploy e validacao do B4 em producao; e as Fases E-I da ADR-006 (clone/systemd/porta 8001, DNS/Nginx/SSL, protecao externa + noindex, matriz de isolamento/smoke, fechamento documental), que devem ocorrer somente apos o B4 estar validado em producao.
 
 ## Incidentes resolvidos
 

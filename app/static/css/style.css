@@ -53,6 +53,18 @@ button{ font:inherit; color:inherit }
 .brand{ font-weight:800; letter-spacing:.5px }
 .brand b{ color:var(--brand) }
 
+/* Banner de homologacao (SPB-263 B4) — dentro do .header, para nao criar
+   um segundo elemento sticky independente da navbar. */
+.env-banner{
+  background:#f59e0b; color:#231600;
+  font-weight:700; font-size:.85rem; letter-spacing:.3px;
+  text-align:center; padding:6px 12px;
+}
+.env-homologation .header{ border-bottom-color:#f59e0b }
+@media (max-width:480px){
+  .env-banner{ font-size:.78rem; padding:5px 10px }
+}
+
 .skip-link{ position:absolute; left:-999px; top:-999px }
 .skip-link:focus{
   left:16px; top:12px; background:var(--card);

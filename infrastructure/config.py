@@ -194,6 +194,30 @@ class Settings:
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
 
+_SESSION_COOKIE_NAMES = {
+    "production": "session",
+    "homologation": "smartpaybot_homolog_session",
+    "development": "session",
+}
+
+
+def session_cookie_name_for_app_env(app_env: str) -> str:
+    """
+    Deriva deterministicamente o nome do cookie de sessao a partir de
+    APP_ENV (SPB-263 B4). Nao e configuravel via variavel de ambiente --
+    o operador nao pode configurar homologacao acidentalmente com o
+    mesmo nome de cookie de producao. Producao preserva exatamente o
+    cookie legado "session" (evita logout global quando o B4 for
+    implantado).
+    """
+    try:
+        return _SESSION_COOKIE_NAMES[app_env]
+    except KeyError:
+        raise RuntimeError(
+            f"APP_ENV desconhecido ao resolver SESSION_COOKIE_NAME: {app_env!r}."
+        )
+
+
 _settings: Optional[Settings] = None
 
 def get_settings() -> Settings:

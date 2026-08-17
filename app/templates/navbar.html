@@ -1,4 +1,9 @@
 <header class="header" role="banner">
+  {% if is_homologation %}
+  <div class="env-banner" role="status" aria-live="polite">
+    <strong>HOMOLOGAÇÃO</strong> — AMBIENTE DE TESTES
+  </div>
+  {% endif %}
   <nav class="nav container" aria-label="Navegação principal">
 
     {# ── Marca ─────────────────────────────────────────────────────────── #}
