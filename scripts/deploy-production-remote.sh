@@ -371,6 +371,10 @@ echo "=== 8. RESTART ==="
 RESTART_TS="$(date --iso-8601=seconds)"
 echo "RESTART_TS=$RESTART_TS"
 sudo -n systemctl restart smartpaybot
+RESTART_RC=$?
+if [ "$RESTART_RC" -ne 0 ]; then
+    rollback_and_exit "systemctl restart smartpaybot falhou (rc=$RESTART_RC)."
+fi
 sleep 3
 if ! sudo -n systemctl is-active --quiet smartpaybot; then
     rollback_and_exit "servico nao ficou active apos restart."
