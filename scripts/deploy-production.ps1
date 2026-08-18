@@ -47,10 +47,16 @@
     producao.
 
 .PARAMETER RunCollectorAfter
-    Apos um deploy SUCCESS E o Collector ja ter sido restaurado ao estado
-    original, dispara manualmente uma rodada (somente se ele estava
-    habilitado antes do deploy) e reporta o resultado. Nunca inicia uma
-    segunda instancia se uma ja estiver em execucao.
+    Apos um deploy SUCCESS E o Collector ja ter sido CONFIRMADAMENTE
+    restaurado ao estado original, dispara manualmente uma rodada (somente
+    se ele estava habilitado antes do deploy) e reporta o resultado.
+    Funciona como um smoke gate solicitado pelo operador: se
+    LastTaskResult != 0, o script termina com exit 8
+    (POST_DEPLOY_COLLECTOR_FAILED), sem alterar o DEPLOY_STATUS remoto.
+    Nunca inicia uma segunda instancia se uma ja estiver em execucao.
+    Nunca imprime o conteudo bruto de logs\collector.log -- somente
+    campos seguros do proprio Scheduled Task (State, LastRunTime,
+    LastTaskResult).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -DryRun
@@ -94,6 +100,24 @@ $LogFile = Join-Path $LogDir "deploy-$Timestamp.log"
 #     3 = operador recusou a confirmacao
 #     6 = -DryRun concluido (informativo, nao e erro)
 #     1 = tambem usado para qualquer falha LOCAL de preflight/transporte (reaproveita o mesmo significado de "FAILED antes de tocar producao")
+#
+#   Exclusivos deste script local, DEPOIS de uma tentativa de deploy remoto
+#   (a conexao SSH ja aconteceu; sobrescrevem o codigo remoto quando ocorrem,
+#   pois passam a ser a falha mais recente e mais urgente a resolver):
+#     7 = COLLECTOR_RESTORE_FAILED      (o Collector nao pode ser confirmado
+#                                         como restaurado ao estado original
+#                                         apos o deploy -- o DEPLOY_STATUS
+#                                         remoto pode ter sido SUCCESS, mas
+#                                         isso NAO significa sucesso
+#                                         operacional total; correcao manual
+#                                         necessaria na Scheduled Task)
+#     8 = POST_DEPLOY_COLLECTOR_FAILED  (somente quando -RunCollectorAfter
+#                                         foi solicitado: a rodada manual
+#                                         pos-deploy terminou com
+#                                         LastTaskResult != 0; DEPLOY_STATUS
+#                                         remoto nao e alterado por isso --
+#                                         e uma falha do smoke gate local
+#                                         solicitado pelo operador)
 
 function Write-Section {
     param([string]$Title)
@@ -250,6 +274,7 @@ if (-not $Yes) {
 # ── a partir daqui: pausa do Collector com garantia de restauracao ───────
 $deployExitCode = 1
 $remoteOutputLines = @()
+$collectorRestoreFailed = $false
 
 try {
     Write-Section "4. PAUSANDO O COLLECTOR"
@@ -265,8 +290,12 @@ try {
     Start-Transcript -Path $LogFile -Append | Out-Null
     try {
         $remoteCommand = "bash -s -- $TargetSha $AppDir"
-        $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", $DeployHost, $remoteCommand)
-        Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 $DeployHost `"$remoteCommand`""
+        # BatchMode=yes + ConnectTimeout=15: falha rapido se a chave nao
+        # funcionar, nunca espera senha. StrictHostKeyChecking=yes: a
+        # fingerprint continua sendo validada pelo known_hosts normal do
+        # Windows -- nunca UserKnownHostsFile=/dev/null nem checking=no.
+        $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", $DeployHost, $remoteCommand)
+        Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost `"$remoteCommand`""
         $remoteOutputLines = $remoteScriptBlob | & ssh @sshArgs
         $deployExitCode = $LASTEXITCODE
     }
@@ -312,20 +341,48 @@ try {
 finally {
     Write-Section "7. RESTAURANDO ESTADO DO COLLECTOR"
     if ($originalState -ne "Disabled") {
-        Enable-ScheduledTask -TaskName $TaskName | Out-Null
-        Write-Host "Collector religado (estado original era '$originalState')."
+        try {
+            Enable-ScheduledTask -TaskName $TaskName -ErrorAction Stop | Out-Null
+            Write-Host "Collector religado (estado original era '$originalState')."
+        }
+        catch {
+            Write-Host "ERRO ao tentar religar o Collector: $($_.Exception.Message)" -ForegroundColor Red
+            $collectorRestoreFailed = $true
+        }
     }
     else {
         Write-Host "Collector permanece Disabled (estado original preservado)."
     }
-    $finalState = (Get-ScheduledTask -TaskName $TaskName).State
-    Write-Host "State final do Collector: $finalState"
-    if ($finalState -eq "Disabled" -and $originalState -ne "Disabled") {
+
+    $finalState = $null
+    try {
+        $finalState = (Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop).State
+        Write-Host "State final do Collector: $finalState"
+    }
+    catch {
+        Write-Host "ERRO ao consultar estado final do Collector: $($_.Exception.Message)" -ForegroundColor Red
+        $collectorRestoreFailed = $true
+    }
+
+    if ($originalState -ne "Disabled" -and $finalState -eq "Disabled") {
         Write-Host "FALHA OPERACIONAL: o Collector deveria ter sido religado mas continua Disabled. Verificar manualmente." -ForegroundColor Red
+        $collectorRestoreFailed = $true
     }
 }
 
-# ── rodada manual do Collector, SOMENTE depois de restaurado (fora do try/finally) ──
+if ($collectorRestoreFailed) {
+    Write-Host ""
+    Write-Host "COLLECTOR_RESTORE_FAILED: a restauracao operacional do Collector NAO PODE ser confirmada." -ForegroundColor Red
+    if ($status) {
+        Write-Host "O deploy remoto pode ter terminado como '$status', mas isso NAO significa sucesso operacional total -- a task '$TaskName' precisa ser verificada/religada manualmente agora." -ForegroundColor Red
+    }
+    Write-Host "Acao manual: 'Get-ScheduledTask -TaskName `"$TaskName`"' e, se necessario, 'Enable-ScheduledTask -TaskName `"$TaskName`"'." -ForegroundColor Red
+    Add-Content -Path $LogFile -Value "COLLECTOR_RESTORE_FAILED=true"
+    Add-Content -Path $LogFile -Value "LOCAL_DEPLOY_EXIT_CODE_BEFORE_COLLECTOR_CHECK=$deployExitCode"
+    exit 7
+}
+
+# ── rodada manual do Collector, SOMENTE depois de confirmado restaurado (fora do try/finally) ──
 if ($deployExitCode -eq 0 -and $RunCollectorAfter -and $originalState -ne "Disabled") {
     Write-Section "8. RODADA MANUAL DO COLLECTOR (pos-deploy, com o Collector ja restaurado)"
     $current = Get-ScheduledTask -TaskName $TaskName
@@ -359,13 +416,23 @@ if ($deployExitCode -eq 0 -and $RunCollectorAfter -and $originalState -ne "Disab
             }
         }
     }
+    # Somente dados seguros do proprio Scheduled Task -- nunca o conteudo
+    # bruto de logs\collector.log, que pode registrar corpo de resposta
+    # HTTP de erro (titulos, JSON de erro, etc.).
     $info = Get-ScheduledTask -TaskName $TaskName | Get-ScheduledTaskInfo
+    Write-Host "State=$((Get-ScheduledTask -TaskName $TaskName).State)"
+    Write-Host "LastRunTime=$($info.LastRunTime)"
     Write-Host "LastTaskResult=$($info.LastTaskResult)"
-    $logPath = Join-Path $RepoRoot "logs\collector.log"
-    if (Test-Path $logPath) {
-        Write-Host "--- ultimas linhas de logs\collector.log ---"
-        Get-Content -Path $logPath -Tail 15
+
+    if ($info.LastTaskResult -ne 0) {
+        Write-Host ""
+        Write-Host "POST_DEPLOY_COLLECTOR_FAILED: a rodada manual do Collector solicitada via -RunCollectorAfter terminou com LastTaskResult=$($info.LastTaskResult) (esperado 0)." -ForegroundColor Red
+        Write-Host "O DEPLOY_STATUS remoto nao e alterado por isso -- esta e uma falha do smoke gate solicitado pelo operador, reportada separadamente." -ForegroundColor Red
+        Add-Content -Path $LogFile -Value "POST_DEPLOY_COLLECTOR_FAILED=true"
+        Add-Content -Path $LogFile -Value "POST_DEPLOY_COLLECTOR_LAST_TASK_RESULT=$($info.LastTaskResult)"
+        exit 8
     }
+    Write-Host "Rodada manual do Collector concluida com sucesso (LastTaskResult=0)."
 }
 
 exit $deployExitCode

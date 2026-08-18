@@ -30,7 +30,7 @@ Parâmetros disponíveis:
 | `-TargetSha` | *(vazio → usa `origin/main`)* | SHA git completo (40 hex minúsculos) a implantar. Se informado, **deve ser exatamente igual a `origin/main`** — esta versão nunca implanta um SHA arbitrário, mesmo que seja um ancestral válido. |
 | `-Yes` | desligado | Pula a confirmação interativa. Usar apenas em contexto já supervisionado. |
 | `-DryRun` | desligado | Executa somente o preflight local (git, working tree limpo, SHA, detecção do Scheduled Task). Não conecta via SSH, não toca o Collector, não implanta nada. |
-| `-RunCollectorAfter` | desligado | Após um deploy `SUCCESS` **e** o Collector já ter sido restaurado ao estado original, dispara uma rodada manual (somente se ele estava habilitado antes do deploy) e reporta o resultado. Nunca inicia uma segunda instância se uma já estiver em execução. |
+| `-RunCollectorAfter` | desligado | Após um deploy `SUCCESS` **e** o Collector já ter sido **confirmadamente** restaurado ao estado original, dispara uma rodada manual (somente se ele estava habilitado antes do deploy) e reporta o resultado. Funciona como um *smoke gate* local solicitado pelo operador: se `LastTaskResult != 0`, o script termina com `exit 8` sem alterar o `DEPLOY_STATUS` remoto. Nunca inicia uma segunda instância se uma já estiver em execução. Nunca imprime o conteúdo bruto de `logs\collector.log` — apenas campos seguros do próprio Scheduled Task. |
 
 Exemplo recomendado antes de qualquer deploy real:
 
@@ -58,11 +58,12 @@ Somente `s`/`sim` prossegue. Qualquer outra resposta cancela sem tocar em nada (
 4. Consulta a Scheduled Task `SmartPayBot Collector` (`State`, `LastRunTime`, `LastTaskResult`, `NextRunTime`). Se estiver `Running`, aguarda até 120s antes de prosseguir — nunca mata o processo.
 5. Mostra o resumo e pede confirmação (salvo `-Yes`/`-DryRun`).
 6. Desabilita o Collector temporariamente (salvo se já estava `Disabled` — nesse caso preserva o estado).
-7. Envia o conteúdo obtido no passo 3 via stdin para `ssh -o BatchMode=yes -o ConnectTimeout=15 $DeployHost "bash -s -- $TargetSha $AppDir"` e captura a saída. `BatchMode=yes` garante falha rápida (nunca espera senha) se a chave local não estiver funcional — a verificação de host key **não é desabilitada**.
+7. Envia o conteúdo obtido no passo 3 via stdin para `ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost "bash -s -- $TargetSha $AppDir"` e captura a saída. `BatchMode=yes` garante falha rápida (nunca espera senha) se a chave local não estiver funcional; `StrictHostKeyChecking=yes` garante que a fingerprint continua sendo validada pelo `known_hosts` normal do Windows — a verificação de host key **nunca é desabilitada** (nunca `StrictHostKeyChecking=no` nem `UserKnownHostsFile=/dev/null`).
 8. Interpreta a linha `DEPLOY_STATUS=` da saída remota e define o exit code local de acordo.
-9. **Sempre**, mesmo em erro (bloco `finally`), restaura o Collector ao estado original: religa se estava habilitado antes, mantém desabilitado se já estava assim.
-10. **Somente depois** de o `finally` ter restaurado o Collector — nunca antes —, se o deploy teve `SUCCESS` e `-RunCollectorAfter` foi passado (e o Collector estava habilitado originalmente), dispara uma rodada manual e reporta `LastTaskResult` + as últimas linhas de `logs\collector.log`.
-11. Persiste a saída remota completa e os metadados do deploy (`TARGET_SHA`, exit code) explicitamente em `logs/deploy/deploy-*.log`, além da transcrição da sessão local.
+9. **Sempre**, mesmo em erro (bloco `finally`), tenta restaurar o Collector ao estado original: religa se estava habilitado antes, mantém desabilitado se já estava assim. Cada operação (`Enable-ScheduledTask`, consulta do estado final) é envolvida em `try/catch` — uma exceção aqui nunca passa despercebida.
+10. **Gate fail-closed da restauração do Collector, logo após o `finally`:** se o Collector deveria ter sido religado (estava habilitado antes) mas o estado final não pôde ser confirmado como restaurado (permanece `Disabled`, ou a consulta/`Enable-ScheduledTask` lançou exceção), o script **não** propaga o exit code do deploy remoto — encerra imediatamente com `exit 7` (`COLLECTOR_RESTORE_FAILED`), deixando claro que o `DEPLOY_STATUS` remoto pode ter sido `SUCCESS` mas isso **não** significa sucesso operacional total.
+11. **Somente se a restauração foi confirmada** — nunca antes —, se o deploy teve `SUCCESS` e `-RunCollectorAfter` foi passado (e o Collector estava habilitado originalmente), dispara uma rodada manual e reporta apenas `State`, `LastRunTime` e `LastTaskResult` do próprio Scheduled Task (**nunca** o conteúdo de `logs\collector.log`, que pode registrar corpo bruto de resposta HTTP de erro). Se `LastTaskResult != 0`, encerra com `exit 8` (`POST_DEPLOY_COLLECTOR_FAILED`) — o `DEPLOY_STATUS` remoto não é alterado por isso, é uma falha do *smoke gate* local solicitado pelo operador.
+12. Persiste a saída remota completa e os metadados do deploy (`TARGET_SHA`, exit code, e `COLLECTOR_RESTORE_FAILED=true`/`POST_DEPLOY_COLLECTOR_FAILED=true` quando aplicável) explicitamente em `logs/deploy/deploy-*.log`, além da transcrição da sessão local.
 
 ### Remoto (`deploy-production-remote.sh`, executado na VPS)
 
@@ -101,13 +102,17 @@ Em nenhum caso `origin/main` é alterado — toda reversão é puramente local a
 
 | Exit code | Origem | Significado |
 |---|---|---|
-| `0` | remoto | `DEPLOY_STATUS=SUCCESS` — deploy concluído e validado. |
+| `0` | remoto | `DEPLOY_STATUS=SUCCESS` — deploy concluído e validado, **e** o Collector foi confirmadamente restaurado (e, se `-RunCollectorAfter`, a rodada pós-deploy também teve sucesso). |
 | `1` | local ou remoto | Falha local de preflight/transporte, ou `DEPLOY_STATUS=FAILED` remoto (abortado ou recuperado com sucesso antes do restart). |
 | `2` | remoto | `DEPLOY_STATUS=ROLLED_BACK` — rollback pós-restart executado e **totalmente validado**. |
 | `3` | local | Operador respondeu não à confirmação — nenhuma ação foi tomada. A conexão SSH nunca chegou a acontecer. |
 | `4` | remoto | `DEPLOY_STATUS=RECOVERY_FAILED` — a reversão pré-restart **não pôde ser confirmada**. Inspecionar a VPS manualmente antes de qualquer nova tentativa. |
 | `5` | remoto | `DEPLOY_STATUS=ROLLBACK_FAILED` — o rollback pós-restart **não pôde ser totalmente validado**. Produção pode estar degradada; inspecionar manualmente agora. |
 | `6` | local | `-DryRun` concluído (informativo, não é erro). A conexão SSH nunca chegou a acontecer. |
+| `7` | local, pós-SSH | `COLLECTOR_RESTORE_FAILED` — a restauração operacional do Collector ao estado original **não pôde ser confirmada** (continua `Disabled`, ou a operação lançou exceção). O `DEPLOY_STATUS` remoto (mesmo que `SUCCESS`) é sobrescrito por este código, pois a falha operacional local é a mais urgente a resolver. **Nunca** propagado como exit 0. Ação manual imediata: verificar e religar a Scheduled Task `SmartPayBot Collector`. |
+| `8` | local, pós-SSH | `POST_DEPLOY_COLLECTOR_FAILED` — somente quando `-RunCollectorAfter` foi solicitado: a rodada manual pós-deploy terminou com `LastTaskResult != 0`. O `DEPLOY_STATUS` remoto **não é alterado** por isso — é uma falha do *smoke gate* local, não do deploy em si. |
+
+**Importante:** `SUCCESS` (exit 0) do deploy remoto **não é, por si só, garantia de sucesso operacional total** — se a restauração do Collector falhar (exit 7) ou o smoke gate pós-deploy solicitado falhar (exit 8), esses códigos sobrescrevem o `deployExitCode` remoto no exit final do script local, precisamente para que um `SUCCESS` aparente nunca esconda uma falha operacional real.
 
 Linhas máquina-legíveis emitidas pelo script remoto (e persistidas explicitamente no log local, além de aparecerem no console):
 
@@ -128,7 +133,8 @@ Cada execução grava um log em `logs/deploy/deploy-YYYYMMDD-HHMMSS.log` (diret�
 
 ## Segurança
 
-- A chave SSH nunca é lida, copiada ou referenciada por caminho — o OpenSSH do Windows resolve a identidade da forma já configurada pelo operador. A conexão usa `-o BatchMode=yes -o ConnectTimeout=15` para falhar rápido se a chave não funcionar (nunca espera senha), **sem** desabilitar a verificação de host key.
+- A chave SSH nunca é lida, copiada ou referenciada por caminho — o OpenSSH do Windows resolve a identidade da forma já configurada pelo operador. A conexão usa `-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes` para falhar rápido se a chave não funcionar (nunca espera senha), **com** a verificação de host key mantida ativa (a fingerprint continua validada pelo `known_hosts` normal do Windows — nunca `StrictHostKeyChecking=no` nem `UserKnownHostsFile=/dev/null`).
+- A restauração operacional do Collector é **fail-closed**: se não puder ser confirmada, o script encerra com `exit 7` em vez de um `exit 0` enganoso — um `DEPLOY_STATUS=SUCCESS` remoto nunca mascara uma falha operacional local. Da mesma forma, `logs\collector.log` nunca é impresso automaticamente (pode conter corpo bruto de resposta HTTP de erro); apenas campos estruturados e seguros do próprio Scheduled Task (`State`, `LastRunTime`, `LastTaskResult`).
 - Nenhum parâmetro (`-DeployHost`, `-TargetSha`, `-AppDir`) é interpolado via `Invoke-Expression`; o script chama `ssh` diretamente pelo operador de chamada (`&`), passando argumentos como elementos de array, nunca como uma string concatenada e reavaliada por um shell.
 - `TargetSha` é validado por regex estrita de 40 caracteres hexadecimais **minúsculos** (`-cmatch`, sensível a maiúsculas/minúsculas — `-match` do PowerShell é case-insensitive por padrão e aceitaria incorretamente hex maiúsculo se usado sem o `c`), e deve ser **exatamente** `origin/main`, não apenas um ancestral.
 - `DeployHost` é validado por regex que proíbe usuário ou host começando com `-` (evita disfarçar uma opção do `ssh` como se fosse o destino).
@@ -152,6 +158,9 @@ Cada execução grava um log em `logs/deploy/deploy-YYYYMMDD-HHMMSS.log` (diret�
 - **`DEPLOY_STATUS=ROLLED_BACK`**: o serviço já está de volta ao código anterior e **foi validado** (git, restart, listener, HOME 200); use o log em `logs/deploy/` para diagnosticar a causa antes de tentar novamente.
 - **`DEPLOY_STATUS=ROLLBACK_FAILED`**: pare imediatamente e inspecione a VPS manualmente — produção pode estar degradada e o rollback não pôde ser totalmente validado.
 - **Prompt de senha do SSH aparece**: não deveria — `BatchMode=yes` faz o `ssh` falhar rápido em vez de esperar. Se a conexão falhar por credencial, resolva a configuração SSH normalmente (fora deste script) antes de tentar o deploy.
+- **`ssh` falha com erro de host key**: `StrictHostKeyChecking=yes` está ativo de propósito — se a fingerprint do host mudou legitimamente (ex.: reinstalação da VPS), atualize `known_hosts` manualmente pelo fluxo normal do OpenSSH antes de tentar o deploy. Este script nunca contorna essa verificação.
+- **`exit 7` (`COLLECTOR_RESTORE_FAILED`)**: o deploy remoto pode ter sido `SUCCESS`, mas a Scheduled Task `SmartPayBot Collector` não pôde ser confirmada como restaurada. Rode `Get-ScheduledTask -TaskName "SmartPayBot Collector"` para ver o estado real e, se necessário, `Enable-ScheduledTask -TaskName "SmartPayBot Collector"` manualmente.
+- **`exit 8` (`POST_DEPLOY_COLLECTOR_FAILED`)**: só ocorre com `-RunCollectorAfter`. O deploy em si foi `SUCCESS` e o Collector foi religado, mas a rodada de teste solicitada terminou com `LastTaskResult != 0`. Investigue o ciclo mais recente do Collector separadamente (fora deste script) antes de assumir que está saudável.
 
 ## Futura automação CI/CD
 
