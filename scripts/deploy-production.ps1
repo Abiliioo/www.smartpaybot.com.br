@@ -208,29 +208,48 @@ elseif ($TargetSha -cne $originMainSha) {
 Write-Host "TARGET_SHA=$TargetSha"
 
 # ── amarrar o script remoto ao TARGET_SHA via git show (nunca do filesystem) ──
-$remoteScriptLines = @(git show "${TargetSha}:${RemoteScriptRelPath}" 2>$null)
-if ($LASTEXITCODE -ne 0 -or $remoteScriptLines.Count -eq 0) {
-    Fail-Local "git show ${TargetSha}:${RemoteScriptRelPath} falhou -- nao e seguro prosseguir sem o conteudo exato do script amarrado ao commit."
-}
-$remoteScriptBlob = $remoteScriptLines -join "`n"
-Write-Host "script remoto obtido de ${TargetSha}:${RemoteScriptRelPath} ($($remoteScriptLines.Count) linhas)."
+# Captura os bytes CRUS do stdout de `git show` via Process + MemoryStream --
+# nunca via `@(git show ...)` (array de linhas, perde terminadores de linha),
+# nunca via `-join` do PowerShell (reconstroi LF so ENTRE linhas, perdendo o
+# newline final do blob) e nunca via Encoding.GetBytes() sobre uma string ja
+# passada pelo pipeline textual do PowerShell (que pode alterar caracteres
+# Unicode presentes nos comentarios do script). O objetivo e byte-identidade
+# total com o blob Git, LF final incluso -- validado por comparacao de
+# SHA-256 contra `git cat-file blob <BLOB_SHA>` (fix/deploy-ssh-stdin-transport).
+$gitShowPsi = New-Object System.Diagnostics.ProcessStartInfo
+$gitShowPsi.FileName = "git"
+# TargetSha ja foi validado (40 hex minusculos) e RemoteScriptRelPath e uma
+# constante do proprio script -- nenhum dos dois vem de entrada nao confiavel.
+$gitShowPsi.Arguments = "show `"${TargetSha}:${RemoteScriptRelPath}`""
+$gitShowPsi.UseShellExecute = $false
+$gitShowPsi.RedirectStandardOutput = $true
+$gitShowPsi.RedirectStandardError = $true
+$gitShowPsi.CreateNoWindow = $true
 
-# ── amarrar o TRANSPORTE aos bytes exatos do script (byte-safe) ──────────
+$gitShowProc = [System.Diagnostics.Process]::Start($gitShowPsi)
+$remoteScriptMemStream = New-Object System.IO.MemoryStream
+$gitShowProc.StandardOutput.BaseStream.CopyTo($remoteScriptMemStream)
+# stderr e lido apenas como texto de diagnostico -- nunca compoe o script.
+$gitShowStderr = $gitShowProc.StandardError.ReadToEnd()
+$gitShowProc.WaitForExit()
+
+$remoteScriptBytes = $remoteScriptMemStream.ToArray()
+if ($gitShowProc.ExitCode -ne 0 -or $remoteScriptBytes.Length -eq 0) {
+    Fail-Local "git show ${TargetSha}:${RemoteScriptRelPath} falhou (exit=$($gitShowProc.ExitCode)) -- nao e seguro prosseguir sem o conteudo exato do script amarrado ao commit. $gitShowStderr"
+}
+Write-Host "script remoto obtido de ${TargetSha}:${RemoteScriptRelPath} ($($remoteScriptBytes.Length) bytes)."
+
+# ── Base64 sobre os bytes crus (transporte byte-safe) ────────────────────
 # Windows PowerShell 5.1 injeta um BOM UTF-8 (EF BB BF) no INICIO e um CRLF
 # extra no FIM de qualquer string enviada via pipeline ("$texto | & exe") a
 # um processo nativo com stdin redirecionado -- confirmado por reproducao
 # isolada (fix/deploy-ssh-stdin-transport): a ultima linha do script remoto
 # chegava como "exit 0\r", e bash rejeita "0\r" como argumento numerico de
 # exit ("numeric argument required", exit code 2), mascarando um
-# DEPLOY_STATUS=SUCCESS remoto como um falso ROLLED_BACK local. O bug
-# persiste mesmo escrevendo bytes diretamente em Process.StandardInput.BaseStream
-# (o .NET Framework usado pelo PowerShell 5.1 nao expoe ProcessStartInfo.StandardInputEncoding).
-# Solucao: converter o script para Base64 (alfabeto ASCII puro) ANTES do
-# pipeline -- o BOM/CRLF espurios do transporte caem fora do alfabeto Base64
-# e sao descartados pelo `base64 --decode --ignore-garbage` do lado remoto,
-# reconstruindo os bytes originais byte-a-byte (validado por comparacao de
-# SHA-256 entre o script original e o reconstruido, sem executa-lo).
-$remoteScriptBytes = [System.Text.Encoding]::UTF8.GetBytes($remoteScriptBlob)
+# DEPLOY_STATUS=SUCCESS remoto como um falso ROLLED_BACK local. Converter
+# para Base64 (alfabeto ASCII puro) ANTES do pipeline faz o BOM/CRLF
+# espurios do transporte carem fora do alfabeto Base64, descartados pelo
+# `base64 --decode --ignore-garbage` do lado remoto.
 $remoteScriptBase64 = [Convert]::ToBase64String($remoteScriptBytes)
 
 Write-Section "2. SCHEDULED TASK -- SmartPayBot Collector"
