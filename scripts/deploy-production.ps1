@@ -215,6 +215,24 @@ if ($LASTEXITCODE -ne 0 -or $remoteScriptLines.Count -eq 0) {
 $remoteScriptBlob = $remoteScriptLines -join "`n"
 Write-Host "script remoto obtido de ${TargetSha}:${RemoteScriptRelPath} ($($remoteScriptLines.Count) linhas)."
 
+# ── amarrar o TRANSPORTE aos bytes exatos do script (byte-safe) ──────────
+# Windows PowerShell 5.1 injeta um BOM UTF-8 (EF BB BF) no INICIO e um CRLF
+# extra no FIM de qualquer string enviada via pipeline ("$texto | & exe") a
+# um processo nativo com stdin redirecionado -- confirmado por reproducao
+# isolada (fix/deploy-ssh-stdin-transport): a ultima linha do script remoto
+# chegava como "exit 0\r", e bash rejeita "0\r" como argumento numerico de
+# exit ("numeric argument required", exit code 2), mascarando um
+# DEPLOY_STATUS=SUCCESS remoto como um falso ROLLED_BACK local. O bug
+# persiste mesmo escrevendo bytes diretamente em Process.StandardInput.BaseStream
+# (o .NET Framework usado pelo PowerShell 5.1 nao expoe ProcessStartInfo.StandardInputEncoding).
+# Solucao: converter o script para Base64 (alfabeto ASCII puro) ANTES do
+# pipeline -- o BOM/CRLF espurios do transporte caem fora do alfabeto Base64
+# e sao descartados pelo `base64 --decode --ignore-garbage` do lado remoto,
+# reconstruindo os bytes originais byte-a-byte (validado por comparacao de
+# SHA-256 entre o script original e o reconstruido, sem executa-lo).
+$remoteScriptBytes = [System.Text.Encoding]::UTF8.GetBytes($remoteScriptBlob)
+$remoteScriptBase64 = [Convert]::ToBase64String($remoteScriptBytes)
+
 Write-Section "2. SCHEDULED TASK -- SmartPayBot Collector"
 
 $task = $null
@@ -320,14 +338,19 @@ try {
     Write-Section "5. EXECUTANDO DEPLOY REMOTO"
     Start-Transcript -Path $LogFile -Append | Out-Null
     try {
-        $remoteCommand = "bash -s -- $TargetSha $AppDir"
+        # base64 --decode --ignore-garbage descarta qualquer byte fora do
+        # alfabeto Base64 (o BOM/CRLF espurios do transporte PowerShell 5.1,
+        # ver comentario acima) antes de entregar os bytes reconstruidos ao
+        # bash via pipe -- $LASTEXITCODE continua refletindo o exit code
+        # real do bash remoto (ultimo comando do pipeline remoto).
+        $remoteCommand = "base64 --decode --ignore-garbage | bash -s -- $TargetSha $AppDir"
         # BatchMode=yes + ConnectTimeout=15: falha rapido se a chave nao
         # funcionar, nunca espera senha. StrictHostKeyChecking=yes: a
         # fingerprint continua sendo validada pelo known_hosts normal do
         # Windows -- nunca UserKnownHostsFile=/dev/null nem checking=no.
         $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", $DeployHost, $remoteCommand)
         Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost `"$remoteCommand`""
-        $remoteOutputLines = $remoteScriptBlob | & ssh @sshArgs
+        $remoteOutputLines = $remoteScriptBase64 | & ssh @sshArgs
         $deployExitCode = $LASTEXITCODE
     }
     finally {
