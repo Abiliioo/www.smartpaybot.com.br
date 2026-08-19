@@ -11,13 +11,12 @@ Atualizar este documento a cada gate atravessado.
 - SPB-263 B1/B2 concluidos e validados em producao (commit `7e65bd9`, 08/08/2026).
 - SPB-263 B3 concluido e validado em producao (commits `0c41b25`/`18ac2b1`/`fc3b91c`, 09/08/2026).
 - SPB-263 Fase D (inspecao read-only da VPS) concluida em 16/08/2026, sem bloqueadores.
-- SPB-263 B4 implementado, testado (204/204) e auditado localmente na branch `feat/spb-263-homologation-ui-session`, commit:
-  `643d2b98ed764f4f487799d988a783686e14f7cb`
-- B4 implementado, testado e auditado. Ainda nao implantado em producao. Proximo gate: integracao em `main` e deploy controlado.
-- Fases E-I do SPB-263 (clone fisico de homologacao, DNS/Nginx/TLS, protecao externa, isolamento end-to-end, closeout) nao iniciadas.
+- SPB-263 B4 (isolamento visual e de sessao entre `development`/`homologation`/`production`) **PUBLICADO e VALIDADO em producao em 18/08/2026** (horario local do operador; 19/08/2026 UTC na VPS), commit `2625a82551efde5b1223334ec47d90affce26caf`: 204/204 local, 204/204 na VPS antes do restart, `DEPLOY_STATUS=SUCCESS`, banco integro, cookie `session` preservado (`Secure`/`HttpOnly`/`SameSite=Lax`/`Path=/`, sem `Domain`), nenhum banner de homologacao em producao, smoke HTTP e Telegram saudaveis, Collector restaurado com `LastTaskResult=0`.
+- Primeiro deploy real executado pela automacao controlada (`scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh`). Incidente local (nao de producao): um bug de transporte do Windows PowerShell 5.1 corrompeu a ultima linha do script remoto enviado via stdin e fez o orquestrador reportar falsamente um rollback (`exit 2`) apos o `DEPLOY_STATUS=SUCCESS` remoto real — producao nunca saiu do ar nem foi revertida. Hotfix definitivo integrado em `main`, commits `ae631128776241ec7429dfcbe3ee861255794abd` e `f02faaac5e2bb1c958014995ffaa48b14f4f5515` (transporte Base64 sobre bytes crus do blob Git, validado por SHA-256).
+- Fases E-I do SPB-263 (clone fisico de homologacao, DNS/Nginx/TLS, protecao externa, isolamento end-to-end, closeout) nao iniciadas — dependem de SPB-270 + SPB-272 (ver gates).
 - ADR-006 (ambiente de homologacao isolado): status **Proposta**.
 - SPB-263: **EM ANDAMENTO**.
-- Deploy de producao passa a ter automacao local disponivel via `scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh` (ver `docs/runbooks/deploy-producao.md`), substituindo a sequencia manual de comandos SSH por um unico comando com preflight, gates fail-closed, testes, smoke e rollback automatico. A chave SSH permanece sob controle do operador; nenhum deploy foi executado por esta automacao ate o momento.
+- Deploy de producao tem automacao local disponivel via `scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh` (ver `docs/runbooks/deploy-producao.md`), substituindo a sequencia manual de comandos SSH por um unico comando com preflight, gates fail-closed, testes, smoke e rollback automatico. A chave SSH permanece sob controle do operador. Ja usada em um deploy real (B4), com o hotfix de transporte acima aplicado apos o incidente local.
 
 ## Principio de priorizacao
 
@@ -46,7 +45,7 @@ SPB-269 (medir trafego oculto do notifier) roda durante a janela do shadow (SPB-
 ### TRILHO B — homologacao / SPB-263
 
 ```
-B4 publish (push -> main -> deploy -> closeout)
+B4 publish (push -> main -> deploy -> closeout) -- CONCLUIDO em 18/08/2026
    -> SPB-270 (F-01: alinhar ingest/DEBUG a APP_ENV)
    -> SPB-271 (guardrail de URL em set_webhook)
    -> SPB-272 (hardening de isolamento pre-Fase E)
@@ -75,7 +74,6 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 **NOW**
 
-- publicar B4 (push -> main -> deploy -> closeout);
 - SPB-254;
 - SPB-264;
 - SPB-270.
@@ -100,11 +98,11 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 ## Proximos 5 passos
 
-1. Publicar B4 (push da branch -> fast-forward em `main` -> deploy em producao -> closeout documental).
-2. SPB-254 — correcoes funcionais de UI.
-3. SPB-264 — coletor: correcao (HTTP estrito, exit codes, parser health).
-4. SPB-270 — F-01 (desbloqueia a Fase E).
-5. SPB-265 — estado persistente + telemetria (prepara o shadow).
+1. SPB-254 — correcoes funcionais de UI.
+2. SPB-264 — coletor: correcao (HTTP estrito, exit codes, parser health, retry, log seguro).
+3. SPB-270 — F-01 (alinhar ingest/DEBUG a `APP_ENV`, desbloqueia parte da Fase E).
+4. SPB-265 — estado persistente + telemetria (prepara o shadow).
+5. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
 
 ## Limite de WIP
 
@@ -120,7 +118,7 @@ Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico (F-
 |---|---|
 | `B4_PUSH_GATE` | **APPROVE** |
 | `B4_MAIN_INTEGRATION_GATE` | **APPROVE** |
-| `B4_PRODUCTION_DEPLOY_GATE` | **APPROVE_WITH_CONDITIONS** — confirmar `FLASK_ENV=production` mantido; cookie de producao continua `session`; nenhum banner de homologacao aparece em producao; suite completa executada na VPS com `.env` real |
+| `B4_PRODUCTION_DEPLOY_GATE` | **APPROVE** (final) — condicoes comprovadas em 18/08/2026: `FLASK_ENV=production`/`APP_ENV=production` confirmados; cookie de producao continua `session` (`Secure`/`HttpOnly`/`SameSite=Lax`/`Path=/`, sem `Domain`); nenhum banner de homologacao apareceu em producao; suite completa executada na VPS com `.env` real (204/204); banco integro; HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302); Telegram saudavel (`telegram_ready()=True`, webhook OK); Collector com `LastTaskResult=0` apos restauracao |
 | `STRICT_HTTP_READY` | READY_AFTER_FIXES — depende de SPB-264 + observacao de 24-48h |
 | `SHADOW_MODE_READY` | BLOCKED — depende de `STRICT_HTTP_READY` + SPB-265 |
 | `EARLY_STOP_READY` | BLOCKED — depende de `missed_new_if_active = 0` em janela de 7-14 dias do shadow |
