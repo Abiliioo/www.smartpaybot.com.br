@@ -41,6 +41,14 @@
     Pula a confirmacao interativa "Implantar este SHA em producao? [s/N]".
     Use apenas em contextos ja supervisionados.
 
+.NOTES
+    Elevacao: quando o Collector precisa ser pausado (State != Disabled) e
+    o deploy NAO e -DryRun, este script exige um PowerShell "Executar como
+    Administrador" (Disable-ScheduledTask/Enable-ScheduledTask exigem
+    elevacao nesta maquina). A falta de elevacao aborta ANTES da
+    confirmacao humana e ANTES de qualquer SSH, com exit local 1.
+    -DryRun nunca exige elevacao (e somente leitura).
+
 .PARAMETER DryRun
     Executa somente o preflight local (git, SHA, deteccao do Scheduled
     Task). NAO desabilita o Collector, NAO conecta via SSH, NAO toca
@@ -263,6 +271,20 @@ if ($DryRun) {
     exit 6
 }
 
+# ── gate de elevacao: exigido somente quando o deploy real precisa pausar
+# o Collector (Disable-ScheduledTask/Enable-ScheduledTask exigem admin
+# nesta maquina). Roda ANTES da confirmacao humana e ANTES de qualquer
+# Disable-ScheduledTask -- nenhum prompt, nenhum SSH, se nao elevado.
+if ($originalState -ne "Disabled") {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Fail-Local "o Collector esta '$originalState' e precisa ser pausado durante o deploy, mas este PowerShell nao esta elevado. Execute o PowerShell como Administrador e tente novamente."
+    }
+    Write-Host "PowerShell elevado confirmado (necessario pois o Collector ('$originalState') precisa ser pausado)."
+}
+
 if (-not $Yes) {
     $answer = Read-Host "Implantar este SHA em producao? [s/N]"
     if ($answer -ne "s" -and $answer -ne "S" -and $answer -ne "sim" -and $answer -ne "Sim") {
@@ -275,12 +297,21 @@ if (-not $Yes) {
 $deployExitCode = 1
 $remoteOutputLines = @()
 $collectorRestoreFailed = $false
+$collectorDisabledByDeploy = $false
 
 try {
     Write-Section "4. PAUSANDO O COLLECTOR"
     if ($originalState -ne "Disabled") {
-        Disable-ScheduledTask -TaskName $TaskName | Out-Null
-        Write-Host "Collector desabilitado temporariamente."
+        try {
+            Disable-ScheduledTask -TaskName $TaskName -ErrorAction Stop | Out-Null
+            $collectorDisabledByDeploy = $true
+            Write-Host "Collector desabilitado temporariamente."
+        }
+        catch {
+            Add-Content -Path $LogFile -Value "COLLECTOR_DISABLE_FAILED=true"
+            Add-Content -Path $LogFile -Value "COLLECTOR_DISABLE_ERROR=$($_.Exception.Message)"
+            Fail-Local "Disable-ScheduledTask falhou para '$TaskName': $($_.Exception.Message). Nenhuma conexao SSH sera feita -- o script nao confirmou que o Collector foi pausado, entao nao tentara religa-lo."
+        }
     }
     else {
         Write-Host "Collector ja estava Disabled -- mantendo como esta."
@@ -340,7 +371,7 @@ try {
 }
 finally {
     Write-Section "7. RESTAURANDO ESTADO DO COLLECTOR"
-    if ($originalState -ne "Disabled") {
+    if ($collectorDisabledByDeploy) {
         try {
             Enable-ScheduledTask -TaskName $TaskName -ErrorAction Stop | Out-Null
             Write-Host "Collector religado (estado original era '$originalState')."
@@ -350,8 +381,15 @@ finally {
             $collectorRestoreFailed = $true
         }
     }
-    else {
+    elseif ($originalState -eq "Disabled") {
         Write-Host "Collector permanece Disabled (estado original preservado)."
+    }
+    else {
+        # originalState != Disabled mas $collectorDisabledByDeploy == $false:
+        # o script nunca confirmou ter desabilitado a task (ex.: Disable
+        # falhou antes). Nao ha nada para restaurar -- tentar Enable aqui
+        # seria alterar um estado que este deploy nao mudou.
+        Write-Host "Collector nao foi desabilitado por este deploy -- nenhuma restauracao necessaria."
     }
 
     $finalState = $null
@@ -364,7 +402,7 @@ finally {
         $collectorRestoreFailed = $true
     }
 
-    if ($originalState -ne "Disabled" -and $finalState -eq "Disabled") {
+    if ($collectorDisabledByDeploy -and $finalState -eq "Disabled") {
         Write-Host "FALHA OPERACIONAL: o Collector deveria ter sido religado mas continua Disabled. Verificar manualmente." -ForegroundColor Red
         $collectorRestoreFailed = $true
     }

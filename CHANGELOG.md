@@ -17,6 +17,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Fixed
 
+- `scripts/deploy-production.ps1` (automacao local de deploy, SPB-263) passou a exigir PowerShell elevado ("Executar como Administrador") antes de pausar o Scheduled Task `SmartPayBot Collector`, e a rastrear explicitamente se a task foi de fato desabilitada pelo proprio deploy: `Disable-ScheduledTask` sem sucesso (ex.: "Acesso negado" por falta de elevacao) agora aborta com `exit 1` antes de qualquer conexao SSH, sem tentar `Enable-ScheduledTask` sobre uma task que nunca foi confirmadamente pausada. Corrige um incidente real em que a falta de elevacao causava "Acesso negado" tanto ao pausar quanto ao tentar religar o Collector no `finally`, sem impedir a tentativa de deploy remoto.
 - Correspondencia lexical do matcher deixou de casar termos curtos dentro de palavras maiores (ex.: `excel` casando indevidamente com `excelente`), com cobertura de testes automatizados dedicada (SPB-201, SPB-202).
 - Listagem administrativa deixou de expor `password_hash`, telefone, `chat_id` e codigos de vinculacao Telegram na projecao retornada ao template (hardening de privacidade do SPB-210).
 - Filtros administrativos de plano (Free, Pro, Admin) passaram a ser mutuamente exclusivos: administradores deixaram de aparecer no filtro Free (e no Pro, quando aplicavel), independentemente de possuirem assinatura ativa (SPB-210).
