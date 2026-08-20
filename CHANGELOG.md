@@ -8,11 +8,13 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
+- Governanca local minima para agentes via `AGENTS.md`, adotando o Abilio Dev OS `v0.1.1-dev` como referencia leve e pinada (`31943dd76fe76cabc4a10de21e604b11f32c80c7`) sem copiar o Dev OS, criar submodule ou adicionar automacao (Issue #1).
 - Listagem administrativa com busca por username/email, filtros combinaveis (plano, monitoramento, Telegram vinculado) e paginacao (SPB-210).
 - Observabilidade agregada do matcher, com contadores de projetos analisados, casamentos e criacoes, sem expor titulos, keywords ou dados de usuario nos logs (SPB-203).
 
 ### Changed
 
+- `CLAUDE.md`, `rules/seguranca.md` e templates em `prompts/` passaram a referenciar a governanca local de `AGENTS.md`, corrigindo o estado operacional atual de banco para SQLite e removendo orientacoes obsoletas de webhook/pre-deploy incompativeis com a producao atual (Issue #1).
 - Runner local do coletor (`run_collector.bat`) passou a registrar inicio e fim de cada ciclo com timestamp e `EXIT_CODE`, com saida do Python forcada em UTF-8.
 
 ### Fixed

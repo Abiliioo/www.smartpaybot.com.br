@@ -10,6 +10,7 @@ Use este template ao iniciar uma sessão de desenvolvimento de nova feature ou c
 Contexto do projeto:
 O SmartPayBot é um SaaS de alertas de freelas (99Freelas → Telegram).
 Stack: Flask + SQLAlchemy 2.x + SQLite (dev) + APScheduler + lxml.
+Governança: seguir AGENTS.md; Abilio Dev OS v0.1.1-dev é referência leve, e regras locais mais restritivas vencem.
 Estado atual: [descrever o que já está feito, se relevante]
 
 Objetivo desta sessão:
@@ -21,6 +22,7 @@ Restrições obrigatórias:
 - Não implementar Stripe ainda
 - Não mover arquivos de lugar
 - Seguir rules/padrao-codigo.md
+- Executar quality gates proporcionais ao risco da mudança
 
 Antes de implementar:
 1. Proponha um plano listando quais arquivos serão criados/alterados
@@ -29,30 +31,31 @@ Antes de implementar:
 4. Liste os arquivos alterados ao final
 5. Sugira comandos de teste
 6. Sugira o commit
+7. Não fazer push, PR, deploy, SSH ou escrita em Scheduled Task sem pedido explícito
 ```
 
 ---
 
 ## Exemplos de uso
 
-### Feature nova
+### Correção pequena de UI
 
 ```
 Contexto do projeto:
-SmartPayBot — sistema de planos Free/Pro já implementado.
-Próximo passo: integração com Stripe para automatizar cobranças.
+SmartPayBot — dashboard funcional com monitoramento e keywords já implementados.
 
 Objetivo desta sessão:
-Implementar Stripe Checkout para o plano Pro.
-O usuário clica em "Assinar Pro" no dashboard e é redirecionado
-para a página de pagamento hospedada do Stripe.
-Após pagamento, webhook confirma e eleva o plano automaticamente.
+Corrigir um bug visual pequeno no dashboard sem alterar regras de negócio.
+
+Comportamento atual: [descrever]
+Comportamento esperado: [descrever]
 
 Restrições:
 - Não alterar pipeline de scraping/matching/notificação
-- Não alterar lógica de planos existente (só adicionar rotas de billing)
-- Preservar fluxo de upgrade manual no admin (continuar funcionando)
-- SECRET_KEY e STRIPE_SECRET_KEY via .env
+- Não iniciar pagamento automatizado fora de tarefa própria
+- Não mover arquivos
+- Executar validações proporcionais ao risco
+- Não fazer push, deploy ou SSH sem pedido explícito
 
 Antes de implementar:
 [seguir template acima]
@@ -90,3 +93,5 @@ Restrições:
 - [ ] Existe uma forma mais simples de atingir o mesmo objetivo?
 - [ ] O banco SQLite em dev vai continuar funcionando?
 - [ ] Algum segredo vai ser introduzido? Está no `.env` e não no código?
+- [ ] O quality gate escolhido é proporcional ao risco?
+- [ ] A mudança respeita `AGENTS.md` e as regras locais do SmartPayBot?

@@ -76,10 +76,13 @@ SCAN_MAX_SECONDS=180
 
 ## Webhook do Telegram
 
-### Proteção atual (mínima)
-O endpoint `/webhook/telegram` aceita qualquer POST. Em produção, adicionar pelo menos uma das seguintes proteções:
+### Proteção atual
 
-**Opção A — Validar header `X-Telegram-Bot-Api-Secret-Token`** (recomendada)
+O endpoint `/webhook/telegram` deve exigir `TELEGRAM_WEBHOOK_SECRET` quando o Telegram estiver ativo. A validação do header `X-Telegram-Bot-Api-Secret-Token` é obrigatória antes de qualquer gravação no banco.
+
+Também deve respeitar `APP_ENV`/`TELEGRAM_MODE` e o identity guard (`TELEGRAM_EXPECTED_BOT_ID`) antes de processar payloads reais.
+
+**Validação obrigatória do header `X-Telegram-Bot-Api-Secret-Token`**
 ```python
 # Ao registrar o webhook:
 set_webhook(url, secret_token="token-secreto-aleatório")
@@ -89,8 +92,7 @@ if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != settings.TELEGRAM_W
     return "", 403
 ```
 
-**Opção B — Validar que o IP é do Telegram**
-IPs oficiais do Telegram: `149.154.160.0/20` e `91.108.4.0/22`.
+Validação por IP do Telegram pode ser adicionada como defesa complementar, mas não substitui o secret.
 
 ### Webhook Stripe (futuro)
 Quando implementar Stripe, validar a assinatura do webhook **obrigatoriamente**:
