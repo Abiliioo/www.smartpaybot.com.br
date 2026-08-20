@@ -104,6 +104,8 @@ Ainda nao existe pagina de detalhe, ativacao/desativacao de conta, exclusao, ano
 
 O frontend usa templates Jinja e CSS proprio em `app/static/css/style.css`, com tema dark azul, cards, metricas, formulario de keywords, tabela de Admin e dashboard. `app/static/js/script.js` controla chamadas JSON, CSRF, flashes, graficos, toggles e atualizacao de dados.
 
+SPB-254 (correcoes funcionais de UI: remocao de keyword em touch, switch de monitoramento acessivel por teclado) **implantado e validado em producao em 20/08/2026**, commit `588b86167f633faab812f23e3fbe0be0d534918c`: producao esta atualmente neste commit. `.chip-x` deixou de depender exclusivamente de `:hover` (inutilizavel em touch antes da correcao) e `.switch input` deixou de usar `display:none` (inalcancavel por teclado antes da correcao) — ambos corrigidos somente via CSS, sem mudanca de markup/JS/layout/cor. Deploy: 213/213 testes na VPS, banco integro antes/depois, HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302), cookie `session` preservado, nenhum banner de homologacao, Telegram saudavel, Collector restaurado e `LastTaskResult=0` na rodada pos-deploy. Este foi tambem o primeiro deploy real a exercitar em producao o hotfix de transporte PowerShell -> SSH (ver secao B4 acima): `DEPLOY_STATUS=SUCCESS` com `LOCAL_DEPLOY_EXIT_CODE=0`, sem qualquer ocorrencia de `numeric argument required`.
+
 ## Testes atuais
 
 - `tests/test_notifier_queue.py` cobre a fila do notifier, elegibilidade, filtros administrativos e protecao contra starvation.

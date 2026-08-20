@@ -17,7 +17,7 @@ Atualizar este documento a cada gate atravessado.
 - ADR-006 (ambiente de homologacao isolado): status **Proposta**.
 - SPB-263: **EM ANDAMENTO**.
 - Deploy de producao tem automacao local disponivel via `scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh` (ver `docs/runbooks/deploy-producao.md`), substituindo a sequencia manual de comandos SSH por um unico comando com preflight, gates fail-closed, testes, smoke e rollback automatico. A chave SSH permanece sob controle do operador. Ja usada em um deploy real (B4), com o hotfix de transporte acima aplicado apos o incidente local.
-- SPB-254 (correcoes funcionais de UI: chip-x em touch, switch acessivel por teclado) **IMPLEMENTADO e TESTADO LOCALMENTE** (204+9=213 testes, branch `fix/spb-254-ui-interactions`), ainda nao integrado em `main` nem implantado em producao nesta tarefa.
+- SPB-254 (correcoes funcionais de UI: chip-x em touch, switch acessivel por teclado) **CONCLUIDO — IMPLANTADO e VALIDADO em producao em 20/08/2026**, commit `588b86167f633faab812f23e3fbe0be0d534918c`: 213/213 testes na VPS, banco integro, HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302), cookie `session` preservado, sem banner de homologacao, Telegram saudavel, Collector restaurado e `LastTaskResult=0` na rodada pos-deploy; validacao manual do operador (desktop, foco por teclado, mobile ~375px, chip-x sem depender de hover) PASS. Este deploy foi tambem a primeira validacao real em producao do hotfix de transporte PowerShell -> SSH (commits `ae63112`/`f02faaa`): `DEPLOY_STATUS=SUCCESS` com `LOCAL_DEPLOY_EXIT_CODE=0`, sem qualquer ocorrencia de `numeric argument required`.
 
 ## Principio de priorizacao
 
@@ -56,7 +56,7 @@ B4 publish (push -> main -> deploy -> closeout) -- CONCLUIDO em 18/08/2026
 ### TRILHO C — UX/UI
 
 ```
-SPB-254 (correcoes funcionais: chip-x toque, switch teclado)
+SPB-254 (correcoes funcionais: chip-x toque, switch teclado) -- CONCLUIDO em 20/08/2026
    -> SPB-250 (design tokens)
    -> SPB-255 (app shell: navbar, drawer mobile)
    -> SPB-251 (dashboard: StatusBar)
@@ -75,7 +75,6 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 **NOW**
 
-- SPB-254;
 - SPB-264;
 - SPB-270.
 
@@ -99,11 +98,11 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 ## Proximos 5 passos
 
-1. SPB-254 — correcoes funcionais de UI.
-2. SPB-264 — coletor: correcao (HTTP estrito, exit codes, parser health, retry, log seguro).
-3. SPB-270 — F-01 (alinhar ingest/DEBUG a `APP_ENV`, desbloqueia parte da Fase E).
-4. SPB-265 — estado persistente + telemetria (prepara o shadow).
-5. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
+1. SPB-264 — coletor: correcao (HTTP estrito, exit codes, parser health, retry, log seguro).
+2. SPB-270 — F-01 (alinhar ingest/DEBUG a `APP_ENV`, desbloqueia parte da Fase E).
+3. SPB-265 — estado persistente + telemetria (prepara o shadow).
+4. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
+5. SPB-272 — hardening de isolamento pre-Fase E.
 
 ## Limite de WIP
 
@@ -129,8 +128,9 @@ Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico (F-
 | `PHASE_F_READINESS` | BLOCKED — depende da Fase E + SPB-271 |
 | `PHASE_G_READINESS` | BLOCKED — depende da Fase F; ordem obrigatoria: TLS antes de Basic Auth |
 | `PHASE_H_COMPLETE` | BLOCKED — depende da matriz de isolamento completa |
-| `UI_FOUNDATION_READY` | READY — SPB-254 + SPB-250, sem exigir mudanca visual perceptivel |
-| `UI_PRODUCTION_READY` | BLOCKED — depende de regressao visual (1440/768/390px) nas telas afetadas e testes do B4 continuando a passar (banner de homologacao intacto) |
+| `SPB_254_PRODUCTION_VALIDATION` | **PASS** — implantado e validado em producao em 20/08/2026, commit `588b861`: 213/213 na VPS, HTTP/banco/Telegram saudaveis, cookie `session` preservado, sem banner de homologacao, Collector restaurado (`LastTaskResult=0`), validacao manual do operador (desktop/teclado/mobile ~375px) PASS |
+| `UI_FOUNDATION_READY` | READY — SPB-254 concluido; segue dependendo tambem de SPB-250 (ainda nao iniciado), sem exigir mudanca visual perceptivel |
+| `UI_PRODUCTION_READY` | BLOCKED — depende de regressao visual (1440/768/390px) nas telas afetadas e testes do B4 continuando a passar (banner de homologacao intacto); `SPB_254_PRODUCTION_VALIDATION=PASS` nao equivale a este gate, que segue mais amplo |
 
 ## Metricas do coletor
 
