@@ -10,6 +10,7 @@ Use este template ao iniciar uma sessão de desenvolvimento de nova feature ou c
 Contexto do projeto:
 O SmartPayBot é um SaaS de alertas de freelas (99Freelas → Telegram).
 Stack: Flask + SQLAlchemy 2.x + SQLite (dev) + APScheduler + lxml.
+Governança: seguir AGENTS.md; Abilio Dev OS v0.1.1-dev é referência leve, e regras locais mais restritivas vencem.
 Estado atual: [descrever o que já está feito, se relevante]
 
 Objetivo desta sessão:
@@ -21,6 +22,7 @@ Restrições obrigatórias:
 - Não implementar Stripe ainda
 - Não mover arquivos de lugar
 - Seguir rules/padrao-codigo.md
+- Executar quality gates proporcionais ao risco da mudança
 
 Antes de implementar:
 1. Proponha um plano listando quais arquivos serão criados/alterados
@@ -29,6 +31,7 @@ Antes de implementar:
 4. Liste os arquivos alterados ao final
 5. Sugira comandos de teste
 6. Sugira o commit
+7. Não fazer push, PR, deploy, SSH ou escrita em Scheduled Task sem pedido explícito
 ```
 
 ---
@@ -90,3 +93,5 @@ Restrições:
 - [ ] Existe uma forma mais simples de atingir o mesmo objetivo?
 - [ ] O banco SQLite em dev vai continuar funcionando?
 - [ ] Algum segredo vai ser introduzido? Está no `.env` e não no código?
+- [ ] O quality gate escolhido é proporcional ao risco?
+- [ ] A mudança respeita `AGENTS.md` e as regras locais do SmartPayBot?

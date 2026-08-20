@@ -1,5 +1,15 @@
 # SmartPayBot — Contexto para Claude
 
+## Governança local
+
+Este repositório adota o Abilio Dev OS como referência leve de governança:
+
+- versão: `v0.1.1-dev`
+- pin: `31943dd76fe76cabc4a10de21e604b11f32c80c7`
+- unidade de trabalho da adoção: GitHub Issue `#1`
+
+O arquivo canônico para agentes é `AGENTS.md`. Regras locais mais restritivas do SmartPayBot vencem qualquer orientação geral do Dev OS.
+
 ## Idioma obrigatório
 
 Responda, comente o status, relate o progresso e produza todos os documentos exclusivamente em português do Brasil (pt-BR).
@@ -104,7 +114,8 @@ scheduler → crawl_once() → match_recent_projects() → notify_pending()
 | Web | Flask 3.x + Flask-Login + Flask-WTF |
 | ORM | SQLAlchemy 2.x (Mapped[]) |
 | DB dev | SQLite (`app.db`) |
-| DB prod | PostgreSQL (ainda não configurado) |
+| DB prod atual | SQLite |
+| DB prod futuro/proposto | PostgreSQL |
 | Scraping | lxml + httpx async |
 | Scheduler | APScheduler (in-process) |
 | Alertas | Telegram Bot API |

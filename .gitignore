@@ -50,6 +50,7 @@ htmlcov/
 .tox/
 
 # --- IDEs ---
+.claude/
 .vscode/
 .idea/
 *.code-workspace
