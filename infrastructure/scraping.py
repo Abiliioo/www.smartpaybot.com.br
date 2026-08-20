@@ -5,7 +5,7 @@ import asyncio
 import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import aiohttp
 import requests
@@ -23,6 +23,17 @@ _DEFAULT_HEADERS = {
     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
     "Connection": "close",
 }
+
+
+def _safe_url_for_log(url: str) -> str:
+    """
+    Remove query string/fragment antes de logar URLs externas.
+    """
+    try:
+        parts = urlsplit(url)
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+    except Exception:
+        return "<url-invalida>"
 
 # ============================================================
 # 1) HTTP assíncrono (mantido para quem já usa aiohttp)
@@ -52,17 +63,30 @@ class HttpClient:
     async def get_text(self, url: str) -> str:
         if self._session is None:
             raise RuntimeError("Use 'async with HttpClient()' para criar a sessão.")
+        safe_url = _safe_url_for_log(url)
         try:
             async with self._session.get(url) as resp:
                 text = await resp.text()
                 if resp.status != 200:
-                    logger.warning("GET %s -> %s: %s", url, resp.status, text[:200])
+                    logger.warning(
+                        "GET %s -> %s %s",
+                        safe_url,
+                        resp.status,
+                        resp.reason or "",
+                    )
+                    raise aiohttp.ClientResponseError(
+                        request_info=resp.request_info,
+                        history=resp.history,
+                        status=resp.status,
+                        message=resp.reason or "",
+                        headers=resp.headers,
+                    )
                 return text
         except asyncio.TimeoutError:
-            logger.error("Timeout ao acessar %s", url)
+            logger.error("Timeout ao acessar %s", safe_url)
             raise
         except aiohttp.ClientError as e:
-            logger.error("Erro HTTP ao acessar %s: %s", url, e)
+            logger.error("Erro HTTP ao acessar %s: %s", safe_url, e.__class__.__name__)
             raise
 
 
