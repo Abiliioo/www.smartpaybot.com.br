@@ -38,24 +38,24 @@ Antes de implementar:
 
 ## Exemplos de uso
 
-### Feature nova
+### Correção pequena de UI
 
 ```
 Contexto do projeto:
-SmartPayBot — sistema de planos Free/Pro já implementado.
-Próximo passo: integração com Stripe para automatizar cobranças.
+SmartPayBot — dashboard funcional com monitoramento e keywords já implementados.
 
 Objetivo desta sessão:
-Implementar Stripe Checkout para o plano Pro.
-O usuário clica em "Assinar Pro" no dashboard e é redirecionado
-para a página de pagamento hospedada do Stripe.
-Após pagamento, webhook confirma e eleva o plano automaticamente.
+Corrigir um bug visual pequeno no dashboard sem alterar regras de negócio.
+
+Comportamento atual: [descrever]
+Comportamento esperado: [descrever]
 
 Restrições:
 - Não alterar pipeline de scraping/matching/notificação
-- Não alterar lógica de planos existente (só adicionar rotas de billing)
-- Preservar fluxo de upgrade manual no admin (continuar funcionando)
-- SECRET_KEY e STRIPE_SECRET_KEY via .env
+- Não iniciar pagamento automatizado fora de tarefa própria
+- Não mover arquivos
+- Executar validações proporcionais ao risco
+- Não fazer push, deploy ou SSH sem pedido explícito
 
 Antes de implementar:
 [seguir template acima]

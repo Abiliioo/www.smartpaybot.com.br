@@ -11,12 +11,13 @@ Referencia externa:
 
 ## Regra de precedencia
 
-1. Instrucoes explicitas do proprietario para a tarefa atual.
-2. Regras locais deste repositorio (`AGENTS.md`, `CLAUDE.md`, `rules/`, `prompts/`).
-3. Abilio Dev OS no pin acima.
-4. Padroes gerais do agente ou ferramenta em uso.
+1. Segurança, integridade, requisitos legais/obrigatórios e proteção de dados/secrets.
+2. Instruções explícitas do proprietário para a tarefa atual, desde que não contrariem o item 1.
+3. Regras específicas e mais restritivas do SmartPayBot.
+4. Abilio Dev OS `v0.1.1-dev` no pin adotado.
+5. Padrões gerais do agente ou ferramenta em uso.
 
-Quando houver conflito, a regra local mais restritiva do SmartPayBot vence.
+Quando houver conflito, a regra mais restritiva de segurança/operação do SmartPayBot vence.
 
 ## Idioma
 
@@ -37,7 +38,7 @@ Responda, relate progresso e produza documentacao em portugues do Brasil. Nomes 
 - Claude: auditoria, arquitetura, analise de risco e revisao.
 - Codex: implementacao local, Git, testes e validacao tecnica.
 
-Esses papeis sao preferenciais, nao exclusivos. A tarefa atual e as instrucoes do proprietario continuam sendo a fonte de verdade.
+Esses papeis sao preferenciais, nao exclusivos. A tarefa atual e as instruções explícitas do proprietário continuam sendo a fonte de verdade, desde que nao contrariem seguranca, integridade, requisitos legais/obrigatorios e protecao de dados/secrets.
 
 ## Fluxo de trabalho
 

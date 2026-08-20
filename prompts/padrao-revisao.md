@@ -63,16 +63,22 @@ Revisão pré-deploy do SmartPayBot.
 Branch: [nome da branch]
 Alterações desde o último deploy: [resumo ou `git log --oneline main..HEAD`]
 
+Fonte canônica para deploy real:
+docs/runbooks/deploy-producao.md
+
 Verificar:
-1. .env não está no git (`git status` mostra .env?)
-2. SECRET_KEY está configurada (não é o valor default)
-3. DATABASE_URL aponta para o banco aprovado para o ambiente atual
-4. SCHEDULER=0 ou confirmado que APScheduler funciona com 1 worker
-5. Migrações ou scripts de banco exigidos pela mudança foram aplicados
-6. seed_plans.py foi rodado no banco de prod
-7. TELEGRAM_TOKEN é o token de produção correto
-8. Nenhum print() ou debug ativo no código
-9. Quality gates proporcionais ao risco foram executados
+1. HEAD/base/target foram confirmados pelo orquestrador.
+2. `.env` e outros segredos não aparecem no git, no diff ou nos logs.
+3. Variáveis obrigatórias foram reportadas apenas como presentes/ausentes, sem valores.
+4. Ambiente seguro foi reportado sem imprimir valores de secrets.
+5. Testes/gates proporcionais ao risco foram executados.
+6. Banco foi validado quando aplicável.
+7. Migrações ou scripts de banco foram executados somente quando a mudança exigir, com evidência segura.
+8. Smoke HTTP foi executado quando aplicável.
+9. Webhook/Telegram foi validado por gate seguro quando aplicável.
+10. Collector foi restaurado quando aplicável.
+11. Nenhuma inspeção ou impressão de valores secretos foi solicitada.
+12. Nenhum print() ou debug ativo foi introduzido no código.
 
 Retornar:
 - ✅ Pronto / ⚠ Atenção / ❌ Bloqueante para cada item
