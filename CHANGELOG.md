@@ -29,6 +29,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Security
 
+- `DEBUG` e o endpoint interno `/internal/ingest/projects` passaram a usar `APP_ENV` como fonte de verdade: `homologation` e `production` recusam `DEBUG=true` e ingest sem `INTERNAL_INGEST_TOKEN`, mesmo quando `FLASK_ENV=development`. Sem deploy nesta branch (SPB-270).
 - Introduzida a variavel `APP_ENV` (`development`/`homologation`/`production`), com resolucao fail-closed: valor invalido ou `FLASK_ENV=production` sem `APP_ENV` explicito recusam o boot da aplicacao (SPB-263).
 - `infrastructure/db.py` passou a validar `DATABASE_URL` antes de criar a conexao (`create_engine`): em `APP_ENV=homologation`, exige URL SQLite explicita apontando para um arquivo `homolog.db`, rejeitando o fallback padrao, `:memory:` e qualquer banco fora dessa convencao (SPB-263).
 - O guardrail de `SECRET_KEY` (antes restrito a `FLASK_ENV=production`) passou a cobrir tambem `APP_ENV=homologation` (SPB-263).
