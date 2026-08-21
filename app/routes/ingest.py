@@ -63,16 +63,17 @@ def _check_token() -> bool:
             log.warning("Ingest rejeitado: token inválido ou ausente")
             return False
         return True
-    if settings.FLASK_ENV == "production":
+    if settings.APP_ENV != "development":
         log.error(
-            "INTERNAL_INGEST_TOKEN ausente em produção — ingest recusado. "
-            "Configure no .env de produção."
+            "INTERNAL_INGEST_TOKEN ausente em APP_ENV=%s — ingest recusado. "
+            "Configure o token do ambiente.",
+            settings.APP_ENV,
         )
         return False
     if not _no_token_warned:
         log.warning(
             "INTERNAL_INGEST_TOKEN não configurado — endpoint aceita requisições "
-            "sem autenticação. Configure em produção via .env."
+            "sem autenticação apenas em APP_ENV=development."
         )
         _no_token_warned = True
     return True

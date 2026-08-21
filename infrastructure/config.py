@@ -57,6 +57,26 @@ def resolve_app_env(flask_env: str, app_env_raw: Optional[str]) -> str:
     return "development"
 
 
+def resolve_debug(app_env: str, raw_debug: Optional[str]) -> bool:
+    """
+    Resolve DEBUG usando APP_ENV como fonte de verdade.
+
+    - development: ausente -> True; valor explicito respeitado.
+    - homologation/production: ausente -> False; DEBUG=true e recusado
+      explicitamente para evitar ambiente sensivel com debug ativo.
+    """
+    if app_env not in VALID_APP_ENVS:
+        raise RuntimeError(f"APP_ENV desconhecido ao resolver DEBUG: {app_env!r}.")
+
+    debug = _as_bool(raw_debug, default=(app_env == "development"))
+    if app_env != "development" and debug:
+        raise RuntimeError(
+            f"APP_ENV={app_env} nao aceita DEBUG=true. "
+            "Desative DEBUG para ambientes sensiveis."
+        )
+    return debug
+
+
 VALID_TELEGRAM_MODES = frozenset({"disabled", "homologation", "production"})
 
 
@@ -132,18 +152,19 @@ def resolve_telegram_expected_bot_id(telegram_mode: str, raw: Optional[str]) -> 
 
 
 # Resolvidos uma vez aqui (nao dentro dos defaults do dataclass abaixo) para
-# evitar recomputar resolve_app_env/resolve_telegram_mode tres vezes ao
-# calcular os campos TELEGRAM_MODE e TELEGRAM_EXPECTED_BOT_ID.
-_app_env_for_telegram_defaults = resolve_app_env(os.getenv("FLASK_ENV", "development"), os.getenv("APP_ENV"))
-_telegram_mode_for_defaults = resolve_telegram_mode(_app_env_for_telegram_defaults, os.getenv("TELEGRAM_MODE"))
+# evitar recomputar resolve_app_env/resolve_telegram_mode ao calcular campos
+# que compartilham APP_ENV como fonte de verdade.
+_app_env_for_defaults = resolve_app_env(os.getenv("FLASK_ENV", "development"), os.getenv("APP_ENV"))
+_debug_for_defaults = resolve_debug(_app_env_for_defaults, os.getenv("DEBUG"))
+_telegram_mode_for_defaults = resolve_telegram_mode(_app_env_for_defaults, os.getenv("TELEGRAM_MODE"))
 
 
 @dataclass(frozen=True)
 class Settings:
     # Ambiente
     FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
-    DEBUG: bool = _as_bool(os.getenv("DEBUG"), default=(os.getenv("FLASK_ENV", "development") == "development"))
-    APP_ENV: str = resolve_app_env(os.getenv("FLASK_ENV", "development"), os.getenv("APP_ENV"))
+    DEBUG: bool = _debug_for_defaults
+    APP_ENV: str = _app_env_for_defaults
 
     # Novo: fuso horário “oficial” do app
     TZ_NAME: str = os.getenv("TZ_NAME", "America/Sao_Paulo")
