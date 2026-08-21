@@ -13,12 +13,13 @@ Atualizar este documento a cada gate atravessado.
 - SPB-263 Fase D (inspecao read-only da VPS) concluida em 16/08/2026, sem bloqueadores.
 - SPB-263 B4 (isolamento visual e de sessao entre `development`/`homologation`/`production`) **PUBLICADO e VALIDADO em producao em 18/08/2026** (horario local do operador; 19/08/2026 UTC na VPS), commit `2625a82551efde5b1223334ec47d90affce26caf`: 204/204 local, 204/204 na VPS antes do restart, `DEPLOY_STATUS=SUCCESS`, banco integro, cookie `session` preservado (`Secure`/`HttpOnly`/`SameSite=Lax`/`Path=/`, sem `Domain`), nenhum banner de homologacao em producao, smoke HTTP e Telegram saudaveis, Collector restaurado com `LastTaskResult=0`.
 - Primeiro deploy real executado pela automacao controlada (`scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh`). Incidente local (nao de producao): um bug de transporte do Windows PowerShell 5.1 corrompeu a ultima linha do script remoto enviado via stdin e fez o orquestrador reportar falsamente um rollback (`exit 2`) apos o `DEPLOY_STATUS=SUCCESS` remoto real — producao nunca saiu do ar nem foi revertida. Hotfix definitivo integrado em `main`, commits `ae631128776241ec7429dfcbe3ee861255794abd` e `f02faaac5e2bb1c958014995ffaa48b14f4f5515` (transporte Base64 sobre bytes crus do blob Git, validado por SHA-256).
-- Fases E-I do SPB-263 (clone fisico de homologacao, DNS/Nginx/TLS, protecao externa, isolamento end-to-end, closeout) nao iniciadas — dependem de SPB-270 + SPB-272 (ver gates).
+- Fases E-I do SPB-263 (clone fisico de homologacao, DNS/Nginx/TLS, protecao externa, isolamento end-to-end, closeout) nao iniciadas — SPB-270 ja foi mergeado e validado localmente; seguem dependendo de SPB-272 e dos gates operacionais (ver gates).
 - ADR-006 (ambiente de homologacao isolado): status **Proposta**.
 - SPB-263: **EM ANDAMENTO**.
 - Deploy de producao tem automacao local disponivel via `scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh` (ver `docs/runbooks/deploy-producao.md`), substituindo a sequencia manual de comandos SSH por um unico comando com preflight, gates fail-closed, testes, smoke e rollback automatico. A chave SSH permanece sob controle do operador. Ja usada em um deploy real (B4), com o hotfix de transporte acima aplicado apos o incidente local.
 - SPB-254 (correcoes funcionais de UI: chip-x em touch, switch acessivel por teclado) **CONCLUIDO — IMPLANTADO e VALIDADO em producao em 20/08/2026**, commit `588b86167f633faab812f23e3fbe0be0d534918c`: 213/213 testes na VPS, banco integro, HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302), cookie `session` preservado, sem banner de homologacao, Telegram saudavel, Collector restaurado e `LastTaskResult=0` na rodada pos-deploy; validacao manual do operador (desktop, foco por teclado, mobile ~375px, chip-x sem depender de hover) PASS. Este deploy foi tambem a primeira validacao real em producao do hotfix de transporte PowerShell -> SSH (commits `ae63112`/`f02faaa`): `DEPLOY_STATUS=SUCCESS` com `LOCAL_DEPLOY_EXIT_CODE=0`, sem qualquer ocorrencia de `numeric argument required`.
 - SPB-264 (Collector: HTTP strict, parser health, exit codes, retry e logs seguros) **CONCLUIDO — MERGEADO e VALIDADO no Collector local real em 20/08/2026**, PR #4, Issue #3 fechada, merge commit `e345fefe900c70636260d8521762c298cbfc1956`: `py_compile` aprovado, `tests.test_collector_push_spb264` 12/12, `run_collector.bat` retornou `EXIT_CODE=0`, gate local com 10/10 paginas OK, parser OK em 10/10, 100 projetos unicos, ingest OK (`received=100`) e segundo ciclo idempotente (`inserted=0`, `updated=0`, `skipped=100`). Sem deploy VPS, sem alteracao de Scheduled Task/cadencia/`--pages 10`.
+- SPB-270 (F-01: alinhar ingest/DEBUG a `APP_ENV`) **CONCLUIDO EM CODIGO — MERGEADO e VALIDADO LOCALMENTE em 21/08/2026**, PR #7, Issue #6 fechada, merge commit `f20841ac4263fcae96a1693756c531aecccdc90b`: `DEBUG` e ingest sensivel agora seguem `APP_ENV`; `homologation` e `production` sao fail-closed para `DEBUG=true` e ingest sem `INTERNAL_INGEST_TOKEN`. Gate local pos-merge aprovado (`py_compile`, testes dedicados 16/16, suite completa 241/241). Sem deploy VPS, sem Scheduled Task e sem Collector real nesta etapa.
 
 ## Principio de priorizacao
 
@@ -28,7 +29,7 @@ Cadeia de receita do produto:
 ativacao -> valor percebido -> atrito de limite -> upgrade
 ```
 
-Findings das auditorias sao priorizados pelo impacto nessa cadeia, nao apenas por severidade tecnica isolada. Risco entra na frente quando bloqueia genuinamente algo na cadeia (ex.: F-01 bloqueia a Fase E). Confiabilidade e valor percebido vem antes de polish visual amplo.
+Findings das auditorias sao priorizados pelo impacto nessa cadeia, nao apenas por severidade tecnica isolada. Risco entra na frente quando bloqueia genuinamente algo na cadeia (ex.: isolamento inseguro bloqueia a Fase E). Confiabilidade e valor percebido vem antes de polish visual amplo.
 
 ## Trilhos
 
@@ -48,7 +49,7 @@ SPB-269 (medir trafego oculto do notifier) roda durante a janela do shadow (SPB-
 
 ```
 B4 publish (push -> main -> deploy -> closeout) -- CONCLUIDO em 18/08/2026
-   -> SPB-270 (F-01: alinhar ingest/DEBUG a APP_ENV)
+   -> SPB-270 (F-01: alinhar ingest/DEBUG a APP_ENV) -- CONCLUIDO em codigo, sem deploy VPS
    -> SPB-271 (guardrail de URL em set_webhook)
    -> SPB-272 (hardening de isolamento pre-Fase E)
    -> Fase E -> Fase F -> Fase G -> Fase H -> Fase I
@@ -70,17 +71,16 @@ SPB-254 (correcoes funcionais: chip-x toque, switch teclado) -- CONCLUIDO em 20/
 
 ### Paralelismo
 
-O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolvimento — permite que o Trilho C avance em paralelo a partir de SPB-250 (sem mudanca visual). O Trilho B (F-01 + Fase E) e preferencialmente concluido antes do redesign pesado (SPB-251 em diante), porque e exatamente o tipo de mudanca que se beneficia de homologacao fisica para validar.
+O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolvimento — permite que o Trilho C avance em paralelo a partir de SPB-250 (sem mudanca visual). O Trilho B restante (SPB-271/SPB-272 + Fase E) e preferencialmente concluido antes do redesign pesado (SPB-251 em diante), porque e exatamente o tipo de mudanca que se beneficia de homologacao fisica para validar.
 
 ## NOW / NEXT / LATER
 
 **NOW**
 
-- SPB-270.
+- SPB-265.
 
 **NEXT**
 
-- SPB-265;
 - SPB-271;
 - SPB-272;
 - SPB-266 (shadow rodando);
@@ -98,11 +98,11 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 ## Proximos 5 passos
 
-1. SPB-270 — F-01 (alinhar ingest/DEBUG a `APP_ENV`, desbloqueia parte da Fase E).
-2. SPB-265 — estado persistente + telemetria (prepara o shadow).
-3. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
-4. SPB-272 — hardening de isolamento pre-Fase E.
-5. SPB-266 — shadow mode do Collector (observacao, sem mudar comportamento real).
+1. SPB-265 — estado persistente + telemetria (prepara o shadow).
+2. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
+3. SPB-272 — hardening de isolamento pre-Fase E.
+4. SPB-266 — shadow mode do Collector (observacao, sem mudar comportamento real).
+5. SPB-269 — medir trafego oculto do notifier.
 
 ## Limite de WIP
 
@@ -110,7 +110,7 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 - no maximo 1 observacao passiva em andamento (ex.: shadow mode);
 - no maximo 1 documento/design em preparacao.
 
-Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico (F-01 + Fase E) estiver em andamento, exceto SPB-254 e SPB-250, que sao independentes e sem mudanca visual/comportamental de risco.
+Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico restante (SPB-271/SPB-272 + Fase E) estiver em andamento, exceto SPB-254 e SPB-250, que sao independentes e sem mudanca visual/comportamental de risco.
 
 ## Gates
 
@@ -124,7 +124,7 @@ Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico (F-
 | `EARLY_STOP_READY` | BLOCKED — depende de `missed_new_if_active = 0` em janela de 7-14 dias do shadow |
 | `CADENCE_7MIN_READY` | BLOCKED — depende de early-stop estavel + SPB-269 concluido |
 | `CADENCE_5MIN_READY` | BLOCKED — depende de 7 min estavel por >= 7 dias |
-| `PHASE_E_READINESS` | READY_AFTER_FIXES — depende de SPB-270 + SPB-272 + bot Telegram dedicado + procedimento de fingerprint de segredos |
+| `PHASE_E_READINESS` | READY_AFTER_FIXES — SPB-270 mergeado e validado localmente; ainda depende de SPB-272 + bot Telegram dedicado + procedimento de fingerprint de segredos |
 | `PHASE_F_READINESS` | BLOCKED — depende da Fase E + SPB-271 |
 | `PHASE_G_READINESS` | BLOCKED — depende da Fase F; ordem obrigatoria: TLS antes de Basic Auth |
 | `PHASE_H_COMPLETE` | BLOCKED — depende da matriz de isolamento completa |
@@ -162,4 +162,4 @@ Projecoes condicionadas ao resultado do shadow (NAO registradas como promessa ao
 - nao criar a homologacao copiando o diretorio ou o `.env` de producao — sempre `git clone` limpo + `.env` gerado do zero;
 - nao usar o bot de producao em homologacao — o bot dedicado deve existir antes do provisionamento;
 - nao expor a porta `8001` publicamente;
-- nao iniciar a Fase E antes de SPB-270 (F-01) estar corrigido.
+- nao iniciar a Fase E antes de SPB-272 e dos gates operacionais de isolamento estarem corrigidos.

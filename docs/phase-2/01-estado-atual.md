@@ -30,12 +30,14 @@ O scheduler interno da VPS esta documentado como desativado operacionalmente, em
 A rota:
 
 - exige header `X-Internal-Ingest-Token` quando `INTERNAL_INGEST_TOKEN` esta configurado;
-- recusa ingestao sem token em `FLASK_ENV=production`;
+- recusa ingestao sem token em qualquer `APP_ENV != development` (SPB-270);
 - aceita payload `{"projects": [...]}`;
 - valida `project_id`, `title` e `link`;
 - coage campos opcionais de metadados;
 - faz upsert em `projects_global`;
 - dispara uma thread daemon para `match_recent_projects()` e `notify_pending()` quando houve insercao ou atualizacao.
+
+SPB-270 (alinhamento de `DEBUG` e ingest sensivel a `APP_ENV`) **CONCLUIDO EM CODIGO — MERGEADO e VALIDADO LOCALMENTE em 21/08/2026**, PR #7, Issue #6 fechada, merge commit `f20841ac4263fcae96a1693756c531aecccdc90b`: `DEBUG` deixou de derivar de `FLASK_ENV` e passa a usar `APP_ENV` como fonte de verdade; `homologation` e `production` recusam `DEBUG=true` no boot e ingest sem `INTERNAL_INGEST_TOKEN` com 403, mesmo quando `FLASK_ENV=development`. Gate local pos-merge aprovado: `py_compile` em `infrastructure/config.py` e `app/routes/ingest.py`, testes dedicados 16/16 e suite completa 241/241. Nao houve deploy VPS, alteracao de Scheduled Task ou execucao de Collector real nesta etapa.
 
 ## Fluxo do matcher
 
@@ -182,7 +184,7 @@ Quatro auditorias profundas adicionais foram concluidas na branch de preparacao 
 
 O primeiro deploy real usou a automacao controlada (`scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh`, ver `docs/runbooks/deploy-producao.md`): o deploy remoto terminou `DEPLOY_STATUS=SUCCESS`, mas um bug de transporte do Windows PowerShell 5.1 (injecao de BOM/CRLF espurios ao enviar o script via pipeline stdin a um processo nativo) corrompeu a ultima linha do script remoto e fez o orquestrador local reportar falsamente um rollback (`exit 2`) que nunca ocorreu — producao permaneceu saudavel durante todo o incidente, confirmado por validacao posterior (`service active`, `HOME`/`LOGIN`=200). Hotfix definitivo (transporte via Base64 + captura dos bytes crus do blob Git via `System.Diagnostics.Process`/`MemoryStream`, decodificado remotamente com `base64 --decode --ignore-garbage`, validado por comparacao de SHA-256 entre o blob original e os bytes reconstruidos) implantado em `main`, commits `ae63112` e `f02faaa`. Nenhum novo deploy foi necessario para aplicar o hotfix (ele corrige o mecanismo local do proximo deploy, nao o estado de producao).
 
-Escopo do SPB-263 que permanece em aberto: SPB-270 (F-01: alinhar ingest/DEBUG a `APP_ENV`), SPB-271 (guardrail de URL em `set_webhook`), SPB-272 (hardening de isolamento pre-Fase E) e as Fases E-I da ADR-006 (clone/systemd/porta 8001, DNS/Nginx/SSL, protecao externa + noindex, matriz de isolamento/smoke, fechamento documental). A validacao do B4 em producao remove um bloqueador da Fase E, mas ela continua dependendo de SPB-270 e SPB-272 (ver gates em `docs/phase-2/16-roadmap-mestre.md`).
+Escopo do SPB-263 que permanece em aberto: SPB-271 (guardrail de URL em `set_webhook`), SPB-272 (hardening de isolamento pre-Fase E) e as Fases E-I da ADR-006 (clone/systemd/porta 8001, DNS/Nginx/SSL, protecao externa + noindex, matriz de isolamento/smoke, fechamento documental). SPB-270 foi mergeado e validado localmente, mas ainda nao foi implantado na VPS; a Fase E segue dependendo de SPB-272 e dos gates operacionais em `docs/phase-2/16-roadmap-mestre.md`.
 
 ## Incidentes resolvidos
 
