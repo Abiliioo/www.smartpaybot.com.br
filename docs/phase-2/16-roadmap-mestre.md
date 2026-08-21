@@ -18,6 +18,7 @@ Atualizar este documento a cada gate atravessado.
 - SPB-263: **EM ANDAMENTO**.
 - Deploy de producao tem automacao local disponivel via `scripts/deploy-production.ps1` + `scripts/deploy-production-remote.sh` (ver `docs/runbooks/deploy-producao.md`), substituindo a sequencia manual de comandos SSH por um unico comando com preflight, gates fail-closed, testes, smoke e rollback automatico. A chave SSH permanece sob controle do operador. Ja usada em um deploy real (B4), com o hotfix de transporte acima aplicado apos o incidente local.
 - SPB-254 (correcoes funcionais de UI: chip-x em touch, switch acessivel por teclado) **CONCLUIDO — IMPLANTADO e VALIDADO em producao em 20/08/2026**, commit `588b86167f633faab812f23e3fbe0be0d534918c`: 213/213 testes na VPS, banco integro, HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302), cookie `session` preservado, sem banner de homologacao, Telegram saudavel, Collector restaurado e `LastTaskResult=0` na rodada pos-deploy; validacao manual do operador (desktop, foco por teclado, mobile ~375px, chip-x sem depender de hover) PASS. Este deploy foi tambem a primeira validacao real em producao do hotfix de transporte PowerShell -> SSH (commits `ae63112`/`f02faaa`): `DEPLOY_STATUS=SUCCESS` com `LOCAL_DEPLOY_EXIT_CODE=0`, sem qualquer ocorrencia de `numeric argument required`.
+- SPB-264 (Collector: HTTP strict, parser health, exit codes, retry e logs seguros) **CONCLUIDO — MERGEADO e VALIDADO no Collector local real em 20/08/2026**, PR #4, Issue #3 fechada, merge commit `e345fefe900c70636260d8521762c298cbfc1956`: `py_compile` aprovado, `tests.test_collector_push_spb264` 12/12, `run_collector.bat` retornou `EXIT_CODE=0`, gate local com 10/10 paginas OK, parser OK em 10/10, 100 projetos unicos, ingest OK (`received=100`) e segundo ciclo idempotente (`inserted=0`, `updated=0`, `skipped=100`). Sem deploy VPS, sem alteracao de Scheduled Task/cadencia/`--pages 10`.
 
 ## Principio de priorizacao
 
@@ -34,7 +35,7 @@ Findings das auditorias sao priorizados pelo impacto nessa cadeia, nao apenas po
 ### TRILHO A — confiabilidade / coletor
 
 ```
-SPB-264 (correcao: HTTP estrito, parser health, exit codes, retry, log seguro)
+SPB-264 (correcao: HTTP estrito, parser health, exit codes, retry, log seguro) -- CONCLUIDO em 20/08/2026
    -> SPB-265 (estado persistente + telemetria)
    -> SPB-266 (shadow mode — observacao, sem mudar comportamento real)
    -> SPB-267 (early-stop ativo, condicionado ao gate do shadow)
@@ -75,16 +76,15 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 **NOW**
 
-- SPB-264;
 - SPB-270.
 
 **NEXT**
 
 - SPB-265;
-- SPB-266 (shadow rodando);
-- SPB-269;
 - SPB-271;
 - SPB-272;
+- SPB-266 (shadow rodando);
+- SPB-269;
 - Fase E / F / G;
 - SPB-250.
 
@@ -98,11 +98,11 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 ## Proximos 5 passos
 
-1. SPB-264 — coletor: correcao (HTTP estrito, exit codes, parser health, retry, log seguro).
-2. SPB-270 — F-01 (alinhar ingest/DEBUG a `APP_ENV`, desbloqueia parte da Fase E).
-3. SPB-265 — estado persistente + telemetria (prepara o shadow).
-4. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
-5. SPB-272 — hardening de isolamento pre-Fase E.
+1. SPB-270 — F-01 (alinhar ingest/DEBUG a `APP_ENV`, desbloqueia parte da Fase E).
+2. SPB-265 — estado persistente + telemetria (prepara o shadow).
+3. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
+4. SPB-272 — hardening de isolamento pre-Fase E.
+5. SPB-266 — shadow mode do Collector (observacao, sem mudar comportamento real).
 
 ## Limite de WIP
 
@@ -119,7 +119,7 @@ Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico (F-
 | `B4_PUSH_GATE` | **APPROVE** |
 | `B4_MAIN_INTEGRATION_GATE` | **APPROVE** |
 | `B4_PRODUCTION_DEPLOY_GATE` | **APPROVE** (final) — condicoes comprovadas em 18/08/2026: `FLASK_ENV=production`/`APP_ENV=production` confirmados; cookie de producao continua `session` (`Secure`/`HttpOnly`/`SameSite=Lax`/`Path=/`, sem `Domain`); nenhum banner de homologacao apareceu em producao; suite completa executada na VPS com `.env` real (204/204); banco integro; HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302); Telegram saudavel (`telegram_ready()=True`, webhook OK); Collector com `LastTaskResult=0` apos restauracao |
-| `STRICT_HTTP_READY` | READY_AFTER_FIXES — depende de SPB-264 + observacao de 24-48h |
+| `STRICT_HTTP_READY` | **PASS_LOCAL** — SPB-264 mergeado e validado no Collector local real em 20/08/2026 (`EXIT_CODE=0`, 10/10 paginas OK, parser OK 10/10, ingest OK); sem deploy VPS nesta etapa |
 | `SHADOW_MODE_READY` | BLOCKED — depende de `STRICT_HTTP_READY` + SPB-265 |
 | `EARLY_STOP_READY` | BLOCKED — depende de `missed_new_if_active = 0` em janela de 7-14 dias do shadow |
 | `CADENCE_7MIN_READY` | BLOCKED — depende de early-stop estavel + SPB-269 concluido |
