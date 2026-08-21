@@ -8,6 +8,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
+- Estado local descartavel e telemetria por ciclo no Collector local (SPB-265): `data/collector/collector_state.json` guarda apenas contadores, timestamps, watermark e IDs recentes limitados, com leitura tolerante e escrita atomica; a linha `COLLECTOR_TELEMETRY` registra resumo seguro sem tokens, headers, payload bruto, titulos ou links. Sem mudanca de paginas, cadencia, early-stop, shadow mode, ingest server-side, matcher/notifier, Telegram ou deploy.
 - Governanca local minima para agentes via `AGENTS.md`, adotando o Abilio Dev OS `v0.1.1-dev` como referencia leve e pinada (`31943dd76fe76cabc4a10de21e604b11f32c80c7`) sem copiar o Dev OS, criar submodule ou adicionar automacao (Issue #1).
 - Listagem administrativa com busca por username/email, filtros combinaveis (plano, monitoramento, Telegram vinculado) e paginacao (SPB-210).
 - Observabilidade agregada do matcher, com contadores de projetos analisados, casamentos e criacoes, sem expor titulos, keywords ou dados de usuario nos logs (SPB-203).
