@@ -21,6 +21,7 @@ __pycache__/
 # --- Logs e temporários ---
 *.log
 logs/
+data/collector/collector_state.json
 tmp/
 temp/
 *.pid
