@@ -84,6 +84,7 @@ class CollectorMetrics:
 class CollectResult:
     projects: list[dict]
     metrics: CollectorMetrics
+    projects_by_page: list[list[dict]] = field(default_factory=list)
 
 
 @dataclass
@@ -91,6 +92,22 @@ class StateLoadResult:
     status: str
     data: dict = field(default_factory=dict)
     schema_version: int | None = None
+
+
+@dataclass
+class ShadowMetrics:
+    enabled: bool = True
+    state_status: str = "missing"
+    previous_recent_ids_count: int = 0
+    previous_watermark_published_ms: int | None = None
+    hypothetical_stop_page: int | None = None
+    pages_saved_hypothetical: int = 0
+    missed_new_if_active: int | None = None
+    known_projects: int = 0
+    unknown_projects: int = 0
+    known_ratio: float | None = None
+    cycle_usable: bool = False
+    reason: str = "not_evaluated"
 
 
 def _sanitize_url(url: str) -> str:
@@ -178,6 +195,7 @@ async def _fetch_page_with_retry(http: HttpClient, url: str, page: int) -> str:
 async def _collect_pages(pages: int) -> CollectResult:
     seen_ids: set[int] = set()
     results: list[dict] = []
+    projects_by_page: list[list[dict]] = []
     metrics = CollectorMetrics()
 
     async with HttpClient() as http:
@@ -189,16 +207,19 @@ async def _collect_pages(pages: int) -> CollectResult:
             except Exception:
                 metrics.pages_failed += 1
                 metrics.failed_pages.append(page)
+                projects_by_page.append([])
                 continue
 
             if not _has_listing_structure(html_text):
                 metrics.parser_failed += 1
                 print(f"  Página {page:>2}: parser health falhou")
+                projects_by_page.append([])
                 continue
 
             metrics.pages_ok += 1
             metrics.parser_ok += 1
             items = scrape_99freelas_list_items(html_text)
+            projects_by_page.append(items)
             metrics.projects_collected += len(items)
 
             new_on_page = 0
@@ -216,7 +237,11 @@ async def _collect_pages(pages: int) -> CollectResult:
             )
             await asyncio.sleep(0.4)
 
-    return CollectResult(projects=results, metrics=metrics)
+    return CollectResult(
+        projects=results,
+        metrics=metrics,
+        projects_by_page=projects_by_page,
+    )
 
 
 def _push(projects: list[dict], url: str, token: str) -> dict:
@@ -396,6 +421,173 @@ def _write_collector_state_atomic(path: Path, state: dict) -> str:
         return "failed"
 
 
+def _shadow_blocked(
+    state_load: StateLoadResult,
+    previous_recent_ids_count: int = 0,
+    previous_watermark_published_ms: int | None = None,
+    reason: str = "not_evaluated",
+) -> ShadowMetrics:
+    return ShadowMetrics(
+        state_status=state_load.status,
+        previous_recent_ids_count=previous_recent_ids_count,
+        previous_watermark_published_ms=previous_watermark_published_ms,
+        missed_new_if_active=None,
+        reason=reason,
+    )
+
+
+def _compute_shadow_metrics(
+    state_load: StateLoadResult,
+    projects_by_page: list[list[dict]],
+    metrics: CollectorMetrics,
+) -> ShadowMetrics:
+    if state_load.status != "loaded":
+        return _shadow_blocked(state_load, reason=f"state_{state_load.status}")
+
+    previous_recent_ids = state_load.data.get("recent_project_ids") or []
+    previous_recent_id_set = {str(project_id) for project_id in previous_recent_ids if project_id is not None}
+    previous_watermark = _safe_int(state_load.data.get("watermark_published_ms"))
+
+    if not previous_recent_id_set:
+        return _shadow_blocked(
+            state_load,
+            previous_recent_ids_count=0,
+            previous_watermark_published_ms=previous_watermark,
+            reason="state_without_recent_ids",
+        )
+
+    if metrics.pages_failed:
+        return _shadow_blocked(
+            state_load,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            reason="page_failure",
+        )
+
+    if metrics.parser_failed:
+        return _shadow_blocked(
+            state_load,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            reason="parser_failure",
+        )
+
+    if len(projects_by_page) != metrics.pages_attempted:
+        return _shadow_blocked(
+            state_load,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            reason="page_map_unavailable",
+        )
+
+    known_projects = 0
+    unknown_projects = 0
+    stop_page: int | None = None
+    stop_index: int | None = None
+    project_without_id = False
+
+    for index, page_projects in enumerate(projects_by_page):
+        page_known = 0
+        page_unknown = 0
+
+        for project in page_projects:
+            project_id = project.get("project_id")
+            if project_id is None:
+                project_without_id = True
+                page_unknown += 1
+                continue
+            if str(project_id) in previous_recent_id_set:
+                page_known += 1
+            else:
+                page_unknown += 1
+
+        known_projects += page_known
+        unknown_projects += page_unknown
+
+        if page_projects and page_unknown == 0 and stop_page is None:
+            stop_page = index + 1
+            stop_index = index
+
+    total_projects = known_projects + unknown_projects
+    known_ratio = round(known_projects / total_projects, 4) if total_projects else None
+
+    if project_without_id:
+        return ShadowMetrics(
+            state_status=state_load.status,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            known_projects=known_projects,
+            unknown_projects=unknown_projects,
+            known_ratio=known_ratio,
+            missed_new_if_active=None,
+            reason="project_without_id",
+        )
+
+    if total_projects == 0:
+        return ShadowMetrics(
+            state_status=state_load.status,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            known_projects=0,
+            unknown_projects=0,
+            known_ratio=None,
+            missed_new_if_active=None,
+            reason="no_projects",
+        )
+
+    if stop_page is None or stop_index is None:
+        return ShadowMetrics(
+            state_status=state_load.status,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            known_projects=known_projects,
+            unknown_projects=unknown_projects,
+            known_ratio=known_ratio,
+            missed_new_if_active=0,
+            reason="boundary_not_found",
+        )
+
+    missed_new = 0
+    for page_projects in projects_by_page[stop_index + 1 :]:
+        for project in page_projects:
+            project_id = project.get("project_id")
+            if project_id is None or str(project_id) not in previous_recent_id_set:
+                missed_new += 1
+
+    return ShadowMetrics(
+        state_status=state_load.status,
+        previous_recent_ids_count=len(previous_recent_id_set),
+        previous_watermark_published_ms=previous_watermark,
+        hypothetical_stop_page=stop_page,
+        pages_saved_hypothetical=max(metrics.pages_attempted - stop_page, 0),
+        missed_new_if_active=missed_new,
+        known_projects=known_projects,
+        unknown_projects=unknown_projects,
+        known_ratio=known_ratio,
+        reason="stop_found",
+    )
+
+
+def _finalize_shadow_metrics(
+    shadow_metrics: ShadowMetrics | None,
+    exit_code: int,
+) -> ShadowMetrics:
+    if shadow_metrics is None:
+        return ShadowMetrics(enabled=False, reason="not_evaluated")
+
+    if exit_code != EXIT_SUCCESS:
+        shadow_metrics.cycle_usable = False
+        if shadow_metrics.reason in {"stop_found", "boundary_not_found"}:
+            shadow_metrics.reason = "real_exit_code_not_success"
+        return shadow_metrics
+
+    shadow_metrics.cycle_usable = shadow_metrics.reason in {
+        "stop_found",
+        "boundary_not_found",
+    }
+    return shadow_metrics
+
+
 def _print_telemetry(
     metrics: CollectorMetrics,
     exit_code: int,
@@ -405,6 +597,7 @@ def _print_telemetry(
     state_write_status: str,
     watermark_published_ms: int | None,
     recent_ids_count: int,
+    shadow_metrics: ShadowMetrics,
 ) -> None:
     duration_seconds = round((finished_at - started_at).total_seconds(), 3)
     payload = {
@@ -428,6 +621,18 @@ def _print_telemetry(
         "state_write_status": state_write_status,
         "watermark_published_ms": watermark_published_ms,
         "recent_ids_count": recent_ids_count,
+        "shadow_enabled": shadow_metrics.enabled,
+        "shadow_state_status": shadow_metrics.state_status,
+        "shadow_previous_recent_ids_count": shadow_metrics.previous_recent_ids_count,
+        "shadow_previous_watermark_published_ms": shadow_metrics.previous_watermark_published_ms,
+        "shadow_hypothetical_stop_page": shadow_metrics.hypothetical_stop_page,
+        "shadow_pages_saved_hypothetical": shadow_metrics.pages_saved_hypothetical,
+        "shadow_missed_new_if_active": shadow_metrics.missed_new_if_active,
+        "shadow_known_projects": shadow_metrics.known_projects,
+        "shadow_unknown_projects": shadow_metrics.unknown_projects,
+        "shadow_known_ratio": shadow_metrics.known_ratio,
+        "shadow_cycle_usable": shadow_metrics.cycle_usable,
+        "shadow_reason": shadow_metrics.reason,
     }
     print(f"COLLECTOR_TELEMETRY {json.dumps(payload, ensure_ascii=True, sort_keys=True)}")
 
@@ -439,8 +644,10 @@ def _finish_cycle(
     started_at: datetime,
     state_path: Path,
     state_load: StateLoadResult,
+    shadow_metrics: ShadowMetrics | None = None,
 ) -> int:
     finished_at = _utc_now()
+    final_shadow_metrics = _finalize_shadow_metrics(shadow_metrics, exit_code)
     previous_state = state_load.data if state_load.status == "loaded" else {}
     next_state = _build_next_state(
         previous_state,
@@ -461,6 +668,7 @@ def _finish_cycle(
         state_write_status,
         _safe_int(next_state.get("watermark_published_ms")),
         len(next_state.get("recent_project_ids") or []),
+        final_shadow_metrics,
     )
     return exit_code
 
@@ -535,22 +743,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     collect_result = asyncio.run(_collect_pages(args.pages))
     projects = collect_result.projects
     metrics = collect_result.metrics
+    shadow_metrics = _compute_shadow_metrics(
+        state_load,
+        collect_result.projects_by_page,
+        metrics,
+    )
     print(f"\nTotal coletado: {len(projects)} projetos únicos")
 
     if metrics.pages_ok == 0 and metrics.pages_failed > 0:
         exit_code = EXIT_COLLECT_FAILED
         print("ERRO: todas as páginas falharam antes de parser saudável.")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
 
     if metrics.parser_ok == 0 and metrics.parser_failed > 0:
         exit_code = EXIT_PARSER_HEALTH
         print("ERRO: nenhuma página HTTP saudável passou no parser health.")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
 
     if not projects:
         exit_code = EXIT_SUCCESS
         print("Nenhum projeto coletado em página saudável. Nada a enviar.")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
 
     # Prévia dos campos coletados no primeiro item
     p0 = projects[0]
@@ -572,21 +785,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         status = e.response.status_code if e.response is not None else "desconhecido"
         exit_code = EXIT_INGEST_FAILED
         print(f"ERRO DE INGEST: HTTP {status} em {_sanitize_url(ingest_url)}")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
     except ValueError:
         exit_code = EXIT_INGEST_FAILED
         print(f"ERRO DE INGEST: resposta JSON inválida em {_sanitize_url(ingest_url)}")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
     except requests.RequestException as e:
         exit_code = EXIT_INGEST_FAILED
         print(
             "ERRO DE INGEST: "
             f"{e.__class__.__name__} em {_sanitize_url(ingest_url)}"
         )
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
 
     exit_code = EXIT_SUCCESS
-    return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load)
+    return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
 
 
 if __name__ == "__main__":

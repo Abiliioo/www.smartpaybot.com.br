@@ -44,7 +44,7 @@ SPB-264 (correcao: HTTP estrito, parser health, exit codes, retry, log seguro) -
    -> SPB-268 (cadencia 10 -> 7 -> 5 min)
 ```
 
-SPB-269 (medir trafego oculto do notifier) roda durante a janela do shadow (SPB-266) e e pre-requisito do gate de cadencia de 7 minutos.
+SPB-266 esta implementado em codigo local, mas ainda depende de merge e observacao operacional real. SPB-269 (medir trafego oculto do notifier) roda durante a janela do shadow (SPB-266) e e pre-requisito do gate de cadencia de 7 minutos.
 
 ### TRILHO B — homologacao / SPB-263
 
