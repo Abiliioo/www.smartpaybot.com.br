@@ -130,7 +130,7 @@ Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico res
 | `PHASE_G_READINESS` | BLOCKED — depende da Fase F; ordem obrigatoria: TLS antes de Basic Auth |
 | `PHASE_H_COMPLETE` | BLOCKED — depende da matriz de isolamento completa |
 | `SPB_254_PRODUCTION_VALIDATION` | **PASS** — implantado e validado em producao em 20/08/2026, commit `588b861`: 213/213 na VPS, HTTP/banco/Telegram saudaveis, cookie `session` preservado, sem banner de homologacao, Collector restaurado (`LastTaskResult=0`), validacao manual do operador (desktop/teclado/mobile ~375px) PASS |
-| `UI_FOUNDATION_READY` | IN_PROGRESS — SPB-254 concluido; SPB-250B implementado localmente com tokens/classes base, `prefers-reduced-motion` e 404 basico; ainda depende de review remoto/merge antes de liberar etapas visuais maiores |
+| `UI_FOUNDATION_READY` | IN_PROGRESS — SPB-254 concluido; SPB-250B implementado localmente com tokens/classes base, `prefers-reduced-motion`, 404 basico e aplicacao visual inicial em landing/dashboard/Pro; ainda depende de validacao visual, review remoto e merge antes de liberar etapas visuais maiores |
 | `UI_PRODUCTION_READY` | BLOCKED — depende de regressao visual (1440/768/390px) nas telas afetadas e testes do B4 continuando a passar (banner de homologacao intacto); `SPB_254_PRODUCTION_VALIDATION=PASS` nao equivale a este gate, que segue mais amplo |
 
 ## Metricas do coletor
