@@ -48,7 +48,7 @@
         <span class="nav-sep" aria-hidden="true"></span>
         <span class="user-avatar" aria-hidden="true">{{ current_user.username[0]|upper }}</span>
         <span class="user-name">{{ current_user.username }}</span>
-        <a class="btn ghost pill" href="{{ url_for('auth.logout') }}">Sair</a>
+        <a class="btn ghost pill spb-btn spb-btn-secondary" href="{{ url_for('auth.logout') }}">Sair</a>
       </div>
 
     {% else %}
@@ -56,12 +56,12 @@
       <span class="ml-auto"></span>
 
       {% if is_login %}
-        <a class="btn ghost pill" href="{{ url_for('auth.register') }}">Criar conta</a>
+        <a class="btn ghost pill spb-btn spb-btn-secondary" href="{{ url_for('auth.register') }}">Criar conta</a>
       {% elif is_register %}
-        <a class="btn primary pill" href="{{ url_for('auth.login') }}">Entrar</a>
+        <a class="btn primary pill spb-btn spb-btn-primary" href="{{ url_for('auth.login') }}">Entrar</a>
       {% else %}
-        <a class="btn primary pill" href="{{ url_for('auth.login') }}">Entrar</a>
-        <a class="btn ghost pill"   href="{{ url_for('auth.register') }}">Criar conta</a>
+        <a class="btn primary pill spb-btn spb-btn-primary" href="{{ url_for('auth.login') }}">Entrar</a>
+        <a class="btn ghost pill spb-btn spb-btn-secondary"   href="{{ url_for('auth.register') }}">Criar conta</a>
       {% endif %}
     {% endif %}
 

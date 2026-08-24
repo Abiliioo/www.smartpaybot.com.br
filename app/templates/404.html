@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Pagina nao encontrada - SmartPayBot{% endblock %}
+
+{% block content %}
+<section class="spb-section">
+  <div class="spb-card spb-empty-state">
+    <span class="spb-pill spb-pill-warning">404</span>
+    <h1 style="margin-top:16px">Pagina nao encontrada</h1>
+    <p class="help" style="margin:0 auto 22px;max-width:420px">
+      O endereco pode ter mudado ou a pagina nao existe mais.
+    </p>
+    {% if current_user.is_authenticated %}
+      <a class="btn primary pill spb-btn spb-btn-primary" href="{{ url_for('dashboard.home') }}">Voltar ao dashboard</a>
+    {% else %}
+      <a class="btn primary pill spb-btn spb-btn-primary" href="{{ url_for('main.index') }}">Voltar ao inicio</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

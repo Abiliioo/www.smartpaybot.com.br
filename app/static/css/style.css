@@ -8,6 +8,36 @@
    1) THEME TOKENS
    ======================= */
 :root{
+  --spb-bg:#090f1b;
+  --spb-bg-elevated:#0b1220;
+  --spb-surface:#0e1628;
+  --spb-surface-raised:#111b2e;
+  --spb-surface-soft:#0f172a;
+  --spb-border:#1e2a44;
+  --spb-border-strong:#2a4fa8;
+  --spb-text:#e8eefc;
+  --spb-text-muted:#9ba3b8;
+  --spb-text-soft:#b8c3dd;
+
+  --spb-blue:#3b82f6;
+  --spb-blue-hover:#2563eb;
+  --spb-blue-soft:#60a5fa;
+  --spb-success:#22c55e;
+  --spb-warning:#f59e0b;
+  --spb-danger:#ef4444;
+
+  --spb-radius-card:16px;
+  --spb-radius-button:12px;
+  --spb-radius-pill:999px;
+  --spb-space-section:44px;
+  --spb-space-card:20px;
+  --spb-gap:18px;
+  --spb-shadow-card:0 1px 2px rgba(3,10,25,.35), 0 6px 24px rgba(3,10,25,.28);
+  --spb-shadow-blue:0 16px 40px rgba(37,99,235,.18);
+  --spb-motion-fast:150ms;
+  --spb-motion-base:220ms;
+  --spb-ease:cubic-bezier(.22,.61,.36,1);
+
   --bg:#0b1220;           /* fundo geral */
   --surface:#0e1628;       /* barra/topo */
   --card:#111b2e;          /* cards */
@@ -20,6 +50,7 @@
   --brand-300:#60a5fa;     /* claro */
 
   --success:#22c55e;
+  --warning:#f59e0b;
   --danger:#ef4444;
 
   --shadow:0 1px 2px rgba(3,10,25,.35), 0 6px 24px rgba(3,10,25,.28);
@@ -38,6 +69,96 @@ a{ color:var(--brand); text-decoration:none }
 a:hover{ text-decoration:underline }
 img{ max-width:100%; height:auto }
 button{ font:inherit; color:inherit }
+
+/* =======================
+   2.1) UI FOUNDATION (SPB-250B)
+   ======================= */
+.spb-shell{
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse 760px 340px at 50% -120px, rgba(59,130,246,.10), transparent 68%),
+    var(--bg);
+}
+.spb-main{ padding-top:18px }
+.spb-section{ padding:var(--spb-space-section) 0 }
+.spb-surface{
+  background:var(--surface);
+  border:1px solid var(--border);
+}
+.spb-card,
+.spb-card-soft,
+.spb-card-glass{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--spb-radius-card);
+  box-shadow:var(--spb-shadow-card);
+}
+.spb-card{ padding:var(--spb-space-card) }
+.spb-card-soft{ background:var(--spb-surface-soft); padding:var(--spb-space-card) }
+.spb-card-glass{
+  background:linear-gradient(180deg, rgba(17,27,46,.92), rgba(14,22,40,.88));
+  box-shadow:var(--spb-shadow-card), var(--spb-shadow-blue);
+}
+.spb-pill,
+.spb-pill-primary,
+.spb-pill-success,
+.spb-pill-warning{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  max-width:100%;
+  border-radius:var(--spb-radius-pill);
+  border:1px solid var(--border);
+  padding:4px 10px;
+  font-size:.78rem;
+  font-weight:700;
+  line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.spb-pill-primary{ color:#bfdbfe; background:rgba(59,130,246,.14); border-color:rgba(59,130,246,.32) }
+.spb-pill-success{ color:#bbf7d0; background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.30) }
+.spb-pill-warning{ color:#fde68a; background:rgba(245,158,11,.10); border-color:rgba(245,158,11,.30) }
+.spb-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:40px;
+  border-radius:var(--spb-radius-button);
+  transition:
+    transform var(--spb-motion-fast) var(--spb-ease),
+    background var(--spb-motion-fast) var(--spb-ease),
+    border-color var(--spb-motion-fast) var(--spb-ease),
+    box-shadow var(--spb-motion-fast) var(--spb-ease);
+}
+.spb-btn-primary{ background:var(--brand); border-color:var(--brand); color:#fff }
+.spb-btn-secondary{ background:#101a30; border-color:var(--border); color:var(--ink) }
+.spb-muted{ color:var(--muted) }
+.spb-stack{ display:grid; gap:var(--spb-gap) }
+.spb-grid{ display:grid; gap:var(--spb-gap); grid-template-columns:repeat(auto-fit,minmax(240px,1fr)) }
+.spb-empty-state{
+  max-width:520px;
+  margin:0 auto;
+  text-align:center;
+  color:var(--muted);
+}
+.spb-focus-ring:focus-visible,
+.spb-btn:focus-visible,
+.spb-pill:focus-visible{
+  outline:2px solid rgba(96,165,250,.9);
+  outline-offset:3px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,
+  *::before,
+  *::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    scroll-behavior:auto !important;
+    transition-duration:.01ms !important;
+  }
+}
 
 /* =======================
    3) LAYOUT

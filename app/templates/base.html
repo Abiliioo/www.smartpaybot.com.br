@@ -18,13 +18,13 @@
   <!-- Página pode injetar CSS extra aqui -->
   {% block head_extra %}{% endblock %}
 </head>
-<body class="{% if is_homologation %}env-homologation{% endif %}">
+<body class="spb-shell{% if is_homologation %} env-homologation{% endif %}">
   <!-- Acessibilidade: pular direto para o conteúdo -->
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 
   {% block navbar %}{% include "navbar.html" %}{% endblock %}
 
-  <main id="conteudo" class="container">
+  <main id="conteudo" class="container spb-main">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flashes" role="status" aria-live="polite">
