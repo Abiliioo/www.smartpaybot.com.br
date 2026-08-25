@@ -1,8 +1,13 @@
 # app/routes/__init__.py
 from __future__ import annotations
-from flask import Blueprint, Flask, render_template
+from flask import Blueprint, Flask, current_app, render_template
 from flask_login import current_user
 
+from app.frontend_manifest import (
+    ViteManifestError,
+    default_manifest_path,
+    load_vite_assets,
+)
 from .webhook_telegram import bp as webhook_bp
 from .auth import bp as auth_bp
 from .dashboard import bp as dashboard_bp
@@ -27,6 +32,26 @@ def pro():
             with SessionLocal() as db:
                 is_subscriber = _is_pro(db, int(current_user.id))
     return render_template("pro.html", is_subscriber=is_subscriber, is_admin_user=is_admin_user)
+
+@bp_main.get("/ui-preview")
+def ui_preview():
+    manifest_path = current_app.config.get("VITE_MANIFEST_PATH")
+    if not manifest_path:
+        manifest_path = default_manifest_path(current_app.static_folder)
+
+    try:
+        assets = load_vite_assets(manifest_path)
+    except ViteManifestError:
+        return (
+            "React build nao encontrado. Rode `npm.cmd run build` em `frontend`.",
+            503,
+        )
+
+    return render_template(
+        "react_shell.html",
+        js_file=assets.js_file,
+        css_files=assets.css_files,
+    )
 
 @bp_main.get("/healthz")
 def healthz():
