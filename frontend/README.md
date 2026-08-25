@@ -23,3 +23,5 @@ npm run preview
 ## Escopo atual
 
 Este frontend ainda nao substitui nenhuma tela Jinja. O app atual e um preview visual isolado com shell, brand/header, landing, dashboard e Pro usando dados mockados.
+
+O SPB-250C-C.1 refinou esse preview sem integrar backend: a marca do header usa fallback visual local em React/CSS para nao depender do Flask no Vite, os radius foram reduzidos e o mobile recebeu ajustes especificos para evitar overflow em larguras pequenas.

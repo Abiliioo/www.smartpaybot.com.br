@@ -18,6 +18,7 @@ export function PreviewNav({ activeView, onViewChange }: PreviewNavProps) {
         <button
           key={item.id}
           className={activeView === item.id ? 'is-active' : ''}
+          aria-current={activeView === item.id ? 'page' : undefined}
           type="button"
           onClick={() => onViewChange(item.id)}
         >
