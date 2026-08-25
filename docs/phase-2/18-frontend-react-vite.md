@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-O SPB-250C-B criou a fundacao minima para migrar a interface do SmartPayBot para React + TypeScript + Vite, sem substituir telas existentes. O SPB-250C-C adiciona um preview visual isolado para validar shell, brand/header, landing, dashboard e Pro antes de qualquer integracao com Flask. O SPB-250C-C.1 refina esse preview com fallback local de marca, radius menos arredondados e correcoes de responsividade mobile. O SPB-250C-D adiciona a primeira integracao controlada com Flask pela rota experimental publica `/ui-preview`.
+O SPB-250C-B criou a fundacao minima para migrar a interface do SmartPayBot para React + TypeScript + Vite, sem substituir telas existentes. O SPB-250C-C adicionou um preview visual isolado para validar shell, brand/header, landing, dashboard e Pro antes de qualquer integracao com Flask. O SPB-250C-C.1 refinou esse preview com fallback local de marca, radius menos arredondados e correcoes de responsividade mobile. O SPB-250C-D adicionou e mergeou, via PR #21, a primeira integracao controlada com Flask pela rota experimental publica `/ui-preview`.
 
 ## Estrategia
 
@@ -82,6 +82,17 @@ O Flask usa esse manifest para localizar o JS principal e os CSS hashados do Vit
 
 `/ui-preview` e uma rota publica e experimental. Ela existe apenas para validar que Flask consegue servir o build React pelo mesmo dominio da aplicacao, sem substituir nenhuma tela real.
 
+Estado atual:
+
+- fundacao React/Vite mergeada via PR #19;
+- rota `/ui-preview` mergeada via PR #21;
+- visual validado no navegador via Flask local em `127.0.0.1:5000/ui-preview`;
+- Network confirmou assets JS/CSS com status 200;
+- build local e necessario antes de acessar `/ui-preview`;
+- `app/static/dist/` continua ignorado e nao versionado;
+- producao ainda nao recebe essa rota sem deploy e sem build no ambiente de publicacao;
+- `/`, `/pro`, auth, dashboard e admin continuam Jinja.
+
 Com build presente, a rota renderiza `app/templates/react_shell.html`, que contem:
 
 - HTML minimo em `pt-BR`;
@@ -113,4 +124,4 @@ O header do preview nao depende de `/static/images/logo.svg` enquanto roda no Vi
 
 ## Proximo passo sugerido
 
-Validar visualmente `/ui-preview` servido pelo Flask local em desktop e mobile, incluindo larguras proximas de 390px, 375px e 360px. Confirmar no Network que os assets de `dist/assets/` nao retornam 404. Depois disso, decidir a primeira rota real a migrar, ainda mantendo Jinja como rollback.
+Decidir o fluxo de build/deploy React antes de qualquer producao. Depois disso, escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.
