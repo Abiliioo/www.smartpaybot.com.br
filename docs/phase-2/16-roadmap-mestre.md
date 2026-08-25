@@ -61,7 +61,7 @@ B4 publish (push -> main -> deploy -> closeout) -- CONCLUIDO em 18/08/2026
 
 ```
 SPB-254 (correcoes funcionais: chip-x toque, switch teclado) -- CONCLUIDO em 20/08/2026
-   -> SPB-250C (React + TypeScript + Vite acoplado ao Flask) -- SPB-250C-B setup minimo em andamento
+   -> SPB-250C (React + TypeScript + Vite acoplado ao Flask) -- SPB-250C-C preview visual React em andamento
    -> SPB-255 (app shell: navbar, drawer mobile)
    -> SPB-251 (dashboard: StatusBar)
    -> SPB-256 (TelegramStatusCard + keywords)

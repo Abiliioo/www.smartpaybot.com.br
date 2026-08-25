@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-O SPB-250C-B cria a fundacao minima para migrar a interface do SmartPayBot para React + TypeScript + Vite, sem substituir telas existentes.
+O SPB-250C-B criou a fundacao minima para migrar a interface do SmartPayBot para React + TypeScript + Vite, sem substituir telas existentes. O SPB-250C-C adiciona um preview visual isolado para validar shell, brand/header, landing, dashboard e Pro antes de qualquer integracao com Flask.
 
 ## Estrategia
 
@@ -25,8 +25,24 @@ frontend/
     assets/
     components/
       BrandMark.tsx
+      Button.tsx
+      Card.tsx
+      KeywordPill.tsx
+      MetricCard.tsx
+      Pill.tsx
+      PlanCard.tsx
+      PreviewNav.tsx
+      SectionHeader.tsx
+      StepCard.tsx
+      TelegramPanel.tsx
+      UserBadge.tsx
     layouts/
+      AppHeader.tsx
+      AppShell.tsx
     pages/
+      DashboardPreview.tsx
+      LandingPreview.tsx
+      ProPreview.tsx
     styles/
       index.css
     App.tsx
@@ -54,6 +70,16 @@ app/static/dist/
 
 O diretorio `app/static/dist/` fica ignorado pelo Git nesta fase. A decisao evita versionar artefatos gerados antes de definir o fluxo final de CI/deploy. Uma fase futura deve decidir se o build roda localmente, em CI ou durante uma etapa controlada antes da publicacao.
 
+## Preview atual
+
+O preview React usa estado local para alternar entre:
+
+- Landing;
+- Dashboard;
+- Pro.
+
+Todos os dados sao mockados em `frontend/src/api/mockData.ts`. Nao ha chamadas reais para Flask, Telegram, ingest, banco ou collector.
+
 ## Proximo passo sugerido
 
-SPB-250C-C deve criar um shell React/header/brand isolado ou uma landing React estatica aprovada por print, ainda sem substituir rotas principais.
+Validar visualmente o preview local em desktop e mobile. Depois disso, a proxima fase deve escolher uma primeira superficie controlada para integracao, ainda mantendo Jinja como rollback.

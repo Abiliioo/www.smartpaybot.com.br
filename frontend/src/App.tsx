@@ -1,22 +1,19 @@
-import { BrandMark } from './components/BrandMark'
+import { useState } from 'react'
+import { AppShell } from './layouts/AppShell'
+import { DashboardPreview } from './pages/DashboardPreview'
+import { LandingPreview } from './pages/LandingPreview'
+import { ProPreview } from './pages/ProPreview'
+import type { PreviewView } from './types'
 
 function App() {
-  return (
-    <main className="spb-react-probe">
-      <header className="spb-react-header">
-        <BrandMark />
-      </header>
+  const [view, setView] = useState<PreviewView>('landing')
 
-      <section className="spb-react-panel" aria-labelledby="react-probe-title">
-        <p className="spb-react-kicker">Same-origin React probe</p>
-        <h1 id="react-probe-title">React UI foundation ready</h1>
-        <p>
-          Setup minimo de React, TypeScript e Vite preparado para o
-          SmartPayBot. Flask continua responsavel por API, autenticacao,
-          sessao e regras de negocio.
-        </p>
-      </section>
-    </main>
+  return (
+    <AppShell activeView={view} onViewChange={setView}>
+      {view === 'landing' && <LandingPreview onNavigate={setView} />}
+      {view === 'dashboard' && <DashboardPreview onNavigate={setView} />}
+      {view === 'pro' && <ProPreview onNavigate={setView} />}
+    </AppShell>
   )
 }
 

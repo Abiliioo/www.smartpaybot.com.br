@@ -1,6 +1,6 @@
 # SmartPayBot frontend
 
-Setup minimo React + TypeScript + Vite para a migracao de UI do SmartPayBot.
+Setup React + TypeScript + Vite para a migracao de UI do SmartPayBot.
 
 ## Scripts
 
@@ -22,4 +22,4 @@ npm run preview
 
 ## Escopo atual
 
-Este frontend ainda nao substitui nenhuma tela Jinja. O app atual e apenas uma prova isolada de setup, brand/wordmark e pipeline de build.
+Este frontend ainda nao substitui nenhuma tela Jinja. O app atual e um preview visual isolado com shell, brand/header, landing, dashboard e Pro usando dados mockados.
