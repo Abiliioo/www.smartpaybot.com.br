@@ -78,6 +78,18 @@ app/static/dist/.vite/manifest.json
 
 O Flask usa esse manifest para localizar o JS principal e os CSS hashados do Vite. Os caminhos expostos ao template sao sempre relativos ao static folder, por exemplo `dist/assets/index-*.js`, nunca caminhos absolutos do filesystem.
 
+## Deploy controlado do dist
+
+O SPB-250E adicionou suporte para publicar o build React sem instalar Node na VPS e sem versionar `app/static/dist/`. O fluxo fica explicito no deploy local:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -BuildReactDist
+```
+
+Com `-BuildReactDist`, o orquestrador local roda `npm.cmd run typecheck`, `npm.cmd run build`, valida o manifest/assets dentro de `app/static/dist`, empacota esse diretorio em um `.tar.gz` temporario e envia o artefato junto com o script remoto. A VPS apenas extrai, valida e instala o artefato em `/home/deploy/apps/www.smartpaybot.com.br/app/static/dist`.
+
+Sem `-BuildReactDist`, o deploy legado continua compativel e nenhum asset React e enviado. Nesse caso, `/ui-preview` em producao pode continuar retornando 503 controlado se o dist nao existir. `app/static/dist/` permanece ignorado pelo Git.
+
 ## Rota experimental `/ui-preview`
 
 `/ui-preview` e uma rota publica e experimental. Ela existe apenas para validar que Flask consegue servir o build React pelo mesmo dominio da aplicacao, sem substituir nenhuma tela real.
@@ -124,4 +136,4 @@ O header do preview nao depende de `/static/images/logo.svg` enquanto roda no Vi
 
 ## Proximo passo sugerido
 
-Decidir o fluxo de build/deploy React antes de qualquer producao. Depois disso, escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.
+Depois da revisao remota do SPB-250E, executar um deploy gate proprio com `-BuildReactDist` para validar `/ui-preview` em producao. So entao escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.

@@ -54,6 +54,12 @@
     Task). NAO desabilita o Collector, NAO conecta via SSH, NAO toca
     producao.
 
+.PARAMETER BuildReactDist
+    Roda npm.cmd run typecheck/build em frontend, valida app/static/dist,
+    empacota o dist em um .tar.gz temporario e envia esse artefato
+    junto com o deploy. Sem este parametro, o comportamento legado do
+    deploy permanece inalterado e nenhum asset React e enviado.
+
 .PARAMETER RunCollectorAfter
     Apos um deploy SUCCESS E o Collector ja ter sido CONFIRMADAMENTE
     restaurado ao estado original, dispara manualmente uma rodada (somente
@@ -71,6 +77,9 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -BuildReactDist
 #>
 
 [CmdletBinding()]
@@ -80,6 +89,7 @@ param(
     [string]$TargetSha = "",
     [switch]$Yes,
     [switch]$DryRun,
+    [switch]$BuildReactDist,
     [switch]$RunCollectorAfter
 )
 
@@ -135,8 +145,140 @@ function Write-Section {
 
 function Fail-Local {
     param([string]$Message)
+    if (Get-Variable -Name reactDistArtifact -Scope Script -ErrorAction SilentlyContinue) {
+        if ($script:reactDistArtifact) {
+            Remove-Item -LiteralPath $script:reactDistArtifact.TempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
     Write-Host "ABORT (local): $Message" -ForegroundColor Red
     exit 1
+}
+
+function Test-ReactDistRelativePath {
+    param([string]$PathValue)
+    if ([string]::IsNullOrWhiteSpace($PathValue)) {
+        Fail-Local "manifest React contem caminho vazio."
+    }
+    if ([System.IO.Path]::IsPathRooted($PathValue) -or $PathValue -match '^[A-Za-z]:') {
+        Fail-Local "manifest React contem caminho absoluto suspeito: '$PathValue'."
+    }
+    $normalized = $PathValue -replace '\\', '/'
+    $segments = $normalized.Split('/')
+    if ($segments -contains '..' -or $normalized.StartsWith('/')) {
+        Fail-Local "manifest React contem caminho que escapa de dist: '$PathValue'."
+    }
+}
+
+function Test-ReactDistFile {
+    param(
+        [string]$DistRoot,
+        [string]$RelativePath,
+        [string]$Label
+    )
+    Test-ReactDistRelativePath $RelativePath
+    $fullPath = Join-Path $DistRoot $RelativePath
+    $resolvedDist = [System.IO.Path]::GetFullPath($DistRoot)
+    $resolvedFile = [System.IO.Path]::GetFullPath($fullPath)
+    if (-not $resolvedFile.StartsWith($resolvedDist, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Fail-Local "${Label} aponta para fora de app/static/dist: '$RelativePath'."
+    }
+    if (-not (Test-Path -LiteralPath $resolvedFile -PathType Leaf)) {
+        Fail-Local "${Label} referenciado no manifest nao existe: '$RelativePath'."
+    }
+}
+
+function Test-ReactDist {
+    param([string]$DistRoot)
+    if (-not (Test-Path -LiteralPath $DistRoot -PathType Container)) {
+        Fail-Local "React dist nao encontrado em '$DistRoot'. Rode com -BuildReactDist para gerar antes do deploy."
+    }
+
+    $manifestPath = Join-Path $DistRoot ".vite\manifest.json"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        Fail-Local "manifest React nao encontrado: $manifestPath"
+    }
+
+    try {
+        $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+    }
+    catch {
+        Fail-Local "manifest React invalido: $($_.Exception.Message)"
+    }
+
+    $entries = @($manifest.PSObject.Properties)
+    if (-not $entries) {
+        Fail-Local "manifest React vazio."
+    }
+
+    $entry = $entries | Where-Object { $_.Name -eq "index.html" } | Select-Object -First 1
+    if (-not $entry) {
+        $entry = $entries | Where-Object { $_.Value.PSObject.Properties.Name -contains "isEntry" -and $_.Value.isEntry -eq $true } | Select-Object -First 1
+    }
+    if (-not $entry) {
+        Fail-Local "manifest React nao contem index.html nem entrada isEntry=true."
+    }
+
+    if (-not ($entry.Value.PSObject.Properties.Name -contains "file")) {
+        Fail-Local "entrada principal do manifest React nao contem 'file'."
+    }
+    Test-ReactDistFile -DistRoot $DistRoot -RelativePath $entry.Value.file -Label "JS principal React"
+
+    if ($entry.Value.PSObject.Properties.Name -contains "css") {
+        foreach ($cssPath in @($entry.Value.css)) {
+            Test-ReactDistFile -DistRoot $DistRoot -RelativePath $cssPath -Label "CSS React"
+        }
+    }
+
+    Write-Host "React dist validado: manifest, JS principal e CSS referenciado existem e permanecem dentro de app/static/dist."
+}
+
+function Invoke-ReactDistBuild {
+    Write-Section "2. REACT DIST LOCAL"
+    $frontendDir = Join-Path $RepoRoot "frontend"
+    $distRoot = Join-Path $RepoRoot "app\static\dist"
+    if (-not (Test-Path -LiteralPath $frontendDir -PathType Container)) {
+        Fail-Local "diretorio frontend nao encontrado: $frontendDir"
+    }
+
+    Push-Location $frontendDir
+    try {
+        & npm.cmd run typecheck
+        if ($LASTEXITCODE -ne 0) { Fail-Local "npm.cmd run typecheck falhou." }
+        & npm.cmd run build
+        if ($LASTEXITCODE -ne 0) { Fail-Local "npm.cmd run build falhou." }
+    }
+    finally {
+        Pop-Location
+    }
+
+    Test-ReactDist -DistRoot $distRoot
+    return $distRoot
+}
+
+function New-ReactDistArtifact {
+    param([string]$DistRoot)
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("smartpaybot-react-dist-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+    $archivePath = Join-Path $tempRoot "react-dist.tar.gz"
+
+    & tar -czf $archivePath -C $DistRoot .
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Fail-Local "falha ao empacotar React dist com tar."
+    }
+
+    $listing = & tar -tzf $archivePath
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Fail-Local "falha ao validar listagem do artefato React dist."
+    }
+    if (-not ($listing | Where-Object { $_ -eq "./.vite/manifest.json" -or $_ -eq ".vite/manifest.json" })) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Fail-Local "artefato React dist nao contem .vite/manifest.json."
+    }
+
+    Write-Host "Artefato React dist criado em diretorio temporario: $archivePath"
+    return [pscustomobject]@{ TempRoot = $tempRoot; ArchivePath = $archivePath }
 }
 
 # ── validacoes defensivas de parametros (secao 24 -- seguranca) ──────────
@@ -251,6 +393,15 @@ Write-Host "script remoto obtido de ${TargetSha}:${RemoteScriptRelPath} ($($remo
 # espurios do transporte carem fora do alfabeto Base64, descartados pelo
 # `base64 --decode --ignore-garbage` do lado remoto.
 $remoteScriptBase64 = [Convert]::ToBase64String($remoteScriptBytes)
+$reactDistArtifact = $null
+$reactDistArtifactBase64 = ""
+if ($BuildReactDist) {
+    $reactDistRoot = Invoke-ReactDistBuild
+    $reactDistArtifact = New-ReactDistArtifact -DistRoot $reactDistRoot
+    $reactDistArtifactBytes = [System.IO.File]::ReadAllBytes($reactDistArtifact.ArchivePath)
+    $reactDistArtifactBase64 = [Convert]::ToBase64String($reactDistArtifactBytes)
+    Write-Host "Artefato React dist pronto ($($reactDistArtifactBytes.Length) bytes)."
+}
 
 Write-Section "2. SCHEDULED TASK -- SmartPayBot Collector"
 
@@ -298,6 +449,7 @@ Write-Host "Target SHA       : $TargetSha"
 Write-Host "Collector (State atual): $originalState"
 Write-Host "URL de producao  : https://smartpaybot.com.br/"
 Write-Host "Log deste deploy : $LogFile"
+Write-Host "React dist       : $([bool]$BuildReactDist)"
 
 if ($DryRun) {
     Write-Host ""
@@ -305,6 +457,8 @@ if ($DryRun) {
     "DRY_RUN=true" | Out-File -FilePath $LogFile -Encoding utf8
     "TARGET_SHA=$TargetSha" | Out-File -FilePath $LogFile -Append -Encoding utf8
     "ORIGINAL_COLLECTOR_STATE=$originalState" | Out-File -FilePath $LogFile -Append -Encoding utf8
+    "BUILD_REACT_DIST=$([bool]$BuildReactDist)" | Out-File -FilePath $LogFile -Append -Encoding utf8
+    if ($reactDistArtifact) { Remove-Item -LiteralPath $reactDistArtifact.TempRoot -Recurse -Force -ErrorAction SilentlyContinue }
     exit 6
 }
 
@@ -362,14 +516,37 @@ try {
         # ver comentario acima) antes de entregar os bytes reconstruidos ao
         # bash via pipe -- $LASTEXITCODE continua refletindo o exit code
         # real do bash remoto (ultimo comando do pipeline remoto).
-        $remoteCommand = "base64 --decode --ignore-garbage | bash -s -- $TargetSha $AppDir"
-        # BatchMode=yes + ConnectTimeout=15: falha rapido se a chave nao
-        # funcionar, nunca espera senha. StrictHostKeyChecking=yes: a
-        # fingerprint continua sendo validada pelo known_hosts normal do
-        # Windows -- nunca UserKnownHostsFile=/dev/null nem checking=no.
-        $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", $DeployHost, $remoteCommand)
-        Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost `"$remoteCommand`""
-        $remoteOutputLines = $remoteScriptBase64 | & ssh @sshArgs
+        if ($BuildReactDist) {
+            $remoteWrapper = @"
+set -euo pipefail
+remote_script="`$(mktemp)"
+react_archive="`$(mktemp --suffix=.tar.gz)"
+cleanup() { rm -f "`$remote_script" "`$react_archive"; }
+trap cleanup EXIT
+base64 --decode --ignore-garbage > "`$remote_script" <<'SPB_REMOTE_SCRIPT_B64'
+$remoteScriptBase64
+SPB_REMOTE_SCRIPT_B64
+base64 --decode --ignore-garbage > "`$react_archive" <<'SPB_REACT_DIST_B64'
+$reactDistArtifactBase64
+SPB_REACT_DIST_B64
+bash "`$remote_script" "`$@" "`$react_archive"
+"@
+            $remoteWrapperBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remoteWrapper))
+            $remoteCommand = "base64 --decode --ignore-garbage | bash -s -- $TargetSha $AppDir"
+            Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost `"$remoteCommand`" (com React dist artifact)"
+            $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", $DeployHost, $remoteCommand)
+            $remoteOutputLines = $remoteWrapperBase64 | & ssh @sshArgs
+        }
+        else {
+            $remoteCommand = "base64 --decode --ignore-garbage | bash -s -- $TargetSha $AppDir"
+            # BatchMode=yes + ConnectTimeout=15: falha rapido se a chave nao
+            # funcionar, nunca espera senha. StrictHostKeyChecking=yes: a
+            # fingerprint continua sendo validada pelo known_hosts normal do
+            # Windows -- nunca UserKnownHostsFile=/dev/null nem checking=no.
+            $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", $DeployHost, $remoteCommand)
+            Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost `"$remoteCommand`""
+            $remoteOutputLines = $remoteScriptBase64 | & ssh @sshArgs
+        }
         $deployExitCode = $LASTEXITCODE
     }
     finally {
@@ -459,6 +636,7 @@ if ($collectorRestoreFailed) {
     Write-Host "Acao manual: 'Get-ScheduledTask -TaskName `"$TaskName`"' e, se necessario, 'Enable-ScheduledTask -TaskName `"$TaskName`"'." -ForegroundColor Red
     Add-Content -Path $LogFile -Value "COLLECTOR_RESTORE_FAILED=true"
     Add-Content -Path $LogFile -Value "LOCAL_DEPLOY_EXIT_CODE_BEFORE_COLLECTOR_CHECK=$deployExitCode"
+    if ($reactDistArtifact) { Remove-Item -LiteralPath $reactDistArtifact.TempRoot -Recurse -Force -ErrorAction SilentlyContinue }
     exit 7
 }
 
@@ -510,9 +688,14 @@ if ($deployExitCode -eq 0 -and $RunCollectorAfter -and $originalState -ne "Disab
         Write-Host "O DEPLOY_STATUS remoto nao e alterado por isso -- esta e uma falha do smoke gate solicitado pelo operador, reportada separadamente." -ForegroundColor Red
         Add-Content -Path $LogFile -Value "POST_DEPLOY_COLLECTOR_FAILED=true"
         Add-Content -Path $LogFile -Value "POST_DEPLOY_COLLECTOR_LAST_TASK_RESULT=$($info.LastTaskResult)"
+        if ($reactDistArtifact) { Remove-Item -LiteralPath $reactDistArtifact.TempRoot -Recurse -Force -ErrorAction SilentlyContinue }
         exit 8
     }
     Write-Host "Rodada manual do Collector concluida com sucesso (LastTaskResult=0)."
+}
+
+if ($reactDistArtifact) {
+    Remove-Item -LiteralPath $reactDistArtifact.TempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 exit $deployExitCode
