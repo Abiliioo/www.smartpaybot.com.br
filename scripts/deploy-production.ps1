@@ -164,6 +164,11 @@ function Fail-Local {
     exit 1
 }
 
+function ConvertTo-LfText {
+    param([string]$Text)
+    return (($Text -replace "`r`n", "`n") -replace "`r", "`n")
+}
+
 function Test-ReactDistRelativePath {
     param([string]$PathValue)
     if ([string]::IsNullOrWhiteSpace($PathValue)) {
@@ -553,7 +558,8 @@ $reactDistArtifactBase64
 SPB_REACT_DIST_B64
 bash "`$remote_script" "`$@" "`$react_archive"
 "@
-            $remoteWrapperBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remoteWrapper))
+            $remoteWrapperLf = ConvertTo-LfText $remoteWrapper
+            $remoteWrapperBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remoteWrapperLf))
             $remoteCommand = "base64 --decode --ignore-garbage | bash -s -- $TargetSha $AppDir"
             Write-Host "Comando remoto: ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes $DeployHost `"$remoteCommand`" (com React dist artifact)"
             $sshArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", $DeployHost, $remoteCommand)
