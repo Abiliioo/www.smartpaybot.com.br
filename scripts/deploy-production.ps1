@@ -60,6 +60,12 @@
     junto com o deploy. Sem este parametro, o comportamento legado do
     deploy permanece inalterado e nenhum asset React e enviado.
 
+.PARAMETER ValidateReactDistOnly
+    Executa somente o gate local do React dist para PR/review:
+    typecheck, build, validacao de manifest/assets, empacotamento .tar.gz
+    temporario e limpeza. Nao exige branch main, nao consulta Scheduled
+    Task, nao abre SSH e nao faz deploy.
+
 .PARAMETER RunCollectorAfter
     Apos um deploy SUCCESS E o Collector ja ter sido CONFIRMADAMENTE
     restaurado ao estado original, dispara manualmente uma rodada (somente
@@ -80,6 +86,9 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -BuildReactDist
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -ValidateReactDistOnly
 #>
 
 [CmdletBinding()]
@@ -90,6 +99,7 @@ param(
     [switch]$Yes,
     [switch]$DryRun,
     [switch]$BuildReactDist,
+    [switch]$ValidateReactDistOnly,
     [switch]$RunCollectorAfter
 )
 
@@ -252,7 +262,7 @@ function Invoke-ReactDistBuild {
     }
 
     Test-ReactDist -DistRoot $distRoot
-    return $distRoot
+    Write-Host "REACT_DIST_ROOT=$distRoot"
 }
 
 function New-ReactDistArtifact {
@@ -279,6 +289,17 @@ function New-ReactDistArtifact {
 
     Write-Host "Artefato React dist criado em diretorio temporario: $archivePath"
     return [pscustomobject]@{ TempRoot = $tempRoot; ArchivePath = $archivePath }
+}
+
+if ($ValidateReactDistOnly) {
+    $script:reactDistArtifact = $null
+    Invoke-ReactDistBuild
+    $reactDistRoot = Join-Path $RepoRoot "app\static\dist"
+    $script:reactDistArtifact = New-ReactDistArtifact -DistRoot $reactDistRoot
+    Remove-Item -LiteralPath $script:reactDistArtifact.TempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $script:reactDistArtifact = $null
+    Write-Host "REACT_DIST_LOCAL_VALIDATION=PASS"
+    exit 0
 }
 
 # ── validacoes defensivas de parametros (secao 24 -- seguranca) ──────────
@@ -396,7 +417,8 @@ $remoteScriptBase64 = [Convert]::ToBase64String($remoteScriptBytes)
 $reactDistArtifact = $null
 $reactDistArtifactBase64 = ""
 if ($BuildReactDist) {
-    $reactDistRoot = Invoke-ReactDistBuild
+    Invoke-ReactDistBuild
+    $reactDistRoot = Join-Path $RepoRoot "app\static\dist"
     $reactDistArtifact = New-ReactDistArtifact -DistRoot $reactDistRoot
     $reactDistArtifactBytes = [System.IO.File]::ReadAllBytes($reactDistArtifact.ArchivePath)
     $reactDistArtifactBase64 = [Convert]::ToBase64String($reactDistArtifactBytes)

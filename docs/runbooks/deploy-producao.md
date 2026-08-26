@@ -35,6 +35,7 @@ Parâmetros disponíveis:
 | `-Yes` | desligado | Pula a confirmação interativa. Usar apenas em contexto já supervisionado. |
 | `-DryRun` | desligado | Executa somente o preflight local (git, working tree limpo, SHA, detecção do Scheduled Task). Não conecta via SSH, não toca o Collector, não implanta nada. |
 | `-BuildReactDist` | desligado | Roda `npm.cmd run typecheck` e `npm.cmd run build` em `frontend`, valida `app/static/dist/.vite/manifest.json` e assets, empacota `app/static/dist/` em `.tar.gz` temporario e envia esse artefato para instalacao remota controlada. Sem este parametro, o deploy nao envia assets React. |
+| `-ValidateReactDistOnly` | desligado | Executa somente o gate local do React dist para PR/review: typecheck, build, validacao de manifest/assets, empacotamento `.tar.gz` temporario e limpeza. Nao exige branch `main`, nao consulta Scheduled Task, nao conecta via SSH e nao faz deploy. |
 | `-RunCollectorAfter` | desligado | Após um deploy `SUCCESS` **e** o Collector já ter sido **confirmadamente** restaurado ao estado original, dispara uma rodada manual (somente se ele estava habilitado antes do deploy) e reporta o resultado. Funciona como um *smoke gate* local solicitado pelo operador: se `LastTaskResult != 0`, o script termina com `exit 8` sem alterar o `DEPLOY_STATUS` remoto. Nunca inicia uma segunda instância se uma já estiver em execução. Nunca imprime o conteúdo bruto de `logs\collector.log` — apenas campos seguros do próprio Scheduled Task. |
 
 Exemplo recomendado antes de qualquer deploy real:
@@ -48,6 +49,14 @@ Exemplo para publicar tambem o build React da rota experimental `/ui-preview`:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -BuildReactDist
 ```
+
+Exemplo local-only para validar o build/manifest/artefato React antes de merge/review, inclusive em feature branch:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -ValidateReactDistOnly
+```
+
+Esse comando nao conecta na VPS, nao exige `main`, nao consulta Scheduled Task, nao dispara deploy e apenas valida build, manifest, artefato e limpeza temporaria.
 
 ## Confirmação
 

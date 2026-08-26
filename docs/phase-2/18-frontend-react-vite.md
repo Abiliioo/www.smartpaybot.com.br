@@ -90,6 +90,14 @@ Com `-BuildReactDist`, o orquestrador local roda `npm.cmd run typecheck`, `npm.c
 
 Sem `-BuildReactDist`, o deploy legado continua compativel e nenhum asset React e enviado. Nesse caso, `/ui-preview` em producao pode continuar retornando 503 controlado se o dist nao existir. `app/static/dist/` permanece ignorado pelo Git.
 
+Para validar esse fluxo antes de merge/review, sem exigir `main` e sem tocar VPS, Scheduled Task ou deploy, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -ValidateReactDistOnly
+```
+
+Esse gate local-only executa typecheck, build, validacao de manifest/assets, empacotamento `.tar.gz` temporario e limpeza. Em sucesso, imprime `REACT_DIST_LOCAL_VALIDATION=PASS`.
+
 ## Rota experimental `/ui-preview`
 
 `/ui-preview` e uma rota publica e experimental. Ela existe apenas para validar que Flask consegue servir o build React pelo mesmo dominio da aplicacao, sem substituir nenhuma tela real.
