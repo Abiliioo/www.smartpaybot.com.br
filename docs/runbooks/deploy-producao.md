@@ -14,6 +14,8 @@ Arquivos envolvidos:
 - Branch local `main` sincronizada com `origin/main` (`git fetch` + comparação de hash, feito automaticamente pelo script).
 - Estar na branch `main` no repositório local, **com working tree completamente limpo** (`git status --porcelain` vazio — não apenas sem modificações *tracked*) no momento de rodar o script. Isso é exigido porque o script lê o conteúdo do script remoto do próprio `TARGET_SHA`, e um working tree sujo indicaria incerteza sobre o que realmente está commitado.
 - Scheduled Task `SmartPayBot Collector` existente na máquina local.
+- `tar` disponivel localmente no Windows e na VPS quando `-BuildReactDist` for usado, para criar e extrair o artefato `.tar.gz` de `app/static/dist/`.
+- Node/npm instalados apenas na maquina local do operador quando `-BuildReactDist` for usado. A VPS nao precisa de Node para servir o build React.
 - `base64` (GNU coreutils, com suporte a `--ignore-garbage`) disponível no `PATH` do usuário `deploy` na VPS — usado apenas para reconstruir os bytes exatos do script de deploy recebidos via stdin (transporte byte-safe; ver etapa 8 abaixo). Presente por padrão em qualquer Debian/Ubuntu.
 - **PowerShell "Executar como Administrador"** quando o Collector estiver habilitado no momento do deploy (`State != Disabled`) e o comando **não** for `-DryRun` — `Disable-ScheduledTask`/`Enable-ScheduledTask` exigem elevação nesta máquina. `-DryRun` nunca exige elevação, pois é somente leitura.
 
@@ -32,6 +34,8 @@ Parâmetros disponíveis:
 | `-TargetSha` | *(vazio → usa `origin/main`)* | SHA git completo (40 hex minúsculos) a implantar. Se informado, **deve ser exatamente igual a `origin/main`** — esta versão nunca implanta um SHA arbitrário, mesmo que seja um ancestral válido. |
 | `-Yes` | desligado | Pula a confirmação interativa. Usar apenas em contexto já supervisionado. |
 | `-DryRun` | desligado | Executa somente o preflight local (git, working tree limpo, SHA, detecção do Scheduled Task). Não conecta via SSH, não toca o Collector, não implanta nada. |
+| `-BuildReactDist` | desligado | Roda `npm.cmd run typecheck` e `npm.cmd run build` em `frontend`, valida `app/static/dist/.vite/manifest.json` e assets, empacota `app/static/dist/` em `.tar.gz` temporario e envia esse artefato para instalacao remota controlada. Sem este parametro, o deploy nao envia assets React. |
+| `-ValidateReactDistOnly` | desligado | Executa somente o gate local do React dist para PR/review: typecheck, build, validacao de manifest/assets, empacotamento `.tar.gz` temporario e limpeza. Nao exige branch `main`, nao consulta Scheduled Task, nao conecta via SSH e nao faz deploy. |
 | `-RunCollectorAfter` | desligado | Após um deploy `SUCCESS` **e** o Collector já ter sido **confirmadamente** restaurado ao estado original, dispara uma rodada manual (somente se ele estava habilitado antes do deploy) e reporta o resultado. Funciona como um *smoke gate* local solicitado pelo operador: se `LastTaskResult != 0`, o script termina com `exit 8` sem alterar o `DEPLOY_STATUS` remoto. Nunca inicia uma segunda instância se uma já estiver em execução. Nunca imprime o conteúdo bruto de `logs\collector.log` — apenas campos seguros do próprio Scheduled Task. |
 
 Exemplo recomendado antes de qualquer deploy real:
@@ -39,6 +43,20 @@ Exemplo recomendado antes de qualquer deploy real:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -DryRun
 ```
+
+Exemplo para publicar tambem o build React da rota experimental `/ui-preview`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -BuildReactDist
+```
+
+Exemplo local-only para validar o build/manifest/artefato React antes de merge/review, inclusive em feature branch:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -ValidateReactDistOnly
+```
+
+Esse comando nao conecta na VPS, nao exige `main`, nao consulta Scheduled Task, nao dispara deploy e apenas valida build, manifest, artefato e limpeza temporaria.
 
 ## Confirmação
 
@@ -67,6 +85,14 @@ Somente `s`/`sim` prossegue. Qualquer outra resposta cancela sem tocar em nada (
 11. **Gate fail-closed da restauração do Collector, logo após o `finally`:** se a task foi efetivamente desabilitada por este deploy (`collectorDisabledByDeploy=true`) mas o estado final não pôde ser confirmado como restaurado (permanece `Disabled`, ou a consulta/`Enable-ScheduledTask` lançou exceção), o script **não** propaga o exit code do deploy remoto — encerra imediatamente com `exit 7` (`COLLECTOR_RESTORE_FAILED`), deixando claro que o `DEPLOY_STATUS` remoto pode ter sido `SUCCESS` mas isso **não** significa sucesso operacional total.
 12. **Somente se a restauração foi confirmada** — nunca antes —, se o deploy teve `SUCCESS` e `-RunCollectorAfter` foi passado (e o Collector estava habilitado originalmente), dispara uma rodada manual e reporta apenas `State`, `LastRunTime` e `LastTaskResult` do próprio Scheduled Task (**nunca** o conteúdo de `logs\collector.log`, que pode registrar corpo bruto de resposta HTTP de erro). Se `LastTaskResult != 0`, encerra com `exit 8` (`POST_DEPLOY_COLLECTOR_FAILED`) — o `DEPLOY_STATUS` remoto não é alterado por isso, é uma falha do *smoke gate* local solicitado pelo operador.
 13. Persiste a saída remota completa e os metadados do deploy (`TARGET_SHA`, exit code, e `COLLECTOR_RESTORE_FAILED=true`/`POST_DEPLOY_COLLECTOR_FAILED=true` quando aplicável) explicitamente em `logs/deploy/deploy-*.log`, além da transcrição da sessão local.
+
+## React dist artifact
+
+O build React e opcional e controlado pelo parametro local `-BuildReactDist`. Quando ele e usado, o orquestrador local valida e empacota `app/static/dist/` em um `.tar.gz` temporario; o script remoto recebe o caminho desse artefato como terceiro argumento, extrai em diretorio temporario, rejeita membros absolutos ou com `..`, valida `.vite/manifest.json`, JS principal e CSS referenciado, e entao troca `/home/deploy/apps/www.smartpaybot.com.br/app/static/dist`.
+
+A instalacao preserva um backup temporario do dist anterior, quando existir. Se qualquer gate posterior falhar antes ou depois do restart, as rotinas de recovery/rollback tentam restaurar o dist anterior ou remover o dist novo. Em sucesso, o backup temporario e removido. Como `app/static/dist/` segue ignorado pelo Git, rollback de codigo e rollback de assets sao tratados separadamente pelo script.
+
+Sem `-BuildReactDist`, o comportamento de deploy permanece igual ao legado: nenhum asset React e enviado, a VPS nao roda Node e `/ui-preview` pode responder 503 controlado se nao houver dist instalado.
 
 ### Remoto (`deploy-production-remote.sh`, executado na VPS)
 
@@ -121,6 +147,7 @@ Linhas máquina-legíveis emitidas pelo script remoto (e persistidas explicitame
 
 ```
 DEPLOY_STATUS=SUCCESS|FAILED|ROLLED_BACK|RECOVERY_FAILED|ROLLBACK_FAILED
+REACT_DIST_STATUS=SKIPPED|INSTALLED|RESTORED
 PRE_DEPLOY_HEAD=<sha>
 PRODUCTION_HEAD=<sha>
 TARGET_SHA=<sha>

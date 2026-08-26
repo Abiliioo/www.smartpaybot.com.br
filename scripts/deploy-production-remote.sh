@@ -23,6 +23,8 @@
 #   $2 = APP_DIR       (opcional -- se informado, deve ser exatamente
 #                       /home/deploy/apps/www.smartpaybot.com.br; qualquer
 #                       outro valor e recusado nesta versao)
+#   $3 = REACT_DIST_ARCHIVE (opcional -- .tar.gz ja criado pelo operador
+#                       local com app/static/dist; a VPS nunca precisa de Node)
 #
 # Contrato:
 #   - fail-fast / fail-closed: qualquer gate ANTES do restart que falhar
@@ -70,6 +72,7 @@ readonly EXPECTED_WEBHOOK_URL="https://smartpaybot.com.br/webhook/telegram"
 # ── argumentos ──────────────────────────────────────────────────────────
 TARGET_SHA="${1:-}"
 APP_DIR="${2:-$EXPECTED_APP_DIR}"
+REACT_DIST_ARCHIVE="${3:-}"
 
 PRE_DEPLOY_HEAD=""
 PRODUCTION_HEAD=""
@@ -77,6 +80,12 @@ DATABASE_INTEGRITY="NOT_OK"
 SESSION_COOKIE_NAME="unknown"
 HOMOLOGATION_BANNER_PRESENT="YES"
 JOURNAL_ERROR_HITS="0"
+REACT_DIST_STATUS="SKIPPED"
+REACT_DIST_TARGET=""
+REACT_DIST_TEMP_ROOT=""
+REACT_DIST_BACKUP_DIR=""
+REACT_DIST_CHANGED="false"
+REACT_DIST_HAD_PREVIOUS="false"
 
 emit_result() {
     local status="$1"
@@ -88,6 +97,7 @@ emit_result() {
     echo "SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME}"
     echo "HOMOLOGATION_BANNER_PRESENT=${HOMOLOGATION_BANNER_PRESENT}"
     echo "JOURNAL_ERROR_HITS=${JOURNAL_ERROR_HITS}"
+    echo "REACT_DIST_STATUS=${REACT_DIST_STATUS}"
 }
 
 abort() {
@@ -98,8 +108,142 @@ abort() {
     if [ -z "$PRODUCTION_HEAD" ]; then
         PRODUCTION_HEAD="${PRE_DEPLOY_HEAD}"
     fi
+    cleanup_react_dist_temp
     emit_result "FAILED"
     exit 1
+}
+validate_react_dist_dir() {
+    local dist_dir="$1"
+    if [ ! -f "$dist_dir/.vite/manifest.json" ]; then
+        echo "React dist invalido: .vite/manifest.json ausente." >&2
+        return 1
+    fi
+
+    .venv/bin/python - "$dist_dir" <<'PY'
+import json
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1]).resolve()
+manifest_path = root / ".vite" / "manifest.json"
+try:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+except Exception as exc:
+    print(f"React dist invalido: manifest JSON invalido ({exc}).", file=sys.stderr)
+    sys.exit(1)
+
+if not isinstance(manifest, dict) or not manifest:
+    print("React dist invalido: manifest vazio.", file=sys.stderr)
+    sys.exit(1)
+
+entry = manifest.get("index.html")
+if not isinstance(entry, dict):
+    entry = next((value for value in manifest.values() if isinstance(value, dict) and value.get("isEntry") is True), None)
+if not isinstance(entry, dict):
+    print("React dist invalido: sem index.html ou isEntry=true.", file=sys.stderr)
+    sys.exit(1)
+
+def check_relative_file(value: str, label: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        print(f"React dist invalido: {label} vazio.", file=sys.stderr)
+        sys.exit(1)
+    candidate = pathlib.PurePosixPath(value.replace("\\", "/"))
+    if candidate.is_absolute() or ".." in candidate.parts or ":" in value:
+        print(f"React dist invalido: {label} suspeito: {value}", file=sys.stderr)
+        sys.exit(1)
+    resolved = (root / pathlib.Path(*candidate.parts)).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        print(f"React dist invalido: {label} escapa de dist: {value}", file=sys.stderr)
+        sys.exit(1)
+    if not resolved.is_file():
+        print(f"React dist invalido: {label} nao encontrado: {value}", file=sys.stderr)
+        sys.exit(1)
+
+check_relative_file(entry.get("file"), "JS principal")
+css_entries = entry.get("css") or []
+if not isinstance(css_entries, list):
+    print("React dist invalido: campo css nao e lista.", file=sys.stderr)
+    sys.exit(1)
+for css_path in css_entries:
+    check_relative_file(css_path, "CSS")
+PY
+}
+
+restore_react_dist() {
+    if [ "$REACT_DIST_CHANGED" != "true" ]; then
+        return 0
+    fi
+
+    rm -rf "$REACT_DIST_TARGET"
+    if [ "$REACT_DIST_HAD_PREVIOUS" = "true" ] && [ -d "$REACT_DIST_BACKUP_DIR" ]; then
+        mkdir -p "$(dirname "$REACT_DIST_TARGET")"
+        mv "$REACT_DIST_BACKUP_DIR" "$REACT_DIST_TARGET"
+    fi
+    REACT_DIST_STATUS="RESTORED"
+    REACT_DIST_CHANGED="false"
+}
+
+cleanup_react_dist_temp() {
+    if [ -n "$REACT_DIST_TEMP_ROOT" ] && [ -d "$REACT_DIST_TEMP_ROOT" ]; then
+        rm -rf "$REACT_DIST_TEMP_ROOT"
+    fi
+}
+
+install_react_dist_artifact() {
+    if [ -z "$REACT_DIST_ARCHIVE" ]; then
+        echo "React dist artifact: nao fornecido; mantendo comportamento legado."
+        return 0
+    fi
+    if [ ! -f "$REACT_DIST_ARCHIVE" ]; then
+        echo "React dist artifact nao encontrado: $REACT_DIST_ARCHIVE" >&2
+        return 1
+    fi
+
+    REACT_DIST_TARGET="$APP_DIR/app/static/dist"
+    REACT_DIST_TEMP_ROOT="$(mktemp -d)"
+    local extract_dir="$REACT_DIST_TEMP_ROOT/extracted-dist"
+    mkdir -p "$extract_dir"
+
+    if ! tar -tzf "$REACT_DIST_ARCHIVE" | while IFS= read -r member; do
+        case "$member" in
+            /*|../*|*/../*|*'/..') echo "membro suspeito no artefato React dist: $member" >&2; exit 1 ;;
+        esac
+    done; then
+        return 1
+    fi
+
+    if ! tar -xzf "$REACT_DIST_ARCHIVE" -C "$extract_dir"; then
+        echo "falha ao extrair React dist artifact." >&2
+        return 1
+    fi
+    if ! validate_react_dist_dir "$extract_dir"; then
+        return 1
+    fi
+
+    if [ -d "$REACT_DIST_TARGET" ]; then
+        REACT_DIST_HAD_PREVIOUS="true"
+        REACT_DIST_BACKUP_DIR="$REACT_DIST_TEMP_ROOT/previous-dist"
+        mv "$REACT_DIST_TARGET" "$REACT_DIST_BACKUP_DIR" || return 1
+        REACT_DIST_CHANGED="true"
+    fi
+
+    mkdir -p "$(dirname "$REACT_DIST_TARGET")"
+    if ! mv "$extract_dir" "$REACT_DIST_TARGET"; then
+        restore_react_dist
+        return 1
+    fi
+    REACT_DIST_CHANGED="true"
+
+    if ! validate_react_dist_dir "$REACT_DIST_TARGET"; then
+        restore_react_dist
+        return 1
+    fi
+
+    REACT_DIST_STATUS="INSTALLED"
+    echo "React dist artifact instalado e validado em app/static/dist."
+    return 0
 }
 
 recover_or_die() {
@@ -114,6 +258,7 @@ recover_or_die() {
         abort "$reason"
     fi
 
+    restore_react_dist >&2 || true
     git reset --hard "$PRE_DEPLOY_HEAD" >&2
     local reset_rc=$?
     local head_now
@@ -124,6 +269,7 @@ recover_or_die() {
         abort "$reason (codigo revertido com sucesso para PRE_DEPLOY_HEAD; servico antigo nunca foi reiniciado)"
     else
         echo "RECOVERY FALHOU: reset_rc=$reset_rc head_now='$head_now' esperado='$PRE_DEPLOY_HEAD'" >&2
+        cleanup_react_dist_temp
         emit_result "RECOVERY_FAILED"
         exit 4
     fi
@@ -137,6 +283,7 @@ rollback_and_exit() {
     echo "ROLLBACK: $reason" >&2
     local ok="true"
 
+    restore_react_dist >&2 || ok="false"
     git reset --hard "$PRE_DEPLOY_HEAD" >&2
     local reset_rc=$?
     [ "$reset_rc" -eq 0 ] || ok="false"
@@ -169,10 +316,12 @@ rollback_and_exit() {
     echo "rollback checks: reset_rc=$reset_rc head_match=$([ "$head_now" = "$PRE_DEPLOY_HEAD" ] && echo yes || echo no) restart_rc=$restart_rc active_rc=$active_rc loopback=$has_loopback public_exposed=$has_public home_code=$home_code" >&2
 
     if [ "$ok" = "true" ]; then
+        cleanup_react_dist_temp
         emit_result "ROLLED_BACK"
         exit 2
     else
         echo "ROLLBACK NAO PODE SER TOTALMENTE VALIDADO -- inspecao manual imediata necessaria." >&2
+        cleanup_react_dist_temp
         emit_result "ROLLBACK_FAILED"
         exit 5
     fi
@@ -193,6 +342,11 @@ cd "$APP_DIR" || abort "nao foi possivel entrar em $APP_DIR"
 echo "=== 1. PREFLIGHT REMOTO ==="
 echo "APP_DIR=$(pwd)"
 echo "TARGET_SHA=$TARGET_SHA"
+if [ -n "$REACT_DIST_ARCHIVE" ]; then
+    echo "REACT_DIST_ARTIFACT=provided"
+else
+    echo "REACT_DIST_ARTIFACT=none"
+fi
 
 # sudo nao-interativo obrigatorio -- falhar rapido, nunca pedir senha
 # com o Collector ja pausado no lado local.
@@ -323,6 +477,12 @@ if [ "$NEW_HEAD" != "$TARGET_SHA" ]; then
     abort "HEAD pos-merge ($NEW_HEAD) diferente de TARGET_SHA ($TARGET_SHA)."
 fi
 echo "HEAD atualizado para $NEW_HEAD"
+
+if [ -n "$REACT_DIST_ARCHIVE" ]; then
+    echo
+    echo "=== 6. REACT DIST ARTIFACT ==="
+    install_react_dist_artifact || recover_or_die "instalacao do React dist artifact falhou."
+fi
 
 echo
 echo "=== 6. TEST GATE ==="
@@ -512,5 +672,6 @@ fi
 PRODUCTION_HEAD="$(git rev-parse HEAD)"
 echo
 echo "=== DEPLOY CONCLUIDO COM SUCESSO ==="
+cleanup_react_dist_temp
 emit_result "SUCCESS"
 exit 0
