@@ -8,6 +8,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
+- Copy final da landing React (SPB-250H): remove linguagem de preview/mock, reforça keywords, Telegram, economia de tempo, ação rápida e diferença Free/Pro, sem prometer resultado garantido e sem alterar backend, env, flag, deploy ou rotas sensíveis.
 - Polimento visual da landing React em producao (SPB-250G): H1/hero mais compactos, grid rebalanceado, card lateral menos pesado, header landing-only ajustado e ritmo de cards/planos refinado. Sem backend, sem flag/env/deploy, sem SSH/VPS e sem alterar rotas Jinja preservadas.
 - Feature flag `REACT_LANDING_ENABLED` (SPB-250F) para permitir que a rota `/` renderize a landing React com fallback seguro para `index.html` Jinja quando a flag estiver desligada ou o build Vite estiver ausente; `/ui-preview`, `/pro`, auth, dashboard e admin permanecem preservados. Sem deploy, sem SSH/VPS e sem versionar `app/static/dist/`.
 - Gate local-only `-ValidateReactDistOnly` no deploy script (SPB-250E B.1) para validar React dist artifact em feature branch antes de merge/review: roda typecheck/build, valida manifest/assets, cria e limpa `.tar.gz` temporario e imprime `REACT_DIST_LOCAL_VALIDATION=PASS`, sem exigir `main`, sem consultar Scheduled Task, sem SSH/VPS e sem deploy.
