@@ -214,6 +214,8 @@ class Settings:
     # Log
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # Frontend React
+    REACT_LANDING_ENABLED: bool = _as_bool(os.getenv("REACT_LANDING_ENABLED"), default=False)
 
 _SESSION_COOKIE_NAMES = {
     "production": "session",

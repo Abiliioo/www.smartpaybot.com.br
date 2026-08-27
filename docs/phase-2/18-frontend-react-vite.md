@@ -98,6 +98,14 @@ powershell -ExecutionPolicy Bypass -File scripts\deploy-production.ps1 -Validate
 
 Esse gate local-only executa typecheck, build, validacao de manifest/assets, empacotamento `.tar.gz` temporario e limpeza. Em sucesso, imprime `REACT_DIST_LOCAL_VALIDATION=PASS`.
 
+## Landing React controlada por flag
+
+O SPB-250F introduz a primeira rota real controlada em React: a home `/` pode renderizar a landing React quando `REACT_LANDING_ENABLED` estiver explicitamente ativo (`1`, `true`, `yes` ou `on`). O padrao seguro continua desligado, mantendo `index.html` Jinja.
+
+Quando a flag esta ativa, Flask usa o mesmo manifest Vite de `/ui-preview` para carregar JS/CSS hashados no `react_shell.html`, mas em modo `landing` com `robots=index, follow`. Se o build/manifest estiver ausente ou invalido, a home cai de volta para `index.html` em vez de retornar 503, preservando a pagina publica principal.
+
+`/ui-preview` continua experimental, navegavel entre Landing/Dashboard/Pro e com `robots=noindex, nofollow`; sem build, segue retornando 503 controlado. A rota `/pro`, auth, dashboard e admin continuam Jinja. A landing React usa CTAs reais para `/auth/register`, `/auth/login`, `/dashboard/` e `/pro` somente quando servida em `/`; no preview, a navegacao interna por estado local continua disponivel.
+
 ## Rota experimental `/ui-preview`
 
 `/ui-preview` e uma rota publica e experimental. Ela existe apenas para validar que Flask consegue servir o build React pelo mesmo dominio da aplicacao, sem substituir nenhuma tela real.

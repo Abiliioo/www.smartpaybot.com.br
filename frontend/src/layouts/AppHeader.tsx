@@ -6,14 +6,15 @@ import type { PreviewView } from '../types'
 type AppHeaderProps = {
   activeView: PreviewView
   onViewChange: (view: PreviewView) => void
+  previewMode?: boolean
 }
 
-export function AppHeader({ activeView, onViewChange }: AppHeaderProps) {
+export function AppHeader({ activeView, onViewChange, previewMode = true }: AppHeaderProps) {
   return (
     <header className="spb-app-header">
       <BrandMark />
-      <PreviewNav activeView={activeView} onViewChange={onViewChange} />
-      <UserBadge />
+      {previewMode && <PreviewNav activeView={activeView} onViewChange={onViewChange} />}
+      {previewMode && <UserBadge />}
     </header>
   )
 }

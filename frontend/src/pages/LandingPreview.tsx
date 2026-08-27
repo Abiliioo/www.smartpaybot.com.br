@@ -7,9 +7,10 @@ import type { PreviewView } from '../types'
 
 type LandingPreviewProps = {
   onNavigate: (view: PreviewView) => void
+  realLanding?: boolean
 }
 
-export function LandingPreview({ onNavigate }: LandingPreviewProps) {
+export function LandingPreview({ onNavigate, realLanding = false }: LandingPreviewProps) {
   return (
     <main className="spb-preview-page">
       <section className="spb-hero-grid">
@@ -21,8 +22,17 @@ export function LandingPreview({ onNavigate }: LandingPreviewProps) {
             um alerta claro para voce decidir rapido.
           </p>
           <div className="spb-hero-actions">
-            <Button onClick={() => onNavigate('dashboard')}>Ver dashboard</Button>
-            <Button variant="secondary" onClick={() => onNavigate('pro')}>Conhecer Pro</Button>
+            {realLanding ? (
+              <>
+                <Button href="/auth/register">Comecar gratis</Button>
+                <Button variant="secondary" href="/auth/login">Entrar</Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={() => onNavigate('dashboard')}>Ver dashboard</Button>
+                <Button variant="secondary" onClick={() => onNavigate('pro')}>Conhecer Pro</Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -37,7 +47,9 @@ export function LandingPreview({ onNavigate }: LandingPreviewProps) {
             <div><dt>Propostas</dt><dd>3</dd></div>
             <div><dt>Cliente</dt><dd>4.8 / 5</dd></div>
           </dl>
-          <Button variant="secondary">Abrir oportunidade</Button>
+          <Button variant="secondary" href={realLanding ? '/dashboard/' : undefined}>
+            Abrir oportunidade
+          </Button>
         </Card>
       </section>
 
@@ -75,6 +87,7 @@ export function LandingPreview({ onNavigate }: LandingPreviewProps) {
             caption="para comecar"
             features={['3 keywords', '10 alertas por dia', 'Dashboard essencial']}
             cta="Comecar gratis"
+            href={realLanding ? '/auth/register' : undefined}
           />
           <PlanCard
             name="Pro"
@@ -83,7 +96,8 @@ export function LandingPreview({ onNavigate }: LandingPreviewProps) {
             features={['Keywords ilimitadas', 'Alertas ilimitados', 'Suporte prioritario']}
             cta="Ver upgrade"
             featured
-            onClick={() => onNavigate('pro')}
+            href={realLanding ? '/pro' : undefined}
+            onClick={realLanding ? undefined : () => onNavigate('pro')}
           />
         </div>
       </section>
