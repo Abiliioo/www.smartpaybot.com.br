@@ -89,7 +89,7 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 - SPB-272;
 - SPB-269;
 - Fase E / F / G;
-- SPB-250F review visual local/PR;
+- SPB-250G review visual local/PR;
 - SPB-250.
 
 **LATER**

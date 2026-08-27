@@ -106,6 +106,8 @@ Quando a flag esta ativa, Flask usa o mesmo manifest Vite de `/ui-preview` para 
 
 `/ui-preview` continua experimental, navegavel entre Landing/Dashboard/Pro e com `robots=noindex, nofollow`; sem build, segue retornando 503 controlado. A rota `/pro`, auth, dashboard e admin continuam Jinja. A landing React usa CTAs reais para `/auth/register`, `/auth/login`, `/dashboard/` e `/pro` somente quando servida em `/`; no preview, a navegacao interna por estado local continua disponivel.
 
+O SPB-250G refinou apenas a camada visual da landing React: H1 desktop menor, hero/topo mais compactos, grid mais equilibrado, card lateral menos pesado, header landing-only menos vazio e ritmo de cards/planos mais uniforme. Nenhum backend, env, flag, deploy script ou rota Jinja preservada foi alterado.
+
 ## Rota experimental `/ui-preview`
 
 `/ui-preview` e uma rota publica e experimental. Ela existe apenas para validar que Flask consegue servir o build React pelo mesmo dominio da aplicacao, sem substituir nenhuma tela real.

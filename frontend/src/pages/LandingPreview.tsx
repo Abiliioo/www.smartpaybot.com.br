@@ -12,7 +12,7 @@ type LandingPreviewProps = {
 
 export function LandingPreview({ onNavigate, realLanding = false }: LandingPreviewProps) {
   return (
-    <main className="spb-preview-page">
+    <main className={`spb-preview-page ${realLanding ? 'spb-preview-page--landing' : 'spb-preview-page--preview'}`}>
       <section className="spb-hero-grid">
         <div className="spb-hero-copy">
           <p className="spb-kicker">Alertas de freelas em tempo quase real</p>

@@ -11,7 +11,7 @@ type AppShellProps = {
 
 export function AppShell({ activeView, onViewChange, previewMode = true, children }: AppShellProps) {
   return (
-    <div className="spb-app-shell">
+    <div className={`spb-app-shell ${previewMode ? '' : 'spb-app-shell--landing'}`.trim()}>
       <AppHeader activeView={activeView} onViewChange={onViewChange} previewMode={previewMode} />
       {children}
     </div>

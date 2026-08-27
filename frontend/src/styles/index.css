@@ -66,6 +66,10 @@ a:focus-visible {
   margin: 0 auto;
   padding: 16px 0 72px;
 }
+.spb-app-shell--landing {
+  width: min(calc(100% - 40px), 1120px);
+  padding: 14px 0 58px;
+}
 
 .spb-app-header {
   position: sticky;
@@ -82,6 +86,20 @@ a:focus-visible {
   background: rgba(7, 11, 20, .82);
   box-shadow: 0 16px 52px rgba(0, 0, 0, .26);
   backdrop-filter: blur(18px);
+}
+.spb-app-header--landing {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 14px;
+}
+
+.spb-app-header--landing::after {
+  content: "";
+  justify-self: end;
+  width: min(28vw, 220px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, .42));
 }
 
 .spb-brand-mark {
@@ -198,6 +216,97 @@ a:focus-visible {
   gap: 58px;
   padding-top: 48px;
 }
+.spb-preview-page--landing {
+  gap: 44px;
+  padding-top: 34px;
+}
+
+.spb-preview-page--landing .spb-hero-grid {
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, .72fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.spb-preview-page--landing .spb-hero-copy {
+  padding-top: 8px;
+}
+
+.spb-preview-page--landing .spb-hero-copy h1 {
+  max-width: 650px;
+  margin-bottom: 16px;
+  font-size: clamp(2.55rem, 4.2vw, 4rem);
+  line-height: 1.03;
+}
+
+.spb-preview-page--landing .spb-hero-copy > p:last-of-type {
+  max-width: 560px;
+  font-size: 1rem;
+  line-height: 1.68;
+}
+
+.spb-preview-page--landing .spb-hero-actions {
+  margin-top: 24px;
+}
+
+.spb-preview-page--landing .spb-alert-preview {
+  align-self: start;
+  min-height: 292px;
+  margin-top: 10px;
+  padding: 20px;
+}
+
+.spb-preview-page--landing .spb-alert-preview::before {
+  width: 112px;
+  height: 112px;
+  filter: blur(36px);
+}
+
+.spb-preview-page--landing .spb-alert-preview h2 {
+  max-width: 360px;
+  font-size: 1.05rem;
+}
+
+.spb-preview-page--landing .spb-alert-preview dl {
+  gap: 6px;
+  margin: 18px 0;
+}
+
+.spb-preview-page--landing .spb-section-header {
+  max-width: 660px;
+  margin-bottom: 18px;
+}
+
+.spb-preview-page--landing .spb-section-header h2 {
+  font-size: clamp(1.55rem, 2.4vw, 2.2rem);
+}
+
+.spb-preview-page--landing .spb-section-header span {
+  max-width: 560px;
+}
+
+.spb-preview-page--landing .spb-three-grid,
+.spb-preview-page--landing .spb-step-grid,
+.spb-preview-page--landing .spb-plan-grid {
+  gap: 14px;
+}
+
+.spb-preview-page--landing .spb-card {
+  padding: 18px;
+}
+
+.spb-preview-page--landing .spb-step-card {
+  min-height: 150px;
+  padding: 16px;
+}
+
+.spb-preview-page--landing .spb-plan-card {
+  min-height: 342px;
+}
+
+.spb-preview-page--landing .spb-plan-card__top strong,
+.spb-preview-page--landing .spb-price-focus strong {
+  font-size: 2.55rem;
+}
 
 .spb-hero-grid,
 .spb-pro-hero,
@@ -262,6 +371,9 @@ a:focus-visible {
 }
 
 .spb-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid transparent;
@@ -637,6 +749,10 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .spb-preview-page--landing .spb-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
   .spb-three-grid,
   .spb-step-grid,
   .spb-plan-grid,
@@ -706,6 +822,37 @@ a:focus-visible {
   .spb-plan-card {
     min-height: auto;
   }
+  .spb-app-shell--landing {
+    width: min(calc(100% - 24px), 1180px);
+    padding-bottom: 48px;
+  }
+
+  .spb-app-header--landing {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .spb-app-header--landing::after {
+    width: 72px;
+  }
+
+  .spb-preview-page--landing {
+    gap: 34px;
+    padding-top: 24px;
+  }
+
+  .spb-preview-page--landing .spb-hero-copy {
+    padding-top: 0;
+  }
+
+  .spb-preview-page--landing .spb-hero-copy h1 {
+    font-size: clamp(2rem, 10vw, 2.65rem);
+    line-height: 1.06;
+  }
+
+  .spb-preview-page--landing .spb-alert-preview {
+    min-height: 0;
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 390px) {
@@ -730,6 +877,13 @@ a:focus-visible {
 
   .spb-button {
     width: 100%;
+  }
+  .spb-app-shell--landing {
+    width: min(calc(100% - 20px), 1180px);
+  }
+
+  .spb-app-header--landing::after {
+    width: 48px;
   }
 }
 

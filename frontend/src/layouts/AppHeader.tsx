@@ -11,7 +11,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ activeView, onViewChange, previewMode = true }: AppHeaderProps) {
   return (
-    <header className="spb-app-header">
+    <header className={`spb-app-header ${previewMode ? 'spb-app-header--preview' : 'spb-app-header--landing'}`.trim()}>
       <BrandMark />
       {previewMode && <PreviewNav activeView={activeView} onViewChange={onViewChange} />}
       {previewMode && <UserBadge />}
