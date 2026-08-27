@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex, nofollow">
-  <title>SmartPayBot UI Preview</title>
+  <meta name="robots" content="{{ robots|default('noindex, nofollow') }}">
+  <title>{{ title|default('SmartPayBot UI Preview') }}</title>
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
   {% for css_file in css_files %}
   <link rel="stylesheet" href="{{ url_for('static', filename=css_file) }}">
   {% endfor %}
 </head>
-<body>
+<body data-page-mode="{{ page_mode|default('preview') }}">
   <!-- Preview experimental React; as rotas Jinja continuam sendo a UI real. -->
   <div id="root"></div>
   <script type="module" src="{{ url_for('static', filename=js_file) }}"></script>

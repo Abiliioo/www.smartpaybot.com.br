@@ -9,10 +9,11 @@ type PlanCardProps = {
   features: string[]
   featured?: boolean
   cta: string
+  href?: string
   onClick?: () => void
 }
 
-export function PlanCard({ name, price, caption, features, featured = false, cta, onClick }: PlanCardProps) {
+export function PlanCard({ name, price, caption, features, featured = false, cta, href, onClick }: PlanCardProps) {
   return (
     <Card tone={featured ? 'accent' : 'default'} className="spb-plan-card">
       <div className="spb-plan-card__top">
@@ -28,7 +29,7 @@ export function PlanCard({ name, price, caption, features, featured = false, cta
           <li key={feature}>{feature}</li>
         ))}
       </ul>
-      <Button variant={featured ? 'primary' : 'secondary'} onClick={onClick}>
+      <Button variant={featured ? 'primary' : 'secondary'} href={href} onClick={onClick}>
         {cta}
       </Button>
     </Card>

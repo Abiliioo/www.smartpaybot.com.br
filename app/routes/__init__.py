@@ -16,9 +16,32 @@ from .ingest import bp as ingest_bp
 
 bp_main = Blueprint("main", __name__)
 
+
+def _vite_manifest_path():
+    manifest_path = current_app.config.get("VITE_MANIFEST_PATH")
+    if manifest_path:
+        return manifest_path
+    return default_manifest_path(current_app.static_folder)
+
+
 @bp_main.get("/")
 def index():
+    if current_app.config.get("REACT_LANDING_ENABLED"):
+        try:
+            assets = load_vite_assets(_vite_manifest_path())
+        except ViteManifestError:
+            return render_template("index.html")
+
+        return render_template(
+            "react_shell.html",
+            js_file=assets.js_file,
+            css_files=assets.css_files,
+            page_mode="landing",
+            title="SmartPayBot",
+            robots="index, follow",
+        )
     return render_template("index.html")
+
 
 @bp_main.get("/pro")
 def pro():
@@ -33,14 +56,11 @@ def pro():
                 is_subscriber = _is_pro(db, int(current_user.id))
     return render_template("pro.html", is_subscriber=is_subscriber, is_admin_user=is_admin_user)
 
+
 @bp_main.get("/ui-preview")
 def ui_preview():
-    manifest_path = current_app.config.get("VITE_MANIFEST_PATH")
-    if not manifest_path:
-        manifest_path = default_manifest_path(current_app.static_folder)
-
     try:
-        assets = load_vite_assets(manifest_path)
+        assets = load_vite_assets(_vite_manifest_path())
     except ViteManifestError:
         return (
             "React build nao encontrado. Rode `npm.cmd run build` em `frontend`.",
@@ -51,11 +71,16 @@ def ui_preview():
         "react_shell.html",
         js_file=assets.js_file,
         css_files=assets.css_files,
+        page_mode="preview",
+        title="SmartPayBot UI Preview",
+        robots="noindex, nofollow",
     )
+
 
 @bp_main.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
 
 def register_blueprints(app: Flask) -> None:
     app.register_blueprint(bp_main)

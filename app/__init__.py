@@ -63,6 +63,7 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = settings.SECRET_KEY
     app.config["WTF_CSRF_ENABLED"] = settings.CSRF_ENABLED
     app.config["APP_ENV"] = settings.APP_ENV
+    app.config["REACT_LANDING_ENABLED"] = settings.REACT_LANDING_ENABLED
 
     # Sessão isolada por APP_ENV (SPB-263 B4) — nunca por hostname/porta.
     # Nome do cookie: producao/development preservam "session" (legado);

@@ -7,6 +7,15 @@ import type { PreviewView } from './types'
 
 function App() {
   const [view, setView] = useState<PreviewView>('landing')
+  const isLandingRoute = window.location.pathname === '/'
+
+  if (isLandingRoute) {
+    return (
+      <AppShell activeView="landing" onViewChange={setView} previewMode={false}>
+        <LandingPreview onNavigate={setView} realLanding />
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell activeView={view} onViewChange={setView}>
