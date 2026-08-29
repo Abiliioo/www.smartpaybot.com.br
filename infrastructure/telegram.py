@@ -1,9 +1,13 @@
 # infrastructure/telegram.py
 from __future__ import annotations
 from typing import Optional, Dict, Any, List
+import contextlib
 import hashlib
+import socket
+import threading
 import time
 import requests
+import urllib3.util.connection as urllib3_connection
 from .config import get_settings
 from .logging import get_logger
 
@@ -15,6 +19,7 @@ _TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 # guard neste processo. So sucesso e cacheado -- falha nunca entra aqui, de
 # forma que a proxima operacao sempre tenta getMe novamente.
 _validated_token_fingerprints: set[str] = set()
+_TELEGRAM_IPV4_LOCK = threading.Lock()
 
 
 class TelegramGuardError(Exception):
@@ -25,6 +30,31 @@ class TelegramGuardError(Exception):
     uma operacao autorizada.
     """
 
+
+
+@contextlib.contextmanager
+def _prefer_ipv4_for_telegram_requests():
+    """
+    Prefer IPv4 only while requests/urllib3 resolves Telegram hosts.
+
+    The VPS reaches api.telegram.org over IPv4 but can stall on IPv6. Keep the
+    override narrow, process-safe, and always restore urllib3's default resolver
+    choice before returning to the rest of the app.
+    """
+    with _TELEGRAM_IPV4_LOCK:
+        original_allowed_gai_family = urllib3_connection.allowed_gai_family
+        urllib3_connection.allowed_gai_family = lambda: socket.AF_INET
+        try:
+            yield
+        finally:
+            urllib3_connection.allowed_gai_family = original_allowed_gai_family
+
+
+def _telegram_readiness_get(method: str, token: str, timeout: int = 10) -> requests.Response:
+    """GET Telegram readiness endpoints with IPv4 preference and existing timeouts."""
+    url = _TELEGRAM_API.format(token=token, method=method)
+    with _prefer_ipv4_for_telegram_requests():
+        return requests.get(url, timeout=timeout)
 
 def _fingerprint(token: str) -> str:
     """SHA-256 do token, usado apenas como chave de cache em memoria (nunca logado)."""
@@ -45,8 +75,7 @@ def _validate_bot_identity(token: str, expected_bot_id: int) -> None:
         return
 
     try:
-        url = _TELEGRAM_API.format(token=token, method="getMe")
-        resp = requests.get(url, timeout=10)
+        resp = _telegram_readiness_get("getMe", token, timeout=10)
     except requests.RequestException as e:
         logger.error("Identity guard: falha de rede no getMe (%s).", type(e).__name__)
         raise TelegramGuardError("Falha de rede ao validar identidade do bot.") from e
@@ -188,8 +217,7 @@ def get_webhook_info(token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         logger.warning("get_webhook_info bloqueado pelo guardrail: %s", e)
         return None
     try:
-        url = _TELEGRAM_API.format(token=resolved_token, method="getWebhookInfo")
-        r = requests.get(url, timeout=10)
+        r = _telegram_readiness_get("getWebhookInfo", resolved_token, timeout=10)
         data = r.json()
         return data if isinstance(data, dict) else None
     except requests.RequestException as e:

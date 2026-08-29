@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import logging
 import os
+import socket
 import unittest
 from unittest import mock
 
@@ -384,6 +385,50 @@ class TelegramIdentityGuardTest(unittest.TestCase):
              mock.patch("requests.get", side_effect=requests.exceptions.Timeout("boom")):
             self.assertFalse(telegram_module.telegram_ready())
 
+
+    def test_getme_uses_ipv4_preference_during_request(self) -> None:
+        seen_families = []
+
+        def fake_get(*args, **kwargs):
+            seen_families.append(telegram_module.urllib3_connection.allowed_gai_family())
+            return _get_me_response()
+
+        with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
+             mock.patch("requests.get", side_effect=fake_get):
+            self.assertTrue(telegram_module.telegram_ready())
+
+        self.assertEqual(seen_families, [socket.AF_INET])
+
+    def test_ipv4_preference_is_restored_after_getme_success(self) -> None:
+        original_allowed_gai_family = telegram_module.urllib3_connection.allowed_gai_family
+
+        with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
+             mock.patch("requests.get", return_value=_get_me_response()):
+            self.assertTrue(telegram_module.telegram_ready())
+
+        self.assertIs(telegram_module.urllib3_connection.allowed_gai_family, original_allowed_gai_family)
+
+    def test_ipv4_preference_is_restored_after_getme_exception(self) -> None:
+        import requests
+
+        original_allowed_gai_family = telegram_module.urllib3_connection.allowed_gai_family
+
+        with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
+             mock.patch("requests.get", side_effect=requests.exceptions.Timeout("boom")):
+            self.assertFalse(telegram_module.telegram_ready())
+
+        self.assertIs(telegram_module.urllib3_connection.allowed_gai_family, original_allowed_gai_family)
+        self.assertEqual(telegram_module._validated_token_fingerprints, set())
+
+    def test_network_exception_on_getme_is_not_cached_as_success(self) -> None:
+        import requests
+
+        with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
+             mock.patch("requests.get", side_effect=requests.exceptions.Timeout("boom")) as get_mock:
+            self.assertFalse(telegram_module.telegram_ready())
+            self.assertFalse(telegram_module.telegram_ready())
+
+        self.assertEqual(get_mock.call_count, 2)
     def test_failure_is_not_cached_as_success(self) -> None:
         with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
              mock.patch("requests.get", return_value=_get_me_response(status_code=500)) as get_mock:
@@ -453,6 +498,29 @@ class AllOperationsRespectGuardTest(unittest.TestCase):
         self.assertEqual(info, {"ok": True, "result": {"url": ""}})
         self.assertEqual(get_mock.call_count, 2)
 
+
+    def test_get_webhook_info_uses_ipv4_preference_for_readiness_gets(self) -> None:
+        seen_families = []
+
+        def fake_get(*args, **kwargs):
+            seen_families.append(telegram_module.urllib3_connection.allowed_gai_family())
+            if len(seen_families) == 1:
+                return _get_me_response()
+            return mock.Mock(json=mock.Mock(return_value={"ok": True, "result": {"url": ""}}))
+
+        with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
+             mock.patch("requests.get", side_effect=fake_get):
+            info = telegram_module.get_webhook_info()
+
+        self.assertEqual(info, {"ok": True, "result": {"url": ""}})
+        self.assertEqual(seen_families, [socket.AF_INET, socket.AF_INET])
+
+    def test_getme_failure_blocks_get_webhook_info_before_real_call(self) -> None:
+        with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
+             mock.patch("requests.get", return_value=_get_me_response(status_code=403)) as get_mock:
+            self.assertIsNone(telegram_module.get_webhook_info())
+
+        get_mock.assert_called_once()
     def test_set_webhook_guarded_before_real_call(self) -> None:
         with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
              mock.patch("requests.get", return_value=_get_me_response()), \
