@@ -17,10 +17,10 @@ export function DashboardPreview({ onNavigate }: DashboardPreviewProps) {
       <section className="spb-dashboard-hero">
         <div>
           <Pill tone="green">Monitoramento ativo</Pill>
-          <h1>Dashboard</h1>
-          <p>Visao rapida do que esta chegando, do limite atual e do proximo melhor passo.</p>
+          <h1>Painel de oportunidades</h1>
+          <p>Visão rápida do que chegou, dos limites do plano e do próximo passo mais útil.</p>
         </div>
-        <Button onClick={() => onNavigate('pro')}>Upgrade Pro</Button>
+        <Button onClick={() => onNavigate('pro')}>Conhecer Pro</Button>
       </section>
 
       <section className="spb-metric-grid">
@@ -33,17 +33,17 @@ export function DashboardPreview({ onNavigate }: DashboardPreviewProps) {
         <Card className="spb-wide-card">
           <div className="spb-panel-title">
             <div>
-              <span>Projetos recentes</span>
-              <h3>Oportunidades para revisar agora</h3>
+              <span>Últimas oportunidades</span>
+              <h3>Projetos para revisar agora</h3>
             </div>
-            <Pill tone="blue">12 hoje</Pill>
+            <Pill tone="blue">Atualizado automaticamente</Pill>
           </div>
           <div className="spb-project-list">
             {recentProjects.map((project) => (
               <article key={project.title}>
                 <div>
                   <h4>{project.title}</h4>
-                  <p>{project.keyword} baseado nas suas keywords</p>
+                  <p>{project.keyword} entre as palavras-chave monitoradas</p>
                 </div>
                 <span>{project.age}</span>
                 <strong>{project.proposals} propostas</strong>
@@ -57,27 +57,27 @@ export function DashboardPreview({ onNavigate }: DashboardPreviewProps) {
         <Card>
           <div className="spb-panel-title">
             <div>
-              <span>Keywords</span>
-              <h3>Monitoradas</h3>
+              <span>Palavras-chave monitoradas</span>
+              <h3>Termos em acompanhamento</h3>
             </div>
             <Pill tone="amber">5 / 3 Free</Pill>
           </div>
           <div className="spb-keyword-list">
             {keywords.map((keyword) => <KeywordPill key={keyword} label={keyword} />)}
           </div>
-          <p className="spb-card-note">Duas keywords extras ficariam pausadas no plano Free.</p>
+          <p className="spb-card-note">Duas palavras-chave extras ficariam pausadas no plano Free.</p>
         </Card>
 
         <Card tone="accent" className="spb-upgrade-panel">
           <span>Plano atual</span>
-          <h3>Free com limite proximo</h3>
-          <p>Mostre o valor no contexto: quando o limite aparece, o upgrade vira uma decisao natural.</p>
-          <Button onClick={() => onNavigate('pro')}>Liberar ilimitado</Button>
+          <h3>Free perto do limite</h3>
+          <p>Quando os alertas acabam cedo, o Pro amplia a cobertura sem mudar sua rotina.</p>
+          <Button onClick={() => onNavigate('pro')}>Ver Pro</Button>
         </Card>
 
         <Card tone="quiet" className="spb-empty-useful">
-          <h3>Sem ganhos marcados ainda</h3>
-          <p>Quando voce marcar um projeto como ganho, receita, conversao e ticket medio aparecem aqui.</p>
+          <h3>Revisão em andamento</h3>
+          <p>Use o painel para acompanhar alertas recebidos e separar as oportunidades que merecem proposta.</p>
         </Card>
       </section>
     </main>

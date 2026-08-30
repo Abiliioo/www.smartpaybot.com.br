@@ -17,7 +17,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
           <p className="spb-kicker">Monitoramento para freelancers</p>
           <h1 id="landing-title">Alertas de freelas direto no Telegram, sem garimpo manual.</h1>
           <p>
-            Configure palavras-chave, receba oportunidades relevantes e decida pelo dashboard quando fizer sentido.
+            Cadastre palavras-chave, receba oportunidades compatíveis e revise tudo em um painel simples antes de decidir.
           </p>
           <div className="spb-hero-actions">
             {realLanding ? (
@@ -27,7 +27,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
               </>
             ) : (
               <>
-                <Button onClick={() => onNavigate('dashboard')}>Ver dashboard</Button>
+                <Button onClick={() => onNavigate('dashboard')}>Ver painel</Button>
                 <Button variant="secondary" onClick={() => onNavigate('pro')}>Conhecer Pro</Button>
               </>
             )}
@@ -46,20 +46,20 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
               <strong>Novo alerta</strong>
             </div>
             <h2>Automação de planilha para controle de estoque</h2>
-            <p>Projeto filtrado por keyword para você revisar com contexto antes de abrir a proposta.</p>
+            <p>Projeto filtrado pelos seus termos para você revisar com contexto antes de abrir a proposta.</p>
             <div className="spb-250k-alert-meta" aria-label="Resumo do alerta">
-              <span><small>Keyword</small><strong>Excel</strong></span>
+              <span><small>Termo</small><strong>Excel</strong></span>
               <span><small>Canal</small><strong>Telegram</strong></span>
-              <span><small>Ação</small><strong>Dashboard</strong></span>
+              <span><small>Próximo passo</small><strong>Painel</strong></span>
             </div>
             <Button variant="secondary" href={realLanding ? '/dashboard/' : undefined} onClick={realLanding ? undefined : () => onNavigate('dashboard')}>
-              Ver no dashboard
+              Ver no painel
             </Button>
           </Card>
 
           <div className="spb-250k-side-stack">
             <Card tone="quiet" className="spb-250k-keyword-card">
-              <span className="spb-mini-label">Keyword monitorada</span>
+              <span className="spb-mini-label">Palavra-chave monitorada</span>
               <strong>Excel</strong>
               <div className="spb-250k-signal-chart" aria-hidden="true">
                 <span />
@@ -71,7 +71,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
             <Card tone="accent" className="spb-250k-plan-card">
               <span className="spb-mini-label">Plano atual</span>
               <strong>Free</strong>
-              <p>3 keywords e 10 alertas por dia. Pro remove esses limites.</p>
+              <p>3 palavras-chave e 10 alertas por dia. Pro remove esses limites.</p>
             </Card>
           </div>
         </div>
@@ -86,7 +86,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
         <div className="spb-250k-editorial-card">
           <Card tone="quiet"><h3>Foco por termos</h3><p>Você escolhe os serviços e nichos que quer acompanhar.</p></Card>
           <Card tone="quiet"><h3>Alerta no canal certo</h3><p>O Telegram avisa sem exigir que você fique atualizando listas.</p></Card>
-          <Card tone="quiet"><h3>Decisão no dashboard</h3><p>O painel mantém contexto suficiente para priorizar com calma.</p></Card>
+          <Card tone="quiet"><h3>Decisão no painel</h3><p>O painel mantém contexto suficiente para priorizar com calma.</p></Card>
         </div>
       </section>
 
@@ -94,9 +94,9 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
         <SectionHeader title="Do termo monitorado à decisão" copy="Um fluxo simples, sem promessa de resultado garantido." />
         <div className="spb-250k-flow-line">
           {[
-            ['01', 'Keyword', 'Cadastre termos ligados ao seu trabalho.'],
+            ['01', 'Palavra-chave', 'Cadastre termos ligados ao seu trabalho.'],
             ['02', 'Alerta', 'Receba a oportunidade quando ela combina.'],
-            ['03', 'Dashboard', 'Revise o contexto em um lugar só.'],
+            ['03', 'Painel', 'Revise o contexto em um lugar só.'],
             ['04', 'Decisão', 'Abra apenas quando fizer sentido.'],
           ].map(([step, title, copy]) => (
             <article key={step}>
@@ -115,7 +115,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
             name="Free"
             price="R$ 0"
             caption="para começar"
-            features={['3 keywords', '10 alertas por dia', 'Dashboard essencial']}
+            features={['3 palavras-chave', '10 alertas por dia', 'Painel essencial']}
             cta="Começar grátis"
             href={realLanding ? '/auth/register' : undefined}
             onClick={realLanding ? undefined : () => onNavigate('dashboard')}
@@ -124,7 +124,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
             name="Pro"
             price="R$ 47"
             caption="por mês"
-            features={['Keywords ilimitadas', 'Alertas ilimitados', 'Mais flexibilidade para operar']}
+            features={['Palavras-chave ilimitadas', 'Alertas ilimitados', 'Mais flexibilidade para operar']}
             cta="Conhecer Pro"
             featured
             href={realLanding ? '/pro' : undefined}
@@ -136,8 +136,8 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
       <section className="spb-250k-proof-section">
         <Card tone="quiet" className="spb-250k-proof-main">
           <span className="spb-mini-label">Credibilidade</span>
-          <h2>O produto organiza sinais. A proposta continua sendo sua.</h2>
-          <p>Sem vínculo oficial com plataformas, sem promessa de contratação e sem métrica inventada: só uma camada de monitoramento para reduzir trabalho repetitivo.</p>
+          <h2>O SmartPayBot organiza sinais. A decisão continua sendo sua.</h2>
+          <p>Sem vínculo oficial com plataformas e sem promessa de contratação: o produto reduz trabalho repetitivo para você avaliar cada oportunidade com mais calma.</p>
         </Card>
         <div className="spb-250k-proof-list">
           <span>Independente</span>

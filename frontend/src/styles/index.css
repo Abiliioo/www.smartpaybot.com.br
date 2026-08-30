@@ -2028,3 +2028,105 @@ body {
     radial-gradient(circle at 72% 0%, rgba(20, 140, 255, .09), transparent 22rem),
     linear-gradient(145deg, rgba(255, 255, 255, .052), rgba(10, 15, 24, .54));
 }
+
+/* SPB-250K-C - copy and visual refinement */
+.spb-250k-home .spb-250k-hero__copy h1,
+.spb-250k-pro .spb-250k-pro-copy h1,
+.spb-dashboard-preview .spb-dashboard-hero h1 {
+  text-wrap: balance;
+}
+
+.spb-250k-home .spb-250k-product-stage {
+  gap: 22px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 74% 4%, rgba(20, 140, 255, .075), transparent 24rem),
+    linear-gradient(145deg, rgba(255, 255, 255, .05), rgba(8, 12, 20, .6));
+  box-shadow: 0 28px 86px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.spb-250k-home .spb-250k-product-stage::after,
+.spb-250k-pro .spb-250k-pro-hero::before {
+  opacity: .68;
+}
+
+.spb-250k-alert-card {
+  min-height: 382px;
+}
+
+.spb-250k-alert-meta span {
+  min-width: 150px;
+}
+
+.spb-250k-flow-line article,
+.spb-250k-upgrade-list article,
+.spb-dashboard-preview .spb-card {
+  background: rgba(255, 255, 255, .035);
+}
+
+.spb-250k-price-card {
+  min-height: 450px;
+  align-content: space-between;
+}
+
+.spb-250k-price-card > strong {
+  margin-top: 20px;
+  font-size: clamp(3.35rem, 5.2vw, 4.35rem);
+}
+
+.spb-250k-price-card ul {
+  margin: 24px 0;
+}
+
+.spb-250k-upgrade-list article {
+  grid-template-columns: 42px minmax(190px, .72fr) minmax(0, 1fr);
+  padding: 20px;
+}
+
+.spb-dashboard-preview .spb-metric-grid {
+  gap: 16px;
+}
+
+.spb-dashboard-preview .spb-panel-title {
+  align-items: flex-start;
+}
+
+.spb-dashboard-preview .spb-project-list article {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+@media (max-width: 920px) {
+  .spb-250k-upgrade-list article {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .spb-250k-upgrade-list article p {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .spb-250k-home .spb-250k-product-stage {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .spb-250k-alert-meta span {
+    min-width: 0;
+    width: calc(50% - 4px);
+  }
+
+  .spb-250k-alert-meta span:last-child {
+    width: 100%;
+  }
+
+  .spb-250k-upgrade-list article,
+  .spb-250k-upgrade-list article p {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+
+  .spb-dashboard-preview .spb-project-list article {
+    grid-template-columns: 1fr;
+  }
+}

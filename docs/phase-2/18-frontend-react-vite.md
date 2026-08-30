@@ -161,6 +161,10 @@ A paleta React passa a favorecer preto/quase preto, chumbo, azul profundo/intens
 ## SPB-250K — redesign estrutural premium
 
 A SPB-250K substitui a lógica de micro-ajustes da Home/ProPreview por uma estrutura React mais editorial: hero com texto respirado, painel de produto como peça central, fluxo menos rígido, planos com hierarquia mais premium e ProPreview como continuidade natural da Home. O azul fica concentrado em CTA, glow e pequenos estados visuais, sobre fundo quase preto; nenhuma rota Jinja real, backend, deploy, Telegram, banco ou `app/static/dist/` versionado foi alterado.
+## SPB-250K-C — copy e refinamento visual
+
+A SPB-250K-C revisa a copy exposta da Home, Pro e Painel React para remover linguagem interna de validacao, preview, backend ou migracao. A Home passa a falar de cadastro de palavras-chave, alertas compativeis e decisao assistida; o Pro passa a ter FAQ comercial segura; o Painel evita receita/conversao inventadas e usa indicadores de monitoramento. O refinamento visual reduz massas azuis, aumenta respiro dos cards e preserva /pro Jinja, backend, deploy, Telegram, banco e pp/static/dist/ nao versionado.
+
 ## Proximo passo sugerido
 
 Depois da revisao remota do SPB-250E, executar um deploy gate proprio com `-BuildReactDist` para validar `/ui-preview` em producao. So entao escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.
