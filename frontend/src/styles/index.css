@@ -1221,3 +1221,160 @@ body {
     font-size: 2.05rem;
   }
 }
+
+/* =======================
+   SPB-250J B.2 — compact mobile polish
+   ======================= */
+@media (max-width: 640px) {
+  .spb-preview-page,
+  .spb-preview-page--landing {
+    gap: 30px;
+    padding-top: 18px;
+  }
+
+  .spb-landing-hero,
+  .spb-pro-hero--premium {
+    align-items: start;
+    gap: 18px;
+  }
+
+  .spb-preview-page--landing .spb-hero-copy h1,
+  .spb-hero-copy h1,
+  .spb-pro-hero h1 {
+    max-width: 100%;
+    font-size: 2rem;
+    line-height: 1.05;
+    margin-bottom: 12px;
+  }
+
+  .spb-hero-copy > p:last-of-type,
+  .spb-pro-hero p,
+  .spb-dashboard-hero p {
+    font-size: .96rem;
+    line-height: 1.55;
+  }
+
+  .spb-hero-actions {
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .spb-trust-strip {
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .spb-trust-strip span {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: .72rem;
+  }
+
+  .spb-live-board {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .spb-live-board__alert,
+  .spb-live-board__signal {
+    grid-column: 1 / -1;
+  }
+
+  .spb-live-board .spb-card,
+  .spb-preview-page--landing .spb-card {
+    padding: 14px;
+  }
+
+  .spb-alert-preview,
+  .spb-preview-page--landing .spb-alert-preview {
+    min-height: 0;
+  }
+
+  .spb-alert-preview h2,
+  .spb-preview-page--landing .spb-alert-preview h2 {
+    max-width: none;
+    margin: 8px 0;
+    font-size: .96rem;
+  }
+
+  .spb-alert-preview dl,
+  .spb-preview-page--landing .spb-alert-preview dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 10px 0 12px;
+  }
+
+  .spb-alert-preview dl div {
+    display: block;
+    padding: 8px;
+    border: 1px solid rgba(148, 163, 184, .1);
+    border-radius: 8px;
+    background: rgba(248, 250, 252, .035);
+  }
+
+  .spb-alert-preview dt,
+  .spb-alert-preview dd {
+    font-size: .76rem;
+  }
+
+  .spb-live-board__keyword strong,
+  .spb-live-board__limit strong,
+  .spb-live-board__signal strong {
+    margin: 6px 0 4px;
+    font-size: 1.08rem;
+  }
+
+  .spb-live-board__keyword p,
+  .spb-live-board__limit p {
+    display: none;
+  }
+
+  .spb-live-board__signal p {
+    font-size: .86rem;
+    line-height: 1.45;
+  }
+
+  .spb-flow-card {
+    min-height: 132px;
+  }
+
+  .spb-pro-hero--premium {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .spb-price-focus--premium {
+    min-height: 0;
+    align-content: start;
+  }
+
+  .spb-price-focus--premium strong,
+  .spb-plan-card__top strong,
+  .spb-price-focus strong {
+    font-size: 2.2rem;
+  }
+
+  .spb-price-focus--premium ul {
+    gap: 7px;
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  .spb-preview-page--landing .spb-hero-copy h1,
+  .spb-hero-copy h1,
+  .spb-pro-hero h1 {
+    font-size: 1.82rem;
+  }
+
+  .spb-alert-preview dl,
+  .spb-preview-page--landing .spb-alert-preview dl {
+    grid-template-columns: 1fr;
+  }
+
+  .spb-flow-card {
+    min-height: 116px;
+  }
+}
