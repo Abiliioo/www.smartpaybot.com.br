@@ -11,18 +11,19 @@ type ProPreviewProps = {
 
 export function ProPreview({ onNavigate }: ProPreviewProps) {
   return (
-    <main className="spb-preview-page spb-pro-preview">
-      <section className="spb-pro-hero spb-pro-hero--premium">
-        <div>
+    <main className="spb-preview-page spb-pro-preview spb-250k-pro">
+      <section className="spb-250k-pro-hero">
+        <div className="spb-250k-pro-copy">
           <p className="spb-kicker">SmartPayBot Pro</p>
-          <h1>Mais keywords, mais alertas, menos cortes no monitoramento.</h1>
-          <p>O Pro remove os limites do Free para quem acompanha oportunidades todos os dias.</p>
+          <h1>Mais cobertura para quem já transformou alerta em rotina.</h1>
+          <p>O Pro remove os limites do Free para acompanhar mais keywords e receber alertas sem corte diário artificial.</p>
           <div className="spb-hero-actions">
             <Button>Quero o Pro</Button>
             <Button variant="secondary" onClick={() => onNavigate('landing')}>Voltar para a Home</Button>
           </div>
         </div>
-        <Card tone="accent" className="spb-price-focus spb-price-focus--premium">
+
+        <Card tone="accent" className="spb-250k-price-card">
           <span>Pro</span>
           <strong>R$ 47</strong>
           <small>por mês</small>
@@ -31,13 +32,13 @@ export function ProPreview({ onNavigate }: ProPreviewProps) {
             <li>Alertas ilimitados</li>
             <li>Suporte via WhatsApp</li>
           </ul>
-          <Button>Quero o Pro</Button>
+          <Button>Fazer upgrade</Button>
         </Card>
       </section>
 
-      <section>
-        <SectionHeader title="Free vs Pro" copy="Comparação objetiva para decidir quando os limites começam a atrapalhar." />
-        <div className="spb-plan-grid">
+      <section className="spb-250k-compare-section">
+        <SectionHeader title="Free vs Pro" copy="A diferença aparece quando monitorar oportunidades deixa de ser teste e vira rotina." />
+        <div className="spb-plan-grid spb-250k-plan-grid">
           <PlanCard
             name="Free"
             price="R$ 0"
@@ -57,27 +58,31 @@ export function ProPreview({ onNavigate }: ProPreviewProps) {
         </div>
       </section>
 
-      <section>
-        <SectionHeader title="Quando faz sentido assinar" copy="Upgrade como continuidade do uso, não como promessa de resultado." />
-        <div className="spb-three-grid">
-          <Card><h3>Você monitora mais de um serviço</h3><p>Cadastre várias especialidades sem escolher qual área fica de fora.</p></Card>
-          <Card><h3>Os 10 alertas acabam cedo</h3><p>O Pro mantém o fluxo de alertas sem corte diário artificial.</p></Card>
-          <Card><h3>O produto virou rotina</h3><p>Suporte direto ajuda quando Telegram, keywords ou operação precisam de ajuste.</p></Card>
+      <section className="spb-250k-upgrade-section">
+        <Card tone="quiet" className="spb-250k-upgrade-copy">
+          <span className="spb-mini-label">Quando faz sentido</span>
+          <h2>Assine quando o limite estiver cortando seu monitoramento.</h2>
+          <p>Sem promessa de contratação: o ganho do Pro é ampliar cobertura e reduzir atrito para quem acompanha freelas com frequência.</p>
+        </Card>
+        <div className="spb-250k-upgrade-list">
+          <article><span>01</span><strong>Mais de um serviço</strong><p>Monitore especialidades diferentes sem deixar uma área de fora.</p></article>
+          <article><span>02</span><strong>Volume diário</strong><p>Continue recebendo alertas mesmo quando o Free chega ao limite.</p></article>
+          <article><span>03</span><strong>Operação contínua</strong><p>Use suporte direto quando Telegram, keywords ou rotina precisarem de ajuste.</p></article>
         </div>
       </section>
 
-      <section>
-        <SectionHeader title="Como ativa" copy="Um fluxo direto para sair do Free sem trocar de produto." />
-        <div className="spb-flow-grid spb-flow-grid--compact">
-          <Card tone="quiet" className="spb-flow-card"><span>01</span><h3>Peça o Pro</h3><p>O CTA abre o contato de upgrade preservado pelo fluxo atual.</p></Card>
-          <Card tone="quiet" className="spb-flow-card"><span>02</span><h3>Combine o Pix</h3><p>Pagamento e ativação seguem o processo operacional atual.</p></Card>
-          <Card tone="quiet" className="spb-flow-card"><span>03</span><h3>Use sem corte</h3><p>Keywords e alertas deixam de usar os limites do plano Free.</p></Card>
+      <section className="spb-250k-activation-section">
+        <SectionHeader title="Como ativa" copy="Um caminho curto para sair do Free sem trocar de produto." />
+        <div className="spb-250k-flow-line spb-250k-flow-line--three">
+          <article><span>01</span><h3>Peça o Pro</h3><p>O CTA mantém o fluxo atual de upgrade.</p></article>
+          <article><span>02</span><h3>Combine o Pix</h3><p>Pagamento e ativação seguem o processo operacional existente.</p></article>
+          <article><span>03</span><h3>Use sem corte</h3><p>Keywords e alertas deixam de usar os limites do Free.</p></article>
         </div>
       </section>
 
       <section>
         <SectionHeader title="Perguntas rápidas" />
-        <div className="spb-faq-grid">
+        <div className="spb-faq-grid spb-250k-faq-grid">
           {faqs.map(([question, answer]) => (
             <Card key={question} tone="quiet">
               <h3>{question}</h3>
@@ -87,8 +92,8 @@ export function ProPreview({ onNavigate }: ProPreviewProps) {
         </div>
       </section>
 
-      <section className="spb-final-cta">
-        <SectionHeader title="Pronto para operar sem limite?" copy="Sem promessa de contratação: o ganho é reduzir busca manual e ampliar cobertura de alertas." />
+      <section className="spb-final-cta spb-250k-final-cta">
+        <SectionHeader title="Pronto para operar sem limite?" copy="Amplie keywords e alertas mantendo a mesma rotina de monitoramento." />
         <div className="spb-hero-actions">
           <Button>Quero o Pro</Button>
           <Button variant="secondary" onClick={() => onNavigate('landing')}>Criar conta grátis</Button>

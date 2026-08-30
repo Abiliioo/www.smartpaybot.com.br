@@ -11,11 +11,11 @@ type LandingPreviewProps = {
 
 export function LandingPreview({ onNavigate, realLanding = false }: LandingPreviewProps) {
   return (
-    <main className={`spb-preview-page ${realLanding ? 'spb-preview-page--landing' : 'spb-preview-page--preview'}`}>
-      <section className="spb-hero-grid spb-landing-hero">
-        <div className="spb-hero-copy">
-          <p className="spb-kicker">Alertas de freelas direto no Telegram</p>
-          <h1>Alertas de freelas direto no Telegram, sem garimpo manual.</h1>
+    <main className={`spb-preview-page spb-250k-home ${realLanding ? 'spb-preview-page--landing' : 'spb-preview-page--preview'}`}>
+      <section className="spb-250k-hero" aria-labelledby="landing-title">
+        <div className="spb-250k-hero__copy">
+          <p className="spb-kicker">Monitoramento para freelancers</p>
+          <h1 id="landing-title">Alertas de freelas direto no Telegram, sem garimpo manual.</h1>
           <p>
             Configure palavras-chave, receba oportunidades relevantes e decida pelo dashboard quando fizer sentido.
           </p>
@@ -32,100 +32,85 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
               </>
             )}
           </div>
-          <div className="spb-trust-strip" aria-label="Garantias do produto">
+          <div className="spb-250k-trust" aria-label="Garantias do produto">
             <span>Produto independente</span>
             <span>Sem promessa de contratação</span>
             <span>Alertas por palavras-chave</span>
           </div>
         </div>
 
-        <div className="spb-live-board" aria-label="Fluxo visual do SmartPayBot">
-          <Card className="spb-alert-preview spb-live-board__alert">
-            <div className="spb-alert-preview__top">
+        <div className="spb-250k-product-stage" aria-label="Fluxo visual do SmartPayBot">
+          <Card className="spb-250k-alert-card">
+            <div className="spb-250k-card-topline">
               <span>Telegram conectado</span>
-              <strong>há 4 min</strong>
+              <strong>Novo alerta</strong>
             </div>
             <h2>Automação de planilha para controle de estoque</h2>
-            <dl>
-              <div><dt>Keyword</dt><dd>Excel</dd></div>
-              <div><dt>Propostas</dt><dd>3</dd></div>
-              <div><dt>Status</dt><dd>Novo alerta</dd></div>
-            </dl>
-            <Button variant="secondary" href={realLanding ? '/dashboard/' : undefined}>
+            <p>Projeto filtrado por keyword para você revisar com contexto antes de abrir a proposta.</p>
+            <div className="spb-250k-alert-meta" aria-label="Resumo do alerta">
+              <span><small>Keyword</small><strong>Excel</strong></span>
+              <span><small>Canal</small><strong>Telegram</strong></span>
+              <span><small>Ação</small><strong>Dashboard</strong></span>
+            </div>
+            <Button variant="secondary" href={realLanding ? '/dashboard/' : undefined} onClick={realLanding ? undefined : () => onNavigate('dashboard')}>
               Ver no dashboard
             </Button>
           </Card>
 
-          <Card tone="quiet" className="spb-live-board__keyword">
-            <span className="spb-mini-label">Keyword monitorada</span>
-            <strong>Excel</strong>
-            <p>Projeto filtrado antes de virar ruído na sua lista.</p>
-          </Card>
+          <div className="spb-250k-side-stack">
+            <Card tone="quiet" className="spb-250k-keyword-card">
+              <span className="spb-mini-label">Keyword monitorada</span>
+              <strong>Excel</strong>
+              <div className="spb-250k-signal-chart" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+            </Card>
 
-          <Card tone="quiet" className="spb-live-board__limit">
-            <span className="spb-mini-label">Plano atual</span>
-            <strong>Free</strong>
-            <p>3 keywords e 10 alertas por dia. Pro libera operação sem limite.</p>
-          </Card>
-
-          <Card tone="accent" className="spb-live-board__signal">
-            <span className="spb-mini-label">Dashboard</span>
-            <strong>Decisão rápida</strong>
-            <p>Abra só as oportunidades que combinam com seu foco.</p>
-          </Card>
+            <Card tone="accent" className="spb-250k-plan-card">
+              <span className="spb-mini-label">Plano atual</span>
+              <strong>Free</strong>
+              <p>3 keywords e 10 alertas por dia. Pro remove esses limites.</p>
+            </Card>
+          </div>
         </div>
       </section>
 
-      <section>
+      <section className="spb-250k-split-section">
         <SectionHeader
           eyebrow="Por que existe"
-          title="Menos garimpo manual, mais tempo para propor."
-          copy="Pare de revisar listas manualmente e receba só oportunidades ligadas às palavras-chave que você escolher."
+          title="Menos busca repetitiva, mais clareza para agir."
+          copy="O SmartPayBot organiza sinais recorrentes de oportunidade para você gastar energia na decisão, não no garimpo manual."
         />
-        <div className="spb-three-grid">
-          {[
-            {
-              title: 'Menos busca repetitiva',
-              copy: 'O bot monitora novas oportunidades e destaca projetos ligados às suas keywords.',
-            },
-            {
-              title: 'Mais velocidade para decidir',
-              copy: 'Você recebe o alerta com contexto suficiente para avaliar se vale abrir o projeto.',
-            },
-            {
-              title: 'Filtro mais claro',
-              copy: 'Use termos do seu trabalho para reduzir ruído e focar nos projetos mais compatíveis.',
-            },
-          ].map((item) => (
-            <Card key={item.title} tone="quiet">
-              <h3>{item.title}</h3>
-              <p>{item.copy}</p>
-            </Card>
-          ))}
+        <div className="spb-250k-editorial-card">
+          <Card tone="quiet"><h3>Foco por termos</h3><p>Você escolhe os serviços e nichos que quer acompanhar.</p></Card>
+          <Card tone="quiet"><h3>Alerta no canal certo</h3><p>O Telegram avisa sem exigir que você fique atualizando listas.</p></Card>
+          <Card tone="quiet"><h3>Decisão no dashboard</h3><p>O painel mantém contexto suficiente para priorizar com calma.</p></Card>
         </div>
       </section>
 
-      <section>
-        <SectionHeader title="Do termo monitorado à decisão" copy="Um fluxo simples para reduzir garimpo sem prometer resultado garantido." />
-        <div className="spb-flow-grid">
+      <section className="spb-250k-flow-section">
+        <SectionHeader title="Do termo monitorado à decisão" copy="Um fluxo simples, sem promessa de resultado garantido." />
+        <div className="spb-250k-flow-line">
           {[
-            ['01', 'Keyword', 'Você cadastra termos ligados ao seu trabalho.'],
-            ['02', 'Alerta', 'O Telegram avisa quando uma oportunidade combina.'],
-            ['03', 'Dashboard', 'Você organiza e revisa os projetos recebidos.'],
-            ['04', 'Decisão', 'Abra a proposta quando fizer sentido para sua rotina.'],
+            ['01', 'Keyword', 'Cadastre termos ligados ao seu trabalho.'],
+            ['02', 'Alerta', 'Receba a oportunidade quando ela combina.'],
+            ['03', 'Dashboard', 'Revise o contexto em um lugar só.'],
+            ['04', 'Decisão', 'Abra apenas quando fizer sentido.'],
           ].map(([step, title, copy]) => (
-            <Card key={step} tone="quiet" className="spb-flow-card">
+            <article key={step}>
               <span>{step}</span>
               <h3>{title}</h3>
               <p>{copy}</p>
-            </Card>
+            </article>
           ))}
         </div>
       </section>
 
-      <section>
-        <SectionHeader title="Planos" copy="Comece testando com limites. Faça upgrade quando quiser monitorar mais termos e receber mais alertas." />
-        <div className="spb-plan-grid">
+      <section className="spb-250k-plans-section">
+        <SectionHeader title="Comece leve. Expanda quando virar rotina." copy="Free valida o fluxo. Pro remove limites para quem monitora mais termos todos os dias." />
+        <div className="spb-plan-grid spb-250k-plan-grid">
           <PlanCard
             name="Free"
             price="R$ 0"
@@ -133,13 +118,14 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
             features={['3 keywords', '10 alertas por dia', 'Dashboard essencial']}
             cta="Começar grátis"
             href={realLanding ? '/auth/register' : undefined}
+            onClick={realLanding ? undefined : () => onNavigate('dashboard')}
           />
           <PlanCard
             name="Pro"
             price="R$ 47"
             caption="por mês"
             features={['Keywords ilimitadas', 'Alertas ilimitados', 'Mais flexibilidade para operar']}
-            cta="Ver upgrade"
+            cta="Conhecer Pro"
             featured
             href={realLanding ? '/pro' : undefined}
             onClick={realLanding ? undefined : () => onNavigate('pro')}
@@ -147,16 +133,20 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
         </div>
       </section>
 
-      <section>
-        <SectionHeader title="Credibilidade sem promessa vazia" copy="O SmartPayBot organiza sinais. A decisão e a proposta continuam sendo suas." />
-        <div className="spb-proof-grid">
-          <Card tone="quiet"><h3>Independente</h3><p>Produto sem vínculo oficial com plataformas de freelance.</p></Card>
-          <Card tone="quiet"><h3>Recorrente</h3><p>Criado para freelancers que acompanham oportunidades todos os dias.</p></Card>
-          <Card tone="quiet"><h3>Objetivo</h3><p>Alertas por palavras-chave, sem garantia de contratação ou posição na fila.</p></Card>
+      <section className="spb-250k-proof-section">
+        <Card tone="quiet" className="spb-250k-proof-main">
+          <span className="spb-mini-label">Credibilidade</span>
+          <h2>O produto organiza sinais. A proposta continua sendo sua.</h2>
+          <p>Sem vínculo oficial com plataformas, sem promessa de contratação e sem métrica inventada: só uma camada de monitoramento para reduzir trabalho repetitivo.</p>
+        </Card>
+        <div className="spb-250k-proof-list">
+          <span>Independente</span>
+          <span>Recorrente</span>
+          <span>Objetivo</span>
         </div>
       </section>
 
-      <section className="spb-final-cta">
+      <section className="spb-final-cta spb-250k-final-cta">
         <SectionHeader title="Comece pelo essencial" copy="Teste o Free, conecte seu Telegram e evolua para o Pro quando os limites começarem a pesar." />
         <div className="spb-hero-actions">
           <Button href={realLanding ? '/auth/register' : undefined} onClick={realLanding ? undefined : () => onNavigate('dashboard')}>Começar grátis</Button>

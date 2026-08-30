@@ -158,6 +158,9 @@ O header do preview nao depende de `/static/images/logo.svg` enquanto roda no Vi
 A SPB-250J aplica uma primeira camada premium ao design system React, ainda sem migrar a rota real `/pro` Jinja. A Home React passa a usar hero com composição bento viva, cards de alerta Telegram, keyword, dashboard e contexto Free/Pro. O ProPreview passa a conversar visualmente com a Home, focando upgrade natural, comparação Free vs Pro, ativação e FAQ segura.
 
 A paleta React passa a favorecer preto/quase preto, chumbo, azul profundo/intenso e verde apenas pontual. A copy preserva CTAs reais e evita métricas, depoimentos ou promessa de contratação. O build continua gerando `app/static/dist/`, que permanece ignorado pelo Git.
+## SPB-250K — redesign estrutural premium
+
+A SPB-250K substitui a lógica de micro-ajustes da Home/ProPreview por uma estrutura React mais editorial: hero com texto respirado, painel de produto como peça central, fluxo menos rígido, planos com hierarquia mais premium e ProPreview como continuidade natural da Home. O azul fica concentrado em CTA, glow e pequenos estados visuais, sobre fundo quase preto; nenhuma rota Jinja real, backend, deploy, Telegram, banco ou `app/static/dist/` versionado foi alterado.
 ## Proximo passo sugerido
 
 Depois da revisao remota do SPB-250E, executar um deploy gate proprio com `-BuildReactDist` para validar `/ui-preview` em producao. So entao escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.
