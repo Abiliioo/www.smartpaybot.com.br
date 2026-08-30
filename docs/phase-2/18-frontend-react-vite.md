@@ -169,6 +169,10 @@ A SPB-250K-C revisa a copy exposta da Home, Pro e Painel React para remover ling
 
 A SPB-250K-D aplica refinamento final em cima da SPB-250K-C: ProPreview passa a soar como pagina real de upgrade, Home mantém a promessa central com linguagem de produto e o Painel evita metricas financeiras ou promessas artificiais. Visualmente, o azul fica menos dominante, cards ganham mais respiro e a composição permanece premium/dark sem alterar backend, rotas Jinja, deploy ou pp/static/dist/ versionado.
 
+## SPB-250K-E — UX funcional do painel
+
+A SPB-250K-E reestrutura a experiência React com prioridade no Painel de oportunidades. O painel passa a responder rapidamente se o monitoramento está ativo, se o Telegram está conectado, quantos alertas do Free foram usados, quais oportunidades exigem atenção e qual é a próxima melhor ação. A Home passa a apresentar uma miniatura funcional desse uso, e o ProPreview passa a vender o upgrade a partir do momento em que o limite diário corta a rotina. O escopo continua restrito ao frontend React e documentação, sem alterar backend, rotas Jinja reais, deploy, Telegram, banco ou pp/static/dist/ versionado.
+
 ## Proximo passo sugerido
 
 Depois da revisao remota do SPB-250E, executar um deploy gate proprio com `-BuildReactDist` para validar `/ui-preview` em producao. So entao escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.

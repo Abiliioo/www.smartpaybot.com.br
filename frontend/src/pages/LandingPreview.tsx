@@ -2,6 +2,7 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { PlanCard } from '../components/PlanCard'
 import { SectionHeader } from '../components/SectionHeader'
+import { homeSignals } from '../api/mockData'
 import type { PreviewView } from '../types'
 
 type LandingPreviewProps = {
@@ -35,73 +36,59 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
           <div className="spb-250k-trust" aria-label="Garantias do produto">
             <span>Produto independente</span>
             <span>Sem promessa de contratação</span>
-            <span>Alertas por palavras-chave</span>
+            <span>Você decide quando abrir proposta</span>
           </div>
         </div>
 
-        <div className="spb-250k-product-stage" aria-label="Fluxo visual do SmartPayBot">
-          <Card className="spb-250k-alert-card">
+        <div className="spb-home-product" aria-label="Resumo visual do painel SmartPayBot">
+          <Card className="spb-home-product__main">
             <div className="spb-250k-card-topline">
-              <span>Telegram conectado</span>
-              <strong>Novo alerta</strong>
+              <span>Painel de oportunidades</span>
+              <strong>Monitoramento ativo</strong>
             </div>
-            <h2>Automação de planilha para controle de estoque</h2>
-            <p>Projeto filtrado pelos seus termos para você revisar com contexto antes de abrir a proposta.</p>
-            <div className="spb-250k-alert-meta" aria-label="Resumo do alerta">
-              <span><small>Termo</small><strong>Excel</strong></span>
-              <span><small>Canal</small><strong>Telegram</strong></span>
-              <span><small>Próximo passo</small><strong>Painel</strong></span>
+            <h2>4 oportunidades para revisar agora</h2>
+            <p>O alerta chega no Telegram. O painel mostra contexto, limite do plano e próximo passo antes de você abrir proposta.</p>
+            <div className="spb-home-signal-list">
+              {homeSignals.map(([label, value]) => (
+                <span key={label}><small>{label}</small><strong>{value}</strong></span>
+              ))}
             </div>
             <Button variant="secondary" href={realLanding ? '/dashboard/' : undefined} onClick={realLanding ? undefined : () => onNavigate('dashboard')}>
-              Ver no painel
+              Ver como funciona
             </Button>
           </Card>
 
-          <div className="spb-250k-side-stack">
-            <Card tone="quiet" className="spb-250k-keyword-card">
-              <span className="spb-mini-label">Palavra-chave monitorada</span>
-              <strong>Excel</strong>
-              <p>Você define os termos que quer acompanhar.</p>
-              <div className="spb-250k-signal-chart" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-            </Card>
-
-            <Card tone="accent" className="spb-250k-plan-card">
-              <span className="spb-mini-label">Plano atual</span>
-              <strong>Free</strong>
-              <p>3 palavras-chave e 10 alertas por dia. Pro remove esses limites.</p>
-            </Card>
-          </div>
+          <Card tone="quiet" className="spb-home-opportunity-card">
+            <span className="spb-mini-label">Alerta recebido</span>
+            <strong>Power BI</strong>
+            <p>Dashboard financeiro com poucas propostas e boa aderência.</p>
+          </Card>
         </div>
       </section>
 
       <section className="spb-250k-split-section">
         <SectionHeader
-          eyebrow="Por que existe"
-          title="Menos busca repetitiva, mais clareza para agir."
-          copy="O SmartPayBot organiza sinais recorrentes de oportunidade para você gastar energia na decisão, não no garimpo manual."
+          eyebrow="Como funciona"
+          title="Do termo monitorado à proposta certa."
+          copy="O fluxo foi pensado para tirar a busca repetitiva da rotina e deixar a decisão mais clara."
         />
-        <div className="spb-250k-editorial-card">
-          <Card tone="quiet"><h3>Foco por termos</h3><p>Você escolhe os serviços e nichos que quer acompanhar.</p></Card>
-          <Card tone="quiet"><h3>Alerta no canal certo</h3><p>O Telegram avisa sem exigir que você fique atualizando listas.</p></Card>
-          <Card tone="quiet"><h3>Decisão no painel</h3><p>O painel mantém contexto suficiente para priorizar com calma.</p></Card>
+        <div className="spb-250k-editorial-card spb-home-how-grid">
+          <Card tone="quiet"><h3>1. Cadastre palavras-chave</h3><p>Escolha serviços, nichos e ferramentas que combinam com seu trabalho.</p></Card>
+          <Card tone="quiet"><h3>2. Receba alertas</h3><p>O Telegram avisa quando aparece uma oportunidade compatível.</p></Card>
+          <Card tone="quiet"><h3>3. Revise no painel</h3><p>Veja limite, contexto e prioridade antes de decidir abrir proposta.</p></Card>
         </div>
       </section>
 
       <section className="spb-250k-flow-section">
-        <SectionHeader title="Do termo monitorado à decisão" copy="Um fluxo simples, sem promessa de resultado garantido." />
-        <div className="spb-250k-flow-line spb-250k-flow-line--calm">
+        <SectionHeader title="Por que usar" copy="Um produto simples para organizar oportunidades sem prometer resultado garantido." />
+        <div className="spb-250k-flow-line spb-250k-flow-line--calm spb-home-benefits">
           {[
-            ['01', 'Palavra-chave', 'Cadastre termos ligados ao seu trabalho.'],
-            ['02', 'Alerta', 'Receba a oportunidade quando ela combina.'],
-            ['03', 'Painel', 'Revise o contexto em um lugar só.'],
-            ['04', 'Decisão', 'Abra apenas quando fizer sentido.'],
-          ].map(([step, title, copy]) => (
-            <article key={step}>
-              <span>{step}</span>
+            ['Menos garimpo manual', 'Você não precisa ficar atualizando listas ao longo do dia.'],
+            ['Mais contexto', 'Cada alerta chega com sinais úteis para decidir com calma.'],
+            ['Limites claros', 'O Free mostra quando o uso está chegando ao corte diário.'],
+            ['Upgrade natural', 'O Pro faz sentido quando o monitoramento vira rotina.'],
+          ].map(([title, copy]) => (
+            <article key={title}>
               <h3>{title}</h3>
               <p>{copy}</p>
             </article>
@@ -110,12 +97,12 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
       </section>
 
       <section className="spb-250k-plans-section">
-        <SectionHeader title="Comece leve. Expanda quando virar rotina." copy="Free valida o fluxo. Pro remove limites para quem monitora mais termos todos os dias." />
+        <SectionHeader title="Comece leve. Expanda quando virar rotina." copy="Free testa o fluxo. Pro mantém os alertas chegando quando o limite diário começa a atrapalhar." />
         <div className="spb-plan-grid spb-250k-plan-grid">
           <PlanCard
             name="Free"
             price="R$ 0"
-            caption="para começar"
+            caption="para testar o fluxo"
             features={['3 palavras-chave', '10 alertas por dia', 'Painel essencial']}
             cta="Começar grátis"
             href={realLanding ? '/auth/register' : undefined}
@@ -125,7 +112,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
             name="Pro"
             price="R$ 47"
             caption="por mês"
-            features={['Palavras-chave ilimitadas', 'Alertas ilimitados', 'Mais flexibilidade para operar']}
+            features={['Palavras-chave ilimitadas', 'Alertas ilimitados', 'Suporte via WhatsApp']}
             cta="Conhecer Pro"
             featured
             href={realLanding ? '/pro' : undefined}
@@ -142,8 +129,8 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
         </Card>
         <div className="spb-250k-proof-list">
           <span>Independente</span>
-          <span>Recorrente</span>
           <span>Objetivo</span>
+          <span>Sem promessa exagerada</span>
         </div>
       </section>
 

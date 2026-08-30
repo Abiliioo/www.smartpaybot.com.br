@@ -2252,3 +2252,433 @@ body {
     min-height: 118px;
   }
 }
+
+/* SPB-250K-E - functional UX structure */
+.spb-home-product {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, .42fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .038), rgba(4, 7, 13, .68));
+  box-shadow: 0 30px 100px rgba(0, 0, 0, .44), inset 0 1px 0 rgba(255, 255, 255, .055);
+}
+
+.spb-home-product__main,
+.spb-home-opportunity-card {
+  min-height: 100%;
+}
+
+.spb-home-product__main {
+  padding: clamp(24px, 3vw, 34px);
+}
+
+.spb-home-product__main h2 {
+  max-width: 620px;
+  margin: 30px 0 12px;
+  color: var(--spb-text);
+  font-size: clamp(1.95rem, 3.2vw, 2.9rem);
+  line-height: 1.06;
+}
+
+.spb-home-product__main p,
+.spb-home-opportunity-card p {
+  color: var(--spb-text-soft);
+  line-height: 1.62;
+}
+
+.spb-home-signal-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0 24px;
+}
+
+.spb-home-signal-list span {
+  display: grid;
+  gap: 5px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .028);
+}
+
+.spb-home-signal-list small,
+.spb-home-opportunity-card .spb-mini-label {
+  color: var(--spb-muted);
+  font-size: .72rem;
+  font-weight: 780;
+}
+
+.spb-home-signal-list strong,
+.spb-home-opportunity-card > strong {
+  color: var(--spb-text);
+}
+
+.spb-home-opportunity-card {
+  display: grid;
+  align-content: end;
+  gap: 12px;
+  padding: 24px;
+}
+
+.spb-home-opportunity-card > strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.spb-home-how-grid .spb-card:first-child {
+  min-height: 230px;
+}
+
+.spb-home-benefits article span {
+  display: none;
+}
+
+.spb-dashboard-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.spb-dashboard-command > div:first-child,
+.spb-dashboard-command__status {
+  padding: clamp(24px, 3vw, 34px);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .04), rgba(5, 8, 15, .72));
+  box-shadow: 0 24px 78px rgba(0, 0, 0, .36), inset 0 1px 0 rgba(255, 255, 255, .055);
+}
+
+.spb-dashboard-command h1 {
+  max-width: 700px;
+  margin: 10px 0 12px;
+  color: var(--spb-text);
+  font-size: clamp(2.25rem, 4vw, 4rem);
+  line-height: 1.04;
+}
+
+.spb-dashboard-command p {
+  max-width: 680px;
+  margin: 0;
+  color: var(--spb-text-soft);
+  line-height: 1.65;
+}
+
+.spb-dashboard-command__status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-content: center;
+}
+
+.spb-dashboard-command__status span {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .026);
+}
+
+.spb-dashboard-command__status strong {
+  color: var(--spb-muted);
+  font-size: .72rem;
+  text-transform: uppercase;
+}
+
+.spb-dashboard-command__status small {
+  color: var(--spb-text);
+  font-size: .96rem;
+  font-weight: 800;
+}
+
+.spb-dashboard-command__status .spb-button {
+  grid-column: 1 / -1;
+}
+
+.spb-dashboard-status-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.spb-dashboard-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.spb-opportunity-board {
+  padding: clamp(20px, 2.6vw, 30px);
+}
+
+.spb-opportunity-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.spb-opportunity-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .026);
+}
+
+.spb-opportunity-item__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.spb-opportunity-item h4 {
+  margin: 0 0 7px;
+  color: var(--spb-text);
+  font-size: 1.05rem;
+}
+
+.spb-opportunity-item p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--spb-text-soft);
+  line-height: 1.55;
+}
+
+.spb-opportunity-tags,
+.spb-opportunity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.spb-opportunity-tags span,
+.spb-opportunity-tags strong {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .03);
+  color: var(--spb-text-soft);
+  font-size: .76rem;
+  font-weight: 760;
+}
+
+.spb-opportunity-tags strong {
+  border-color: rgba(74, 222, 128, .2);
+  color: #baf7cf;
+  background: rgba(74, 222, 128, .07);
+}
+
+.spb-opportunity-actions {
+  justify-content: flex-end;
+  min-width: 210px;
+}
+
+.spb-opportunity-actions .spb-button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: .78rem;
+}
+
+.spb-dashboard-sidebar {
+  display: grid;
+  gap: 14px;
+}
+
+.spb-limit-card,
+.spb-keyword-panel,
+.spb-next-action-card {
+  padding: 22px;
+}
+
+.spb-limit-bar {
+  height: 10px;
+  margin: 20px 0 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.spb-limit-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(245, 158, 11, .95), rgba(20, 140, 255, .75));
+}
+
+.spb-limit-card .spb-button,
+.spb-keyword-panel .spb-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.spb-next-action-card > span {
+  color: var(--spb-muted);
+  font-size: .75rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.spb-next-action-card h3 {
+  margin: 10px 0 8px;
+  color: var(--spb-text);
+}
+
+.spb-pro-upgrade-page {
+  gap: clamp(48px, 6vw, 80px);
+}
+
+.spb-pro-upgrade-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 380px);
+  gap: 28px;
+  align-items: center;
+}
+
+.spb-pro-upgrade-hero .spb-250k-pro-copy {
+  padding: clamp(28px, 4vw, 46px);
+}
+
+.spb-pro-upgrade-hero .spb-250k-pro-copy h1 {
+  max-width: 760px;
+  font-size: clamp(2.35rem, 4.1vw, 4rem);
+}
+
+.spb-pro-price-summary {
+  display: grid;
+  gap: 22px;
+  min-height: 0;
+  padding: 26px;
+}
+
+.spb-pro-price-summary > div {
+  display: grid;
+  gap: 6px;
+}
+
+.spb-pro-price-summary span {
+  color: var(--spb-muted);
+  font-size: .76rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.spb-pro-price-summary strong {
+  color: var(--spb-text);
+  font-size: clamp(3rem, 4.8vw, 4.1rem);
+  line-height: 1;
+}
+
+.spb-pro-price-summary small {
+  color: var(--spb-text-soft);
+}
+
+.spb-pro-price-summary ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--spb-text-soft);
+}
+
+.spb-pro-price-summary li::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 10px;
+  border-radius: 999px;
+  background: var(--spb-green);
+}
+
+.spb-pro-change-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.spb-pro-change-grid .spb-card {
+  min-height: 190px;
+}
+
+.spb-pro-change-grid h3 {
+  margin-top: 0;
+}
+
+.spb-pro-plan-section .spb-plan-grid {
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+}
+
+.spb-button--secondary,
+.spb-button--ghost {
+  background: rgba(255, 255, 255, .04);
+  border-color: rgba(255, 255, 255, .11);
+  box-shadow: none;
+}
+
+.spb-button--secondary:hover,
+.spb-button--ghost:hover {
+  border-color: rgba(255, 255, 255, .2);
+  background: rgba(255, 255, 255, .065);
+}
+
+@media (max-width: 1080px) {
+  .spb-dashboard-command,
+  .spb-dashboard-workspace,
+  .spb-pro-upgrade-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .spb-dashboard-status-grid,
+  .spb-pro-change-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .spb-home-product,
+  .spb-home-signal-list,
+  .spb-dashboard-command__status,
+  .spb-dashboard-status-grid,
+  .spb-pro-change-grid,
+  .spb-pro-plan-section .spb-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .spb-dashboard-command > div:first-child,
+  .spb-dashboard-command__status,
+  .spb-home-product {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .spb-dashboard-command h1,
+  .spb-pro-upgrade-hero .spb-250k-pro-copy h1 {
+    font-size: 2rem;
+  }
+
+  .spb-opportunity-item {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .spb-opportunity-actions {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .spb-opportunity-actions .spb-button {
+    flex: 1 1 88px;
+  }
+}

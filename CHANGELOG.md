@@ -27,6 +27,8 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Changed
 
+- Reestruturação funcional de UX React (SPB-250K-E): transforma o Painel de oportunidades no centro da experiência, com status de monitoramento, Telegram, limite Free, lista acionável de oportunidades, próxima melhor ação e Pro como upgrade natural. Home passa a vender o painel funcionando e Pro fica mais compacto/persuasivo, sem backend, Jinja, deploy, Telegram, banco ou dist versionado.
+
 - Refino final de direção visual e copy React (SPB-250K-D): ajusta Home, Pro e Painel para linguagem mais vendável, reduz aparência artificial, suaviza o azul para acento/glow e reforça cards maiores com mais respiro, sem alterar backend, Jinja, deploy, Telegram, banco ou dist versionado.
 
 - Refinamento de copy e visual premium React (SPB-250K-C): remove linguagem interna visivel nas telas React, torna Home/Pro/Painel mais orientados a produto real, substitui FAQ tecnica do Pro por perguntas comerciais seguras e reduz sinais artificiais no Dashboard sem alterar backend, Jinja, deploy, Telegram, banco ou dist versionado.
