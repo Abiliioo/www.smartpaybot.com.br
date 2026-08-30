@@ -163,15 +163,19 @@ A paleta React passa a favorecer preto/quase preto, chumbo, azul profundo/intens
 A SPB-250K substitui a lógica de micro-ajustes da Home/ProPreview por uma estrutura React mais editorial: hero com texto respirado, painel de produto como peça central, fluxo menos rígido, planos com hierarquia mais premium e ProPreview como continuidade natural da Home. O azul fica concentrado em CTA, glow e pequenos estados visuais, sobre fundo quase preto; nenhuma rota Jinja real, backend, deploy, Telegram, banco ou `app/static/dist/` versionado foi alterado.
 ## SPB-250K-C — copy e refinamento visual
 
-A SPB-250K-C revisa a copy exposta da Home, Pro e Painel React para remover linguagem interna de validacao, preview, backend ou migracao. A Home passa a falar de cadastro de palavras-chave, alertas compativeis e decisao assistida; o Pro passa a ter FAQ comercial segura; o Painel evita receita/conversao inventadas e usa indicadores de monitoramento. O refinamento visual reduz massas azuis, aumenta respiro dos cards e preserva /pro Jinja, backend, deploy, Telegram, banco e pp/static/dist/ nao versionado.
+A SPB-250K-C revisa a copy exposta da Home, Pro e Painel React para remover linguagem interna de validacao, preview, backend ou migracao. A Home passa a falar de cadastro de palavras-chave, alertas compativeis e decisao assistida; o Pro passa a ter FAQ comercial segura; o Painel evita receita/conversao inventadas e usa indicadores de monitoramento. O refinamento visual reduz massas azuis, aumenta respiro dos cards e preserva /pro Jinja, backend, deploy, Telegram, banco e app/static/dist/ nao versionado.
 
 ## SPB-250K-D — direção final de copy e visual
 
-A SPB-250K-D aplica refinamento final em cima da SPB-250K-C: ProPreview passa a soar como pagina real de upgrade, Home mantém a promessa central com linguagem de produto e o Painel evita metricas financeiras ou promessas artificiais. Visualmente, o azul fica menos dominante, cards ganham mais respiro e a composição permanece premium/dark sem alterar backend, rotas Jinja, deploy ou pp/static/dist/ versionado.
+A SPB-250K-D aplica refinamento final em cima da SPB-250K-C: ProPreview passa a soar como pagina real de upgrade, Home mantém a promessa central com linguagem de produto e o Painel evita metricas financeiras ou promessas artificiais. Visualmente, o azul fica menos dominante, cards ganham mais respiro e a composição permanece premium/dark sem alterar backend, rotas Jinja, deploy ou app/static/dist/ versionado.
 
 ## SPB-250K-E — UX funcional do painel
 
-A SPB-250K-E reestrutura a experiência React com prioridade no Painel de oportunidades. O painel passa a responder rapidamente se o monitoramento está ativo, se o Telegram está conectado, quantos alertas do Free foram usados, quais oportunidades exigem atenção e qual é a próxima melhor ação. A Home passa a apresentar uma miniatura funcional desse uso, e o ProPreview passa a vender o upgrade a partir do momento em que o limite diário corta a rotina. O escopo continua restrito ao frontend React e documentação, sem alterar backend, rotas Jinja reais, deploy, Telegram, banco ou pp/static/dist/ versionado.
+A SPB-250K-E reestrutura a experiência React com prioridade no Painel de oportunidades. O painel passa a responder rapidamente se o monitoramento está ativo, se o Telegram está conectado, quantos alertas do Free foram usados, quais oportunidades exigem atenção e qual é a próxima melhor ação. A Home passa a apresentar uma miniatura funcional desse uso, e o ProPreview passa a vender o upgrade a partir do momento em que o limite diário corta a rotina. O escopo continua restrito ao frontend React e documentação, sem alterar backend, rotas Jinja reais, deploy, Telegram, banco ou app/static/dist/ versionado.
+
+## SPB-250K-F — sistema de botões e CTAs
+
+A SPB-250K-F preserva a estrutura funcional da SPB-250K-E e atua apenas no polish visual dos CTAs. Os botões primários deixam de usar azul forte como preenchimento dominante e passam a usar base escura com borda/acento azul discreto; secundários e microações ficam neutros, e o Painel mantém ações claras sem roubar a hierarquia do conteúdo. O escopo segue restrito ao frontend React e documentação, sem backend, rotas Jinja, deploy ou app/static/dist/ versionado.
 
 ## Proximo passo sugerido
 

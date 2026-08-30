@@ -27,13 +27,15 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Changed
 
+- Polimento do sistema de botões React (SPB-250K-F): suaviza CTAs primários para fundo escuro com acento azul discreto, torna botões secundários/ghost mais neutros, reduz competição visual das microações do Painel e remove azul dominante de barras/cards de upgrade, sem alterar estrutura funcional, backend, Jinja, deploy, Telegram, banco ou dist versionado.
+
 - Reestruturação funcional de UX React (SPB-250K-E): transforma o Painel de oportunidades no centro da experiência, com status de monitoramento, Telegram, limite Free, lista acionável de oportunidades, próxima melhor ação e Pro como upgrade natural. Home passa a vender o painel funcionando e Pro fica mais compacto/persuasivo, sem backend, Jinja, deploy, Telegram, banco ou dist versionado.
 
 - Refino final de direção visual e copy React (SPB-250K-D): ajusta Home, Pro e Painel para linguagem mais vendável, reduz aparência artificial, suaviza o azul para acento/glow e reforça cards maiores com mais respiro, sem alterar backend, Jinja, deploy, Telegram, banco ou dist versionado.
 
 - Refinamento de copy e visual premium React (SPB-250K-C): remove linguagem interna visivel nas telas React, torna Home/Pro/Painel mais orientados a produto real, substitui FAQ tecnica do Pro por perguntas comerciais seguras e reduz sinais artificiais no Dashboard sem alterar backend, Jinja, deploy, Telegram, banco ou dist versionado.
 
-- Redesign estrutural premium React (SPB-250K): reconstrói Home e ProPreview com hero editorial, painel central de produto, cards menos repetitivos, azul usado como acento/glow localizado e hierarquia Free/Pro mais sofisticada. Preserva /pro Jinja, backend, deploy, Telegram, banco e pp/static/dist/ não versionado.
+- Redesign estrutural premium React (SPB-250K): reconstrói Home e ProPreview com hero editorial, painel central de produto, cards menos repetitivos, azul usado como acento/glow localizado e hierarquia Free/Pro mais sofisticada. Preserva /pro Jinja, backend, deploy, Telegram, banco e app/static/dist/ não versionado.
 
 - `CLAUDE.md`, `rules/seguranca.md` e templates em `prompts/` passaram a referenciar a governanca local de `AGENTS.md`, corrigindo o estado operacional atual de banco para SQLite e removendo orientacoes obsoletas de webhook/pre-deploy incompativeis com a producao atual (Issue #1).
 - Runner local do coletor (`run_collector.bat`) passou a registrar inicio e fim de cada ciclo com timestamp e `EXIT_CODE`, com saida do Python forcada em UTF-8.
