@@ -165,6 +165,10 @@ A SPB-250K substitui a lógica de micro-ajustes da Home/ProPreview por uma estru
 
 A SPB-250K-C revisa a copy exposta da Home, Pro e Painel React para remover linguagem interna de validacao, preview, backend ou migracao. A Home passa a falar de cadastro de palavras-chave, alertas compativeis e decisao assistida; o Pro passa a ter FAQ comercial segura; o Painel evita receita/conversao inventadas e usa indicadores de monitoramento. O refinamento visual reduz massas azuis, aumenta respiro dos cards e preserva /pro Jinja, backend, deploy, Telegram, banco e pp/static/dist/ nao versionado.
 
+## SPB-250K-D — direção final de copy e visual
+
+A SPB-250K-D aplica refinamento final em cima da SPB-250K-C: ProPreview passa a soar como pagina real de upgrade, Home mantém a promessa central com linguagem de produto e o Painel evita metricas financeiras ou promessas artificiais. Visualmente, o azul fica menos dominante, cards ganham mais respiro e a composição permanece premium/dark sem alterar backend, rotas Jinja, deploy ou pp/static/dist/ versionado.
+
 ## Proximo passo sugerido
 
 Depois da revisao remota do SPB-250E, executar um deploy gate proprio com `-BuildReactDist` para validar `/ui-preview` em producao. So entao escolher a primeira rota real a migrar, ainda mantendo Jinja como rollback. Nao migrar dashboard antes de existir API/contratos suficientes para usuario atual, plano, Telegram, keywords, alertas e projetos.

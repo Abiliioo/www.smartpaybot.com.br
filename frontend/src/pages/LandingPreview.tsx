@@ -61,6 +61,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
             <Card tone="quiet" className="spb-250k-keyword-card">
               <span className="spb-mini-label">Palavra-chave monitorada</span>
               <strong>Excel</strong>
+              <p>Você define os termos que quer acompanhar.</p>
               <div className="spb-250k-signal-chart" aria-hidden="true">
                 <span />
                 <span />
@@ -92,7 +93,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
 
       <section className="spb-250k-flow-section">
         <SectionHeader title="Do termo monitorado à decisão" copy="Um fluxo simples, sem promessa de resultado garantido." />
-        <div className="spb-250k-flow-line">
+        <div className="spb-250k-flow-line spb-250k-flow-line--calm">
           {[
             ['01', 'Palavra-chave', 'Cadastre termos ligados ao seu trabalho.'],
             ['02', 'Alerta', 'Receba a oportunidade quando ela combina.'],
@@ -136,8 +137,8 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
       <section className="spb-250k-proof-section">
         <Card tone="quiet" className="spb-250k-proof-main">
           <span className="spb-mini-label">Credibilidade</span>
-          <h2>O SmartPayBot organiza sinais. A decisão continua sendo sua.</h2>
-          <p>Sem vínculo oficial com plataformas e sem promessa de contratação: o produto reduz trabalho repetitivo para você avaliar cada oportunidade com mais calma.</p>
+          <h2>Organiza sinais. A decisão continua sendo sua.</h2>
+          <p>O SmartPayBot ajuda a reduzir busca manual e manter oportunidades em um só lugar, sem prometer contratação ou resultado garantido.</p>
         </Card>
         <div className="spb-250k-proof-list">
           <span>Independente</span>
@@ -147,7 +148,7 @@ export function LandingPreview({ onNavigate, realLanding = false }: LandingPrevi
       </section>
 
       <section className="spb-final-cta spb-250k-final-cta">
-        <SectionHeader title="Comece pelo essencial" copy="Teste o Free, conecte seu Telegram e evolua para o Pro quando os limites começarem a pesar." />
+        <SectionHeader title="Comece pelo essencial" copy="Teste o Free, conecte seu Telegram e evolua quando os limites começarem a atrapalhar." />
         <div className="spb-hero-actions">
           <Button href={realLanding ? '/auth/register' : undefined} onClick={realLanding ? undefined : () => onNavigate('dashboard')}>Começar grátis</Button>
           <Button variant="secondary" href={realLanding ? '/pro' : undefined} onClick={realLanding ? undefined : () => onNavigate('pro')}>Conhecer Pro</Button>

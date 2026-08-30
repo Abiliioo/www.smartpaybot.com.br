@@ -1,7 +1,7 @@
 export const metrics = [
-  { label: 'Projetos recebidos', value: '12', detail: 'hoje', tone: 'blue' as const },
-  { label: 'Oportunidades filtradas', value: '84', detail: 'nos ultimos 7 dias', tone: 'green' as const },
-  { label: 'Alertas revisados', value: '31', detail: 'marcados no painel', tone: 'amber' as const },
+  { label: 'Telegram conectado', value: 'OK', detail: 'alertas no canal escolhido', tone: 'green' as const },
+  { label: 'Projetos recebidos', value: 'Hoje', detail: 'lista pronta para revisão', tone: 'blue' as const },
+  { label: 'Palavras-chave monitoradas', value: '5', detail: '3 ativas no Free', tone: 'amber' as const },
   { label: 'Limite do plano', value: '10/dia', detail: 'Free em uso', tone: 'neutral' as const },
 ]
 
@@ -14,7 +14,7 @@ export const recentProjects = [
 ]
 
 export const faqs = [
-  ['Preciso assinar para começar?', 'Nao. Você pode testar o Free com limites e fazer upgrade quando fizer sentido.'],
+  ['Preciso assinar para começar?', 'Nao. Você pode usar o Free com limites e fazer upgrade quando fizer sentido.'],
   ['O Pro garante que vou fechar projetos?', 'Nao. O Pro amplia sua cobertura de monitoramento, mas a proposta e a negociacao continuam sendo suas.'],
   ['Como funciona o pagamento?', 'O upgrade é combinado pelo canal de atendimento atual, com ativacao apos confirmacao.'],
   ['Posso cancelar?', 'Sim. O plano pode ser interrompido conforme o acordo de atendimento.'],

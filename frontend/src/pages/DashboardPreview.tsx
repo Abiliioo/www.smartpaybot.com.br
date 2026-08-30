@@ -13,7 +13,7 @@ type DashboardPreviewProps = {
 
 export function DashboardPreview({ onNavigate }: DashboardPreviewProps) {
   return (
-    <main className="spb-preview-page spb-dashboard-preview">
+    <main className="spb-preview-page spb-dashboard-preview spb-dashboard-preview--premium">
       <section className="spb-dashboard-hero">
         <div>
           <Pill tone="green">Monitoramento ativo</Pill>
