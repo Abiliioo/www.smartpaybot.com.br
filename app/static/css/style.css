@@ -991,3 +991,108 @@ input[type="text"], input[type="email"], input[type="password"]{
   .pro-cta-box { padding: 24px 20px; border-radius: 18px }
   .pro-support-msg { padding: 22px 18px }
 }
+
+/* =======================
+   25) DASHBOARD REAL — SPB-251B
+   ======================= */
+.dashboard-shell { padding: 18px 0 4px }
+.dashboard-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 18px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(14,22,40,.96), rgba(17,31,56,.96));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.dashboard-hero__title { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: 0 }
+.dashboard-hero__sub { color: var(--muted); margin: 0 0 12px; font-size: .92rem }
+.dashboard-hero__badges { display: flex; gap: 8px; flex-wrap: wrap }
+.dashboard-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.status-card {
+  min-height: 122px;
+  background: #0e1628;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 15px;
+}
+.status-card__label {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.status-card__value {
+  margin-top: 7px;
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 850;
+  color: var(--ink);
+}
+.status-card p { margin: 10px 0 0; color: var(--muted); font-size: .82rem; line-height: 1.4 }
+.dashboard-grid { align-items: start }
+.section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px }
+.section-head h3 { margin: 0 0 3px; padding: 0; border: 0 }
+.section-head .help { margin: 0 }
+.usage-card .progress-track,
+.keyword-progress { height: 10px; margin: 8px 0 10px }
+.usage-message { margin: 10px 0 0; font-size: .88rem; line-height: 1.45; color: var(--muted) }
+.usage-message--ok { color: #86efac }
+.usage-message--warn { color: #fbbf24 }
+.usage-message--danger { color: #fca5a5 }
+.usage-message--muted { color: var(--muted) }
+.usage-count--muted { color: var(--muted) }
+.opportunity-list { display: flex; flex-direction: column; gap: 10px }
+.opportunity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: #0e1628;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.opportunity-item__body { min-width: 0 }
+.opportunity-item__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--ink) }
+.opportunity-item__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; color: var(--muted); font-size: .78rem }
+.opportunity-item__meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.08);
+}
+.next-action-card { border-color: rgba(96,165,250,.35); background: linear-gradient(180deg, #10203c 0%, #111b2e 100%) }
+.next-action-card__title { margin: 0 0 6px; font-weight: 800; font-size: 1.08rem; color: #dbeafe }
+.upgrade-cta--contextual { background: linear-gradient(135deg, #10203c 0%, #142b4f 100%); border-color: rgba(96,165,250,.28) }
+.dashboard-empty { padding: 22px 12px; text-align: left }
+.dashboard-empty .empty-state__desc { max-width: 420px }
+.compact-results-card .kpi-mini { flex-direction: row; justify-content: space-between; gap: 16px }
+@media (max-width: 900px) {
+  .dashboard-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .dashboard-hero { flex-direction: column }
+  .dashboard-hero > .btn { align-self: flex-start }
+}
+@media (max-width: 640px) {
+  .dashboard-shell { padding-top: 12px }
+  .dashboard-hero { padding: 16px; border-radius: 14px }
+  .dashboard-hero__title { font-size: 1.38rem }
+  .dashboard-status-grid { grid-template-columns: 1fr; gap: 10px }
+  .status-card { min-height: auto; padding: 14px }
+  .status-card__value { font-size: 1.28rem }
+  .section-head { flex-direction: column; align-items: stretch }
+  .opportunity-item { align-items: flex-start; flex-direction: column }
+  .opportunity-item .btn { width: 100%; text-align: center }
+  .compact-results-card .kpi-mini { flex-direction: column }
+}
