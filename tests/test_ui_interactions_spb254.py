@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 from app import create_app
 import app as app_module
 import app.routes.dashboard as dashboard_routes
-from domain.models import Plan, ProjectGlobal, ProjectPerUser, User, UserAlertDaily, UserKeyword
+from domain.models import Plan, ProjectGlobal, ProjectPerUser, Subscription, User, UserAlertDaily, UserKeyword
 from infrastructure.db import Base
 
 CSS_PATH = Path(__file__).resolve().parent.parent / "app" / "static" / "css" / "style.css"
@@ -43,7 +43,8 @@ class DashboardMarkupTest(unittest.TestCase):
 
         with self.Session() as db:
             free = Plan(slug="free", name="Gratuito", max_keywords=3, max_alerts_day=10)
-            db.add(free)
+            pro = Plan(slug="pro", name="Pro", max_keywords=-1, max_alerts_day=-1)
+            db.add_all([free, pro])
             db.commit()
 
             user = User(
@@ -166,6 +167,7 @@ class DashboardMarkupTest(unittest.TestCase):
         with self.Session() as db:
             user = db.get(User, self.user_id)
             user.chat_id = None
+            user.bot_active = True
             db.add(user)
             db.commit()
 
@@ -173,6 +175,8 @@ class DashboardMarkupTest(unittest.TestCase):
 
         self.assertIn("Conecte o Telegram", html)
         self.assertIn("Conectar Telegram", html)
+        self.assertIn("Monitoramento pendente", html)
+        self.assertNotIn("Monitoramento ativo", html)
 
     def test_dashboard_next_action_for_user_without_keywords(self) -> None:
         with self.Session() as db:
@@ -205,6 +209,44 @@ class DashboardMarkupTest(unittest.TestCase):
 
         self.assertIn("Voce esta usando 3 de 3 palavras-chave no Free.", html)
         self.assertIn("Remover limites", html)
+
+    def test_dashboard_monitoring_status_when_ready(self) -> None:
+        html = self._dashboard_html()
+
+        self.assertIn("Monitoramento ativo", html)
+        self.assertIn("Voce esta pronto para receber alertas.", html)
+
+    def test_dashboard_monitoring_status_when_paused(self) -> None:
+        with self.Session() as db:
+            user = db.get(User, self.user_id)
+            user.bot_active = False
+            db.add(user)
+            db.commit()
+
+        html = self._dashboard_html()
+
+        self.assertIn("Monitoramento pausado", html)
+        self.assertIn("Ative o monitoramento para receber novos alertas.", html)
+
+    def test_dashboard_pro_admin_do_not_get_free_upgrade_cta(self) -> None:
+        with self.Session() as db:
+            pro = db.query(Plan).filter(Plan.slug == "pro").one()
+            db.add(Subscription(user_id=self.user_id, plan_id=pro.id, status="active"))
+            db.commit()
+
+        pro_html = self._dashboard_html()
+        self.assertNotIn("Remover limites", pro_html)
+        self.assertIn("Plano Pro ativo", pro_html)
+
+        with self.Session() as db:
+            user = db.get(User, self.user_id)
+            user.is_admin = True
+            db.add(user)
+            db.commit()
+
+        admin_html = self._dashboard_html()
+        self.assertNotIn("Remover limites", admin_html)
+        self.assertIn("Acesso administrativo", admin_html)
 
 
 class StyleSheetAccessibilityTest(unittest.TestCase):

@@ -20,8 +20,8 @@
         <span class="status-badge {% if is_linked %}status-badge--ok{% else %}status-badge--muted{% endif %}">
           Telegram {{ 'conectado' if is_linked else 'desconectado' }}
         </span>
-        <span class="status-badge {% if bot_running %}status-badge--ok{% else %}status-badge--muted{% endif %}">
-          Monitoramento {{ 'ativo' if bot_running else 'inativo' }}
+        <span class="status-badge {{ dashboard.monitoring.badge_class }}">
+          {{ dashboard.monitoring.label }}
         </span>
       </div>
     </div>
@@ -31,8 +31,8 @@
   <section class="dashboard-status-grid" aria-label="Resumo do painel">
     <article class="status-card">
       <div class="status-card__label">Monitoramento</div>
-      <div class="status-card__value">{{ 'Ativo' if bot_running else 'Inativo' }}</div>
-      <p>{{ 'Buscando alertas para suas palavras-chave.' if bot_running else 'Ative para receber alertas automáticos.' }}</p>
+      <div class="status-card__value">{{ dashboard.monitoring.label.replace('Monitoramento ', '')|capitalize }}</div>
+      <p>{{ dashboard.monitoring.description }}</p>
     </article>
     <article class="status-card">
       <div class="status-card__label">Telegram</div>

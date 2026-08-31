@@ -71,6 +71,28 @@ def _build_dashboard_view(*, plan: dict, is_linked: bool, bot_running: bool, key
     alerts_pct = 0 if is_unlimited else _usage_pct(alerts_today, max_alerts_day)
     kw_pct = 0 if max_keywords < 0 else _usage_pct(kw_count, max_keywords)
 
+    if not bot_running:
+        monitoring = {
+            "label": "Monitoramento pausado",
+            "state": "paused",
+            "badge_class": "status-badge--muted",
+            "description": "Ative o monitoramento para receber novos alertas.",
+        }
+    elif not is_linked:
+        monitoring = {
+            "label": "Monitoramento pendente",
+            "state": "pending",
+            "badge_class": "status-badge--warn",
+            "description": "Conecte o Telegram para receber alertas.",
+        }
+    else:
+        monitoring = {
+            "label": "Monitoramento ativo",
+            "state": "active",
+            "badge_class": "status-badge--ok",
+            "description": "Voce esta pronto para receber alertas.",
+        }
+
     if is_unlimited:
         alerts_message = "Seu plano nao tem limite diario de alertas."
         alerts_state = "ok"
@@ -172,6 +194,7 @@ def _build_dashboard_view(*, plan: dict, is_linked: bool, bot_running: bool, key
         "kw_pct": kw_pct,
         "keywords_state": keywords_state,
         "keywords_message": keywords_message,
+        "monitoring": monitoring,
         "next_action": next_action,
         "pro_reason": pro_reason,
     }

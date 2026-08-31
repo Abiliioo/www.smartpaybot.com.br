@@ -8,7 +8,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
-- Dashboard real reorganizado (SPB-251B): o painel logado passa a abrir com status de monitoramento, Telegram, plano, uso diário, keywords, oportunidades recentes e próxima melhor ação, usando apenas dados já disponíveis no sistema. Sem redesign de Landing/Pro, sem migração React, sem deploy e sem métricas inventadas.
+- Dashboard real reorganizado (SPB-251B): o painel logado passa a abrir com status operacional de monitoramento, Telegram, plano, uso diário, keywords, oportunidades recentes e próxima melhor ação, usando apenas dados já disponíveis no sistema. O status do monitoramento diferencia preferência pausada, pendência de Telegram e operação ativa, sem afirmar saúde de pipeline. Sem redesign de Landing/Pro, sem migração React, sem deploy e sem métricas inventadas.
 
 - Design system premium React (SPB-250J): redesenha Home e ProPreview com paleta preto/chumbo/azul profundo, cards bento/modulares, composição visual de produto vivo, CTAs preservados e credibilidade segura sem depoimentos, métricas ou promessas inventadas. A rota real `/pro` Jinja permanece inalterada nesta fase.
 
