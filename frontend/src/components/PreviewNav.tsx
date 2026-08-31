@@ -6,14 +6,14 @@ type PreviewNavProps = {
 }
 
 const items: Array<{ id: PreviewView; label: string }> = [
-  { id: 'landing', label: 'Landing' },
-  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'landing', label: 'Home' },
+  { id: 'dashboard', label: 'Painel' },
   { id: 'pro', label: 'Pro' },
 ]
 
 export function PreviewNav({ activeView, onViewChange }: PreviewNavProps) {
   return (
-    <nav className="spb-preview-nav" aria-label="Previews React">
+    <nav className="spb-preview-nav" aria-label="Navegação principal">
       {items.map((item) => (
         <button
           key={item.id}
