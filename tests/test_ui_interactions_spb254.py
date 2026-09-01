@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 from app import create_app
 import app as app_module
 import app.routes.dashboard as dashboard_routes
-from domain.models import Plan, User, UserKeyword
+from domain.models import Plan, ProjectGlobal, ProjectPerUser, Subscription, User, UserAlertDaily, UserKeyword
 from infrastructure.db import Base
 
 CSS_PATH = Path(__file__).resolve().parent.parent / "app" / "static" / "css" / "style.css"
@@ -42,7 +43,8 @@ class DashboardMarkupTest(unittest.TestCase):
 
         with self.Session() as db:
             free = Plan(slug="free", name="Gratuito", max_keywords=3, max_alerts_day=10)
-            db.add(free)
+            pro = Plan(slug="pro", name="Pro", max_keywords=-1, max_alerts_day=-1)
+            db.add_all([free, pro])
             db.commit()
 
             user = User(
@@ -61,6 +63,24 @@ class DashboardMarkupTest(unittest.TestCase):
 
             db.add_all(
                 UserKeyword(user_id=user.id, keyword=kw) for kw in ["excel", "python"]
+            )
+            db.add(UserAlertDaily(user_id=user.id, date=date.today(), alerts_sent=8))
+            project = ProjectGlobal(
+                project_id=9001,
+                title="Planilha financeira automatizada",
+                link="https://example.test/projects/9001",
+            )
+            db.add(project)
+            db.commit()
+            db.refresh(project)
+            db.add(
+                ProjectPerUser(
+                    user_id=user.id,
+                    global_project_id=project.id,
+                    link=project.link,
+                    title=project.title,
+                    matched_keyword="excel",
+                )
             )
             db.commit()
 
@@ -126,6 +146,107 @@ class DashboardMarkupTest(unittest.TestCase):
     def test_no_positive_tabindex_in_dashboard(self) -> None:
         html = self._dashboard_html()
         self.assertNotRegex(html, r'tabindex="[1-9]')
+
+    def test_dashboard_shows_real_free_usage_and_remaining_alerts(self) -> None:
+        html = self._dashboard_html()
+
+        self.assertIn("Painel de oportunidades", html)
+        self.assertIn("8&nbsp;/&nbsp;10", html)
+        self.assertIn("restam 2 alerta(s) hoje", html)
+        self.assertIn("2&nbsp;/&nbsp;3", html)
+
+    def test_dashboard_shows_recent_real_opportunity_without_score(self) -> None:
+        html = self._dashboard_html()
+
+        self.assertIn("Planilha financeira automatizada", html)
+        self.assertIn("excel", html)
+        self.assertIn("Revisar oportunidades", html)
+        self.assertNotIn("score", html.lower())
+
+    def test_dashboard_next_action_for_telegram_disconnected(self) -> None:
+        with self.Session() as db:
+            user = db.get(User, self.user_id)
+            user.chat_id = None
+            user.bot_active = True
+            db.add(user)
+            db.commit()
+
+        html = self._dashboard_html()
+
+        self.assertIn("Conecte o Telegram", html)
+        self.assertIn("Conectar Telegram", html)
+        self.assertIn("Monitoramento pendente", html)
+        self.assertNotIn("Monitoramento ativo", html)
+
+    def test_dashboard_next_action_for_user_without_keywords(self) -> None:
+        with self.Session() as db:
+            db.query(UserKeyword).filter(UserKeyword.user_id == self.user_id).delete()
+            db.commit()
+
+        html = self._dashboard_html()
+
+        self.assertIn("Cadastre sua primeira palavra-chave", html)
+        self.assertIn("Adicionar keyword", html)
+
+    def test_dashboard_next_action_for_inactive_monitoring(self) -> None:
+        with self.Session() as db:
+            user = db.get(User, self.user_id)
+            user.bot_active = False
+            db.add(user)
+            db.commit()
+
+        html = self._dashboard_html()
+
+        self.assertIn("Ative o monitoramento", html)
+        self.assertIn("Ver monitoramento", html)
+
+    def test_dashboard_contextual_pro_cta_for_keyword_limit(self) -> None:
+        with self.Session() as db:
+            db.add(UserKeyword(user_id=self.user_id, keyword="wordpress"))
+            db.commit()
+
+        html = self._dashboard_html()
+
+        self.assertIn("Voce esta usando 3 de 3 palavras-chave no Free.", html)
+        self.assertIn("Remover limites", html)
+
+    def test_dashboard_monitoring_status_when_ready(self) -> None:
+        html = self._dashboard_html()
+
+        self.assertIn("Monitoramento ativo", html)
+        self.assertIn("Voce esta pronto para receber alertas.", html)
+
+    def test_dashboard_monitoring_status_when_paused(self) -> None:
+        with self.Session() as db:
+            user = db.get(User, self.user_id)
+            user.bot_active = False
+            db.add(user)
+            db.commit()
+
+        html = self._dashboard_html()
+
+        self.assertIn("Monitoramento pausado", html)
+        self.assertIn("Ative o monitoramento para receber novos alertas.", html)
+
+    def test_dashboard_pro_admin_do_not_get_free_upgrade_cta(self) -> None:
+        with self.Session() as db:
+            pro = db.query(Plan).filter(Plan.slug == "pro").one()
+            db.add(Subscription(user_id=self.user_id, plan_id=pro.id, status="active"))
+            db.commit()
+
+        pro_html = self._dashboard_html()
+        self.assertNotIn("Remover limites", pro_html)
+        self.assertIn("Plano Pro ativo", pro_html)
+
+        with self.Session() as db:
+            user = db.get(User, self.user_id)
+            user.is_admin = True
+            db.add(user)
+            db.commit()
+
+        admin_html = self._dashboard_html()
+        self.assertNotIn("Remover limites", admin_html)
+        self.assertIn("Acesso administrativo", admin_html)
 
 
 class StyleSheetAccessibilityTest(unittest.TestCase):

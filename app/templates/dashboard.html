@@ -1,89 +1,346 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — SmartPayBot{% endblock %}
+{% block title %}Painel de oportunidades — SmartPayBot{% endblock %}
 
 {% block content %}
-
-{# ── Cabeçalho da página ─────────────────────────────────────────────── #}
-<div class="page-header">
-  <div>
-    <h2 class="page-header__title">Dashboard</h2>
-    <p class="page-header__sub">Projetos e alertas em tempo real</p>
+<div class="dashboard-shell">
+  <div class="dashboard-hero">
+    <div>
+      <h1 class="dashboard-hero__title">Painel de oportunidades</h1>
+      <p class="dashboard-hero__sub">Acompanhe alertas, palavras-chave e próximos passos.</p>
+      <div class="dashboard-hero__badges">
+        {% if plan %}
+          {% if plan.is_admin_plan %}
+            <span class="plan-badge plan-badge--admin">Admin</span>
+          {% elif plan.is_pro %}
+            <span class="plan-badge plan-badge--pro">PRO</span>
+          {% else %}
+            <span class="plan-badge">Gratuito</span>
+          {% endif %}
+        {% endif %}
+        <span class="status-badge {% if is_linked %}status-badge--ok{% else %}status-badge--muted{% endif %}">
+          Telegram {{ 'conectado' if is_linked else 'desconectado' }}
+        </span>
+        <span class="status-badge {{ dashboard.monitoring.badge_class }}">
+          {{ dashboard.monitoring.label }}
+        </span>
+      </div>
+    </div>
+    <a class="btn primary pill" href="{{ dashboard.next_action.href }}">{{ dashboard.next_action.label }}</a>
   </div>
-  {% if plan %}
-    {% if plan.is_admin_plan %}
-      <span class="plan-badge plan-badge--admin">Admin</span>
-    {% elif plan.is_pro %}
-      <span class="plan-badge plan-badge--pro">PRO</span>
-    {% else %}
-      <span class="plan-badge">Gratuito</span>
-    {% endif %}
-  {% endif %}
-</div>
 
-<div class="grid">
-  {# ═══════════════════════════════════════ COLUNA ESQUERDA ════════════ #}
-  <div class="stack">
+  <section class="dashboard-status-grid" aria-label="Resumo do painel">
+    <article class="status-card">
+      <div class="status-card__label">Monitoramento</div>
+      <div class="status-card__value">{{ dashboard.monitoring.label.replace('Monitoramento ', '')|capitalize }}</div>
+      <p>{{ dashboard.monitoring.description }}</p>
+    </article>
+    <article class="status-card">
+      <div class="status-card__label">Telegram</div>
+      <div class="status-card__value">{{ 'Conectado' if is_linked else 'Desconectado' }}</div>
+      <p>{{ 'Pronto para receber alertas.' if is_linked else 'Conecte para receber oportunidades.' }}</p>
+    </article>
+    <article class="status-card">
+      <div class="status-card__label">Alertas hoje</div>
+      <div class="status-card__value" id="alerts-today">{{ dashboard.alerts_today }}</div>
+      <p>
+        {% if dashboard.is_unlimited %}
+          sem limite diário
+        {% else %}
+          {{ dashboard.alerts_remaining }} restante(s) no Free
+        {% endif %}
+      </p>
+    </article>
+    <article class="status-card">
+      <div class="status-card__label">Keywords</div>
+      <div class="status-card__value">{{ dashboard.kw_count }}</div>
+      <p>
+        {% if dashboard.max_keywords < 0 %}
+          sem limite de termos
+        {% else %}
+          de {{ dashboard.max_keywords }} no plano atual
+        {% endif %}
+      </p>
+    </article>
+  </section>
 
-    {# ── Projetos recebidos ──────────────────────────────────────────── #}
-    <section class="card">
-      <h3>Projetos recebidos</h3>
-
-      <div class="metrics-grid">
-        <div class="metric-card metric-card--hero">
-          <div class="metric-icon-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  <div class="grid dashboard-grid">
+    <div class="stack">
+      <section class="card usage-card" id="daily-usage-card">
+        <div class="section-head">
+          <div>
+            <h3>Uso diário</h3>
+            <p class="help">Seu limite de alertas acompanha o plano atual.</p>
           </div>
-          <div class="metric-label">Hoje</div>
-          <div class="metric-val" id="count-today">0</div>
-          <div class="metric-sub">projetos</div>
+          {% if dashboard.is_unlimited %}
+            <span class="status-badge status-badge--ok">Ilimitado</span>
+          {% else %}
+            <span id="al-count-display"
+                  data-al-max="{{ dashboard.max_alerts_day }}"
+                  class="usage-count {% if dashboard.alerts_state == 'danger' %}usage-count--danger{% elif dashboard.alerts_state == 'warn' %}usage-count--warn{% else %}usage-count--ok{% endif %}">
+              {{ dashboard.alerts_today }}&nbsp;/&nbsp;{{ dashboard.max_alerts_day }}
+            </span>
+          {% endif %}
         </div>
-        <div class="metric-card">
-          <div class="metric-icon-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="16" x2="16" y2="16"/></svg>
-          </div>
-          <div class="metric-label">Ontem</div>
-          <div class="metric-val" id="count-yesterday">0</div>
-          <div class="metric-sub">projetos</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-          </div>
-          <div class="metric-label">7 dias</div>
-          <div class="metric-val" id="count-week">0</div>
-          <div class="metric-sub">projetos</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
-          </div>
-          <div class="metric-label">Total recebido</div>
-          <div class="metric-val projects-count" id="count-total">{{ projects_count or 0 }}</div>
-          <div class="metric-sub">projetos</div>
-        </div>
-      </div>
 
-      <div class="kpi-footer">
-        <p class="help">Atualizado automaticamente.</p>
-        <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todos os projetos →</a>
-      </div>
-    </section>
+        {% if dashboard.is_unlimited %}
+          <p class="usage-message usage-message--ok">{{ dashboard.alerts_message }}</p>
+        {% else %}
+          <div class="usage-row">
+            <span class="help">Alertas usados hoje</span>
+            <span>{{ dashboard.alerts_today }} de {{ dashboard.max_alerts_day }}</span>
+          </div>
+          <div class="progress-track">
+            <div id="al-bar"
+                 class="progress-fill {% if dashboard.alerts_state == 'danger' %}progress-fill--danger{% elif dashboard.alerts_state == 'warn' %}progress-fill--warn{% else %}progress-fill--ok{% endif %}"
+                 data-pct="{{ dashboard.alerts_pct }}"></div>
+          </div>
+          <p class="usage-message usage-message--{{ dashboard.alerts_state }}">{{ dashboard.alerts_message }}</p>
+          <div id="al-limit-banner" class="limit-banner"{% if dashboard.alerts_today < dashboard.max_alerts_day %} style="display:none"{% endif %}>
+            <p>Limite de <strong>{{ dashboard.max_alerts_day }} alertas</strong> atingido hoje.
+               Novos projetos serão ignorados até amanhã.
+               <a href="{{ url_for('main.pro') }}">Fazer upgrade para Pro →</a>
+            </p>
+          </div>
+        {% endif %}
+      </section>
 
-    {# ── Resultados — últimos 14 dias ────────────────────────────────── #}
-    <section class="card">
-      <h3>Resultados — últimos 14 dias</h3>
+      <section class="card" id="keywords-card">
+        <div class="section-head">
+          <div>
+            <h3>Palavras-chave</h3>
+            <p class="help">Termos usados para casar novos projetos com o seu perfil.</p>
+          </div>
+          {% if dashboard.max_keywords < 0 %}
+            <span class="status-badge status-badge--ok">{{ dashboard.kw_count }} termos</span>
+          {% else %}
+            <span id="kw-count-display"
+                  data-kw-max="{{ dashboard.max_keywords }}"
+                  class="usage-count {% if dashboard.keywords_state == 'warn' %}usage-count--warn{% elif dashboard.keywords_state == 'muted' %}usage-count--muted{% else %}usage-count--ok{% endif %}">
+              {{ dashboard.kw_count }}&nbsp;/&nbsp;{{ dashboard.max_keywords }}
+            </span>
+          {% endif %}
+        </div>
 
-      <div class="row" style="gap:20px; align-items:flex-start; flex-wrap:wrap">
-        <div style="flex:1; min-width:180px; position:relative">
-          <canvas id="rev-chart" height="160" style="width:100%; display:none"></canvas>
-          <div id="chart-empty" class="empty-state">
-            <div class="empty-state__icon">📊</div>
-            <div class="empty-state__title">Ainda sem resultados marcados</div>
-            <div class="empty-state__desc">
-              Quando você marcar oportunidades como ganho, os indicadores aparecem aqui.
+        <form id="keywords-form" class="form-inline" method="post"
+              action="{{ url_for('dashboard.save_keywords') }}"
+              style="margin-bottom:14px">
+          {{ form.hidden_tag() }}
+          {{ form.keywords(class="input", id="keywords",
+                           placeholder="Ex.: Excel, Python, WordPress — separados por vírgula",
+                           style="flex:1") }}
+          {{ form.submit(class="btn primary pill", value="Adicionar") }}
+        </form>
+
+        {% if dashboard.max_keywords > 0 %}
+          <div class="progress-track keyword-progress">
+            <div id="kw-bar"
+                 class="progress-fill {% if dashboard.keywords_state == 'warn' %}progress-fill--warn{% endif %}"
+                 data-pct="{{ dashboard.kw_pct }}"></div>
+          </div>
+        {% endif %}
+        <p class="usage-message usage-message--{{ dashboard.keywords_state }}">{{ dashboard.keywords_message }}</p>
+
+        {% if dashboard.is_free and dashboard.max_keywords > 0 and dashboard.kw_count >= dashboard.max_keywords %}
+          <div class="limit-banner">
+            <p>O Pro libera mais termos para monitorar áreas diferentes sem remover suas keywords atuais.</p>
+          </div>
+        {% endif %}
+
+        <div id="keywords-empty" {% if keywords and keywords|length > 0 %}style="display:none"{% endif %}>
+          <div class="empty-state dashboard-empty">
+            <div class="empty-state__title">Nenhuma palavra-chave cadastrada</div>
+            <div class="empty-state__desc">Adicione termos acima para começar a receber alertas de projetos relevantes.</div>
+          </div>
+        </div>
+
+        <ul id="keywords-list" class="chips">
+          {% for k in keywords %}
+            <li class="chip {{ loop.cycle('chip--blue','chip--red','chip--green','chip--amber','chip--pink','chip--indigo','chip--purple','chip--teal','chip--cyan') }}" data-kw="{{ k|e }}">
+              <span class="chip-text">{{ k }}</span>
+              <button type="button" class="chip-x" data-kw="{{ k|e }}" aria-label="Remover {{ k }}">×</button>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h3>Oportunidades recentes</h3>
+            <p class="help">Projetos reais que casaram com suas palavras-chave.</p>
+          </div>
+          <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todos</a>
+        </div>
+
+        {% if dashboard.recent_projects %}
+          <div class="opportunity-list">
+            {% for p in dashboard.recent_projects %}
+              <article class="opportunity-item">
+                <div class="opportunity-item__body">
+                  <div class="opportunity-item__title">{{ p.title }}</div>
+                  <div class="opportunity-item__meta">
+                    <span>{{ p.matched_keyword }}</span>
+                    <span>{{ p.created_at|fmt_br }}</span>
+                    {% if p.won %}<span>Ganho</span>{% else %}<span>Em aberto</span>{% endif %}
+                  </div>
+                </div>
+                <a class="btn pill" target="_blank" rel="noopener" href="{{ p.link }}">Abrir</a>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state dashboard-empty">
+            <div class="empty-state__title">Nenhuma oportunidade por enquanto</div>
+            <div class="empty-state__desc">Quando novas oportunidades casarem com suas keywords, elas aparecem aqui.</div>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="card next-action-card">
+        <h3>Próxima melhor ação</h3>
+        <p class="next-action-card__title">{{ dashboard.next_action.title }}</p>
+        <p class="help">{{ dashboard.next_action.body }}</p>
+        <a class="btn primary pill" href="{{ dashboard.next_action.href }}">{{ dashboard.next_action.label }}</a>
+      </section>
+
+      <section class="card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}">
+        <h3>Telegram</h3>
+        <div id="tg-card-body">
+        {% if is_linked %}
+          <div class="tg-status-row">
+            <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
+            <span style="font-weight:600; color:var(--success); font-size:.88rem">Ativo</span>
+            <span class="help" style="margin-left:auto; font-size:.78rem">Monitorando</span>
+          </div>
+
+          <div class="tg-bot-card">
+            <div class="tg-bot-avatar">🤖</div>
+            <div class="tg-bot-info">
+              <div class="tg-bot-name">SmartPayBot</div>
+            </div>
+            <span class="tg-check-badge">✓</span>
+          </div>
+
+          <p class="help" style="font-size:.83rem; line-height:1.55; margin:0 0 14px">
+            Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.
+          </p>
+
+          <form method="post" action="{{ url_for('dashboard.unlink') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn ghost pill"
+                    style="font-size:.78rem; color:var(--muted)"
+                    onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
+              Desvincular Telegram
+            </button>
+          </form>
+        {% else %}
+          <p class="help" style="margin-bottom:16px">Siga os passos abaixo para começar a receber alertas no Telegram:</p>
+
+          <div class="step-row">
+            <span class="step-num">1</span>
+            <div>
+              <p style="margin:0 0 6px; font-weight:600">Abra o bot no Telegram</p>
+              {% if deep_link %}
+                <a class="btn primary pill" href="{{ deep_link }}" target="_blank" style="font-size:.9rem">
+                  Abrir @{{ bot_username }}
+                </a>
+              {% else %}
+                <p class="help" style="margin:0">
+                  Pesquise <span class="code" style="font-size:.8rem">@{{ bot_username or 'O_Freela_bot' }}</span> no Telegram.
+                </p>
+              {% endif %}
             </div>
           </div>
+
+          <div class="step-row">
+            <span class="step-num">2</span>
+            <div>
+              <p style="margin:0 0 6px; font-weight:600">Envie este comando ao bot</p>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+                <span id="tg-link-code" class="code" data-code="{{ link_code }}" style="font-size:.88rem; letter-spacing:.3px">/start {{ link_code }}</span>
+                <button type="button" id="tg-copy-btn" data-code="{{ link_code }}" class="btn ghost pill" style="font-size:.75rem; padding:3px 10px">
+                  Copiar código
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-row" style="margin-bottom:18px">
+            <span class="step-num step-num--done">3</span>
+            <div>
+              <p style="margin:0; font-weight:600; color:var(--muted)">Pronto!</p>
+              <p class="help" style="margin:4px 0 0; font-size:.82rem">O bot confirmará o vínculo e você começará a receber alertas.</p>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px">
+            <p class="help" style="font-size:.82rem; margin-bottom:8px">O código acima é de uso único. Se não funcionar, gere um novo:</p>
+            <form method="post" action="{{ url_for('dashboard.regen_code') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn ghost pill" style="font-size:.82rem">Gerar novo código</button>
+            </form>
+          </div>
+        {% endif %}
         </div>
+
+        <div class="tg-monitoring-section" id="monitoring-control">
+          <label class="switch" title="Ativar/pausar monitoramento">
+            <input id="bot-toggle" type="checkbox"
+                   {% if bot_running %}checked{% endif %}
+                   {% if not is_linked %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+          <div style="flex:1; min-width:0">
+            <div class="tg-monitoring-label">Monitoramento</div>
+            {% if not is_linked %}
+              <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Vincule seu Telegram para ativar.</p>
+            {% else %}
+              <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Alertas automáticos ativados.</p>
+            {% endif %}
+          </div>
+          <span id="bot-status" style="font-weight:600; font-size:.82rem">{{ 'Ativado' if bot_running else 'Parado' }}</span>
+        </div>
+      </section>
+
+      {% if plan %}
+      <section class="card">
+        <h3>Seu Plano</h3>
+
+        {% if plan.is_admin_plan %}
+          <span class="plan-badge plan-badge--admin">Admin</span>
+          <p class="help" style="margin:12px 0 0; font-size:.86rem; line-height:1.5">
+            Acesso administrativo — sem limites de palavras-chave ou alertas diários.
+          </p>
+        {% elif plan.is_pro %}
+          <span class="plan-badge plan-badge--pro">PRO</span>
+          <p class="help" style="margin:12px 0 0; font-size:.86rem; line-height:1.5">
+            Plano Pro ativo — palavras-chave e alertas ilimitados.
+          </p>
+        {% else %}
+          <span class="plan-badge">Gratuito</span>
+          <p class="help" style="margin:12px 0 12px; font-size:.86rem; line-height:1.5">
+            Free inclui {{ dashboard.max_keywords }} palavras-chave e {{ dashboard.max_alerts_day }} alertas por dia.
+          </p>
+          {% if dashboard.pro_reason %}
+            <div class="upgrade-cta upgrade-cta--contextual">
+              <div class="upgrade-cta__header">
+                <div>
+                  <p class="upgrade-cta__title">SmartPayBot Pro</p>
+                  <p class="upgrade-cta__sub">{{ dashboard.pro_reason }}</p>
+                </div>
+                <div class="upgrade-cta__price">R$&nbsp;47<span>/mês</span></div>
+              </div>
+              <a href="{{ url_for('main.pro') }}" class="upgrade-cta__btn">Remover limites →</a>
+            </div>
+          {% endif %}
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <section class="card compact-results-card">
+        <h3>Resultados</h3>
         <div class="kpi-mini">
           <div>
             <div class="kpi-mini__label">Conversão</div>
@@ -94,281 +351,9 @@
             <div class="kpi-mini__val" id="mini-avg">—</div>
           </div>
         </div>
-      </div>
-
-      <div class="kpi-footer" style="margin-top:14px">
-        <p class="help">Receita e projetos ganhos no período.</p>
-        <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver projetos →</a>
-      </div>
-    </section>
-
-    {# ── Palavras-chave monitoradas ───────────────────────────────────── #}
-    <section class="card">
-      <h3>Palavras-chave monitoradas</h3>
-
-      {# Banner de excesso (downgrade Pro → Free) #}
-      {% if plan and not plan.is_pro and not plan.is_admin_plan and plan.max_keywords > 0 and keywords|length > plan.max_keywords %}
-        <div class="limit-banner" style="margin-bottom:14px">
-          <p>
-            <strong>Você tem {{ keywords|length }} palavras-chave</strong> — o plano Gratuito permite {{ plan.max_keywords }}.
-            As extras <strong>não serão monitoradas</strong> até remover o excedente
-            ou <a href="{{ url_for('main.pro') }}">fazer upgrade para o Pro</a>.
-          </p>
-        </div>
-      {% endif %}
-
-      {# Formulário de adição #}
-      <form id="keywords-form" class="form-inline" method="post"
-            action="{{ url_for('dashboard.save_keywords') }}"
-            style="margin-bottom:14px">
-        {{ form.hidden_tag() }}
-        {{ form.keywords(class="input", id="keywords",
-                         placeholder="Ex.: Excel, Python, WordPress — separados por vírgula",
-                         style="flex:1") }}
-        {{ form.submit(class="btn primary pill", value="Adicionar") }}
-      </form>
-
-      {# Barra de uso de keywords (somente plano Free) #}
-      {% if plan and not plan.is_pro and not plan.is_admin_plan and plan.max_keywords > 0 %}
-        {% set kw_used = keywords | length %}
-        {% set kw_max  = plan.max_keywords %}
-        {% set kw_pct  = ((kw_used / kw_max) * 100) | int if kw_max > 0 else 0 %}
-        <div style="margin-bottom:14px">
-          <div class="usage-row">
-            <span class="help" style="font-size:.82rem">Palavras-chave</span>
-            <span id="kw-count-display"
-                  data-kw-max="{{ kw_max }}"
-                  class="usage-count {% if kw_used >= kw_max %}usage-count--danger{% elif kw_pct >= 67 %}usage-count--warn{% else %}usage-count--ok{% endif %}">
-              {{ kw_used }}&nbsp;/&nbsp;{{ kw_max }}
-            </span>
-          </div>
-          <div class="progress-track">
-            <div id="kw-bar"
-                 class="progress-fill {% if kw_pct >= 100 %}progress-fill--danger{% elif kw_pct >= 67 %}progress-fill--warn{% endif %}"
-                 data-pct="{{ kw_pct }}"></div>
-          </div>
-        </div>
-      {% endif %}
-
-      {# Estado vazio #}
-      <div id="keywords-empty" {% if keywords and keywords|length > 0 %}style="display:none"{% endif %}>
-        <div class="empty-state" style="padding:18px 0">
-          <div class="empty-state__icon" style="font-size:1.5rem">🔍</div>
-          <div class="empty-state__title">Nenhuma palavra-chave cadastrada</div>
-          <div class="empty-state__desc">
-            Adicione termos acima para começar a receber alertas de projetos relevantes.
-          </div>
-        </div>
-      </div>
-
-      {# Lista de chips #}
-      <ul id="keywords-list" class="chips">
-        {% for k in keywords %}
-          <li
-            class="chip {{ loop.cycle('chip--blue','chip--red','chip--green','chip--amber','chip--pink','chip--indigo','chip--purple','chip--teal','chip--cyan') }}"
-            data-kw="{{ k|e }}"
-          >
-            <span class="chip-text">{{ k }}</span>
-            <button type="button" class="chip-x" data-kw="{{ k|e }}" aria-label="Remover {{ k }}">×</button>
-          </li>
-        {% endfor %}
-      </ul>
-    </section>
-
-  </div>
-
-  {# ════════════════════════════════════════ COLUNA DIREITA ════════════ #}
-  <div class="stack">
-
-    {# ── Vínculo Telegram ────────────────────────────────────────────── #}
-    <section class="card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}">
-      <h3>Telegram</h3>
-      <div id="tg-card-body">
-
-      {% if is_linked %}
-        {# ── Estado: VINCULADO ─────────────────────────────────────── #}
-        <div class="tg-status-row">
-          <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
-          <span style="font-weight:600; color:var(--success); font-size:.88rem">Ativo</span>
-          <span class="help" style="margin-left:auto; font-size:.78rem">Monitorando</span>
-        </div>
-
-        <div class="tg-bot-card">
-          <div class="tg-bot-avatar">🤖</div>
-          <div class="tg-bot-info">
-            <div class="tg-bot-name">SmartPayBot</div>
-          </div>
-          <span class="tg-check-badge">✓</span>
-        </div>
-
-        <p class="help" style="font-size:.83rem; line-height:1.55; margin:0 0 14px">
-          Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.
-        </p>
-
-        <form method="post" action="{{ url_for('dashboard.unlink') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn ghost pill"
-                  style="font-size:.78rem; color:var(--muted)"
-                  onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
-            Desvincular Telegram
-          </button>
-        </form>
-
-      {% else %}
-        {# ── Estado: NÃO VINCULADO ─────────────────────────────────── #}
-        <p class="help" style="margin-bottom:16px">
-          Siga os passos abaixo para começar a receber alertas no Telegram:
-        </p>
-
-        <div class="step-row">
-          <span class="step-num">1</span>
-          <div>
-            <p style="margin:0 0 6px; font-weight:600">Abra o bot no Telegram</p>
-            {% if deep_link %}
-              <a class="btn primary pill" href="{{ deep_link }}" target="_blank" style="font-size:.9rem">
-                Abrir @{{ bot_username }}
-              </a>
-            {% else %}
-              <p class="help" style="margin:0">
-                Pesquise <span class="code" style="font-size:.8rem">@{{ bot_username or 'O_Freela_bot' }}</span>
-                no Telegram ou defina <code>TELEGRAM_BOT_USERNAME</code> no <code>.env</code>.
-              </p>
-            {% endif %}
-          </div>
-        </div>
-
-        <div class="step-row">
-          <span class="step-num">2</span>
-          <div>
-            <p style="margin:0 0 6px; font-weight:600">Envie este comando ao bot</p>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
-              <span id="tg-link-code" class="code" data-code="{{ link_code }}"
-                    style="font-size:.88rem; letter-spacing:.3px">/start {{ link_code }}</span>
-              <button type="button" id="tg-copy-btn" data-code="{{ link_code }}"
-                      class="btn ghost pill" style="font-size:.75rem; padding:3px 10px">
-                Copiar código
-              </button>
-            </div>
-            <p class="help" style="margin:6px 0 0; font-size:.82rem">
-              Copie e envie exatamente como está acima.
-            </p>
-          </div>
-        </div>
-
-        <div class="step-row" style="margin-bottom:18px">
-          <span class="step-num step-num--done">3</span>
-          <div>
-            <p style="margin:0; font-weight:600; color:var(--muted)">Pronto!</p>
-            <p class="help" style="margin:4px 0 0; font-size:.82rem">
-              O bot confirmará o vínculo e você começará a receber alertas.
-            </p>
-          </div>
-        </div>
-
-        <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px">
-          <p class="help" style="font-size:.82rem; margin-bottom:8px">
-            O código acima é de uso único. Se não funcionar, gere um novo:
-          </p>
-          <form method="post" action="{{ url_for('dashboard.regen_code') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn ghost pill" style="font-size:.82rem">
-              Gerar novo código
-            </button>
-          </form>
-        </div>
-      {% endif %}
-      </div>
-      {# ── Monitoramento (merged no card Telegram) ─────────────────────── #}
-      <div class="tg-monitoring-section">
-        <label class="switch" title="Ativar/pausar monitoramento">
-          <input id="bot-toggle" type="checkbox"
-                 {% if bot_running %}checked{% endif %}
-                 {% if not is_linked %}disabled{% endif %}>
-          <span class="slider"></span>
-        </label>
-        <div style="flex:1; min-width:0">
-          <div class="tg-monitoring-label">Monitoramento</div>
-          {% if not is_linked %}
-            <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Vincule seu Telegram para ativar.</p>
-          {% else %}
-            <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Alertas automáticos ativados.</p>
-          {% endif %}
-        </div>
-        <span id="bot-status" style="font-weight:600; font-size:.82rem">
-          {{ 'Ativado' if bot_running else 'Parado' }}
-        </span>
-      </div>
-    </section>
-
-    {# ── Seu Plano ────────────────────────────────────────────────────── #}
-    {% if plan %}
-    <section class="card">
-      <h3>Seu Plano</h3>
-
-      {% if plan.is_admin_plan %}
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px">
-          <span class="plan-badge plan-badge--admin">⚙ Admin</span>
-        </div>
-        <p class="help" style="margin:0; font-size:.86rem; line-height:1.5">
-          Acesso administrativo — sem limites de palavras-chave ou alertas diários.
-        </p>
-
-      {% elif plan.is_pro %}
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px">
-          <span class="plan-badge plan-badge--pro">⭐ PRO</span>
-        </div>
-        <p class="help" style="margin:0; font-size:.86rem; line-height:1.5">
-          Plano Pro ativo — palavras-chave e alertas ilimitados.
-        </p>
-
-      {% else %}
-        <div style="margin-bottom:14px">
-          <span class="plan-badge">Gratuito</span>
-        </div>
-
-        {# Barra de alertas diários #}
-        {% set al_used = plan.alerts_today %}
-        {% set al_max  = plan.max_alerts_day %}
-        {% set al_pct  = ((al_used / al_max) * 100) | int if al_max > 0 else 0 %}
-        <div style="margin-bottom:14px">
-          <div class="usage-row">
-            <span class="help">Alertas hoje</span>
-            <span id="al-count-display"
-                  data-al-max="{{ al_max }}"
-                  class="usage-count {% if al_used >= al_max %}usage-count--danger{% elif al_pct >= 67 %}usage-count--warn{% else %}usage-count--ok{% endif %}">
-              {{ al_used }}&nbsp;/&nbsp;{{ al_max }}
-            </span>
-          </div>
-          <div class="progress-track">
-            <div id="al-bar"
-                 class="progress-fill {% if al_pct >= 100 %}progress-fill--danger{% elif al_pct >= 67 %}progress-fill--warn{% else %}progress-fill--ok{% endif %}"
-                 data-pct="{{ al_pct }}"></div>
-          </div>
-          <div id="al-limit-banner" class="limit-banner"{% if al_used < al_max %} style="display:none"{% endif %}>
-            <p>Limite de <strong>{{ al_max }} alertas</strong> atingido hoje.
-               Novos projetos serão ignorados até amanhã.
-               <a href="{{ url_for('main.pro') }}">Fazer upgrade para Pro →</a>
-            </p>
-          </div>
-        </div>
-
-        <div class="upgrade-cta">
-          <div class="upgrade-cta__header">
-            <div>
-              <p class="upgrade-cta__title">SmartPayBot Pro</p>
-              <p class="upgrade-cta__sub">Keywords e alertas ilimitados</p>
-            </div>
-            <div class="upgrade-cta__price">R$&nbsp;47<span>/mês</span></div>
-          </div>
-          <a href="{{ url_for('main.pro') }}"
-             class="upgrade-cta__btn">
-            Fazer upgrade para Pro →
-          </a>
-        </div>
-      {% endif %}
-    </section>
-    {% endif %}
-
+        <p class="help" style="margin:12px 0 0">Os indicadores aparecem quando oportunidades são marcadas como ganho.</p>
+      </section>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -404,14 +389,12 @@
 (function () {
   'use strict';
 
-  // ── Barras de progresso via data-pct (evita Jinja dentro de style="") ─
   document.querySelectorAll('[data-pct]').forEach(function (el) {
     var pct = Number(el.dataset.pct || 0);
     var safe = Math.max(0, Math.min(100, pct));
     el.style.width = safe + '%';
   });
 
-  // ── Botão copiar código ──────────────────────────────────────────────
   var copyBtn = document.getElementById('tg-copy-btn');
   if (copyBtn) {
     copyBtn.addEventListener('click', function () {
@@ -429,7 +412,6 @@
     });
   }
 
-  // ── Polling de vínculo Telegram (só roda enquanto não vinculado) ─────
   var tgCard = document.getElementById('tg-card');
   if (!tgCard || tgCard.dataset.linked === 'true') return;
 

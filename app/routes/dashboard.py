@@ -52,6 +52,154 @@ def _wants_json() -> bool:
     return xrw in ("fetch", "xmlhttprequest") or "application/json" in acc or request.is_json
 
 
+def _usage_pct(used: int, max_value: int) -> int:
+    if max_value <= 0:
+        return 0
+    return max(0, min(100, int((used / max_value) * 100)))
+
+
+def _build_dashboard_view(*, plan: dict, is_linked: bool, bot_running: bool, keywords: list[str], projects: list) -> dict:
+    kw_count = len(keywords)
+    project_count = len(projects)
+    is_unlimited = bool(plan.get("is_pro") or plan.get("is_admin_plan"))
+    is_free = not is_unlimited
+
+    max_keywords = int(plan.get("max_keywords") or 0)
+    alerts_today = int(plan.get("alerts_today") or 0)
+    max_alerts_day = int(plan.get("max_alerts_day") or 0)
+    alerts_remaining = None if is_unlimited or max_alerts_day < 0 else max(0, max_alerts_day - alerts_today)
+    alerts_pct = 0 if is_unlimited else _usage_pct(alerts_today, max_alerts_day)
+    kw_pct = 0 if max_keywords < 0 else _usage_pct(kw_count, max_keywords)
+
+    if not bot_running:
+        monitoring = {
+            "label": "Monitoramento pausado",
+            "state": "paused",
+            "badge_class": "status-badge--muted",
+            "description": "Ative o monitoramento para receber novos alertas.",
+        }
+    elif not is_linked:
+        monitoring = {
+            "label": "Monitoramento pendente",
+            "state": "pending",
+            "badge_class": "status-badge--warn",
+            "description": "Conecte o Telegram para receber alertas.",
+        }
+    else:
+        monitoring = {
+            "label": "Monitoramento ativo",
+            "state": "active",
+            "badge_class": "status-badge--ok",
+            "description": "Voce esta pronto para receber alertas.",
+        }
+
+    if is_unlimited:
+        alerts_message = "Seu plano nao tem limite diario de alertas."
+        alerts_state = "ok"
+    elif alerts_remaining == 0:
+        alerts_message = "Voce atingiu o limite de alertas de hoje."
+        alerts_state = "danger"
+    elif alerts_pct >= 80:
+        alerts_message = f"Voce esta perto do limite diario: restam {alerts_remaining} alerta(s) hoje."
+        alerts_state = "warn"
+    else:
+        alerts_message = f"Voce ainda tem {alerts_remaining} alerta(s) disponiveis hoje."
+        alerts_state = "ok"
+
+    if max_keywords < 0:
+        keywords_message = "Seu plano nao tem limite de palavras-chave."
+        keywords_state = "ok"
+    elif kw_count >= max_keywords and max_keywords > 0:
+        keywords_message = f"Voce esta usando {kw_count} de {max_keywords} palavras-chave no Free."
+        keywords_state = "warn"
+    elif kw_count == 0:
+        keywords_message = "Cadastre termos para comecar a monitorar oportunidades."
+        keywords_state = "muted"
+    else:
+        keywords_message = f"Voce esta usando {kw_count} de {max_keywords} palavras-chave."
+        keywords_state = "ok"
+
+    if not is_linked:
+        next_action = {
+            "title": "Conecte o Telegram",
+            "body": "Sem Telegram vinculado, o painel nao consegue entregar alertas automaticos para voce.",
+            "label": "Conectar Telegram",
+            "href": "#tg-card",
+        }
+    elif kw_count == 0:
+        next_action = {
+            "title": "Cadastre sua primeira palavra-chave",
+            "body": "As oportunidades aparecem quando uma palavra-chave sua casa com novos projetos coletados.",
+            "label": "Adicionar keyword",
+            "href": "#keywords-card",
+        }
+    elif not bot_running:
+        next_action = {
+            "title": "Ative o monitoramento",
+            "body": "Seu Telegram esta conectado e suas palavras-chave existem; falta ligar o monitoramento.",
+            "label": "Ver monitoramento",
+            "href": "#monitoring-control",
+        }
+    elif is_free and alerts_pct >= 80:
+        next_action = {
+            "title": "Revise os alertas de hoje",
+            "body": "Voce esta perto do limite diario do Free. Priorize as oportunidades que ja chegaram.",
+            "label": "Revisar oportunidades",
+            "href": url_for("dashboard.my_projects"),
+        }
+    elif is_free and max_keywords > 0 and kw_count >= max_keywords:
+        next_action = {
+            "title": "Voce ja usa todas as keywords do Free",
+            "body": "Para monitorar mais areas ao mesmo tempo, o Pro libera mais termos.",
+            "label": "Ver Pro",
+            "href": url_for("main.pro"),
+        }
+    elif project_count:
+        next_action = {
+            "title": "Revise suas oportunidades recentes",
+            "body": "Ha projetos recentes casados com suas palavras-chave esperando sua avaliacao.",
+            "label": "Abrir oportunidades",
+            "href": url_for("dashboard.my_projects"),
+        }
+    else:
+        next_action = {
+            "title": "Acompanhe os alertas",
+            "body": "Mantenha suas palavras-chave ajustadas enquanto novas oportunidades chegam.",
+            "label": "Gerenciar keywords",
+            "href": "#keywords-card",
+        }
+
+    pro_reason = None
+    if is_free:
+        if alerts_pct >= 80:
+            pro_reason = "Manter alertas chegando ao longo do dia."
+        elif max_keywords > 0 and kw_count >= max_keywords:
+            pro_reason = "Liberar mais palavras-chave para monitorar areas diferentes."
+        elif project_count or alerts_today:
+            pro_reason = "Remover limites quando o painel ja faz parte da sua rotina."
+
+    return {
+        "kw_count": kw_count,
+        "projects_count": project_count,
+        "recent_projects": projects[:5],
+        "is_free": is_free,
+        "is_unlimited": is_unlimited,
+        "max_keywords": max_keywords,
+        "alerts_today": alerts_today,
+        "max_alerts_day": max_alerts_day,
+        "alerts_remaining": alerts_remaining,
+        "alerts_pct": alerts_pct,
+        "alerts_state": alerts_state,
+        "alerts_message": alerts_message,
+        "kw_pct": kw_pct,
+        "keywords_state": keywords_state,
+        "keywords_message": keywords_message,
+        "monitoring": monitoring,
+        "next_action": next_action,
+        "pro_reason": pro_reason,
+    }
+
+
 @bp.get("/")
 @login_required
 def home():
@@ -90,6 +238,14 @@ def home():
     with SessionLocal() as db:
         plan_info = get_plan_display(db, int(current_user.id))
 
+    dashboard_view = _build_dashboard_view(
+        plan=plan_info,
+        is_linked=is_linked,
+        bot_running=bot_running,
+        keywords=keywords,
+        projects=projects,
+    )
+
     return render_template(
         "dashboard.html",
         form=form,
@@ -108,6 +264,7 @@ def home():
         webhook_default=_default_webhook_url(),
         bot_running=bot_running,
         plan=plan_info,
+        dashboard=dashboard_view,
     )
 
 @bp.get("/projects")
