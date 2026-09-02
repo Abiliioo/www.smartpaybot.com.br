@@ -4,7 +4,7 @@
 {% block content %}
 <div class="dashboard-shell">
   <div class="dashboard-hero">
-    <div>
+    <div class="dashboard-hero__copy">
       <h1 class="dashboard-hero__title">Painel de oportunidades</h1>
       <p class="dashboard-hero__sub">Acompanhe alertas, palavras-chave e próximos passos.</p>
       <div class="dashboard-hero__badges">
@@ -28,48 +28,40 @@
     <a class="btn primary pill" href="{{ dashboard.next_action.href }}">{{ dashboard.next_action.label }}</a>
   </div>
 
-  <section class="dashboard-status-grid" aria-label="Resumo do painel">
-    <article class="status-card">
-      <div class="status-card__label">Monitoramento</div>
-      <div class="status-card__value">{{ dashboard.monitoring.label.replace('Monitoramento ', '')|capitalize }}</div>
-      <p>{{ dashboard.monitoring.description }}</p>
+  <section class="dashboard-insight-strip" aria-label="Resumo rapido da conta">
+    <article class="insight-pill insight-pill--wide">
+      <span>Monitoramento</span>
+      <strong>{{ dashboard.monitoring.label.replace('Monitoramento ', '')|capitalize }}</strong>
     </article>
-    <article class="status-card">
-      <div class="status-card__label">Telegram</div>
-      <div class="status-card__value">{{ 'Conectado' if is_linked else 'Desconectado' }}</div>
-      <p>{{ 'Pronto para receber alertas.' if is_linked else 'Conecte para receber oportunidades.' }}</p>
+    <article class="insight-pill">
+      <span>Telegram</span>
+      <strong>{{ 'Conectado' if is_linked else 'Desconectado' }}</strong>
     </article>
-    <article class="status-card">
-      <div class="status-card__label">Alertas hoje</div>
-      <div class="status-card__value" id="alerts-today">{{ dashboard.alerts_today }}</div>
-      <p>
-        {% if dashboard.is_unlimited %}
-          sem limite diário
-        {% else %}
-          {{ dashboard.alerts_remaining }} restante(s) no Free
-        {% endif %}
-      </p>
+    <article class="insight-pill">
+      <span>Plano</span>
+      <strong>{% if plan and plan.is_admin_plan %}Admin{% elif plan and plan.is_pro %}Pro{% else %}Free{% endif %}</strong>
     </article>
-    <article class="status-card">
-      <div class="status-card__label">Keywords</div>
-      <div class="status-card__value">{{ dashboard.kw_count }}</div>
-      <p>
-        {% if dashboard.max_keywords < 0 %}
-          sem limite de termos
-        {% else %}
-          de {{ dashboard.max_keywords }} no plano atual
-        {% endif %}
-      </p>
+    <article class="insight-pill">
+      <span>Alertas</span>
+      <strong>{% if dashboard.is_unlimited %}{{ dashboard.alerts_today }} hoje{% else %}{{ dashboard.alerts_today }}/{{ dashboard.max_alerts_day }} usados{% endif %}</strong>
+    </article>
+    <article class="insight-pill">
+      <span>Keywords</span>
+      <strong>{% if dashboard.max_keywords < 0 %}{{ dashboard.kw_count }} termos{% else %}{{ dashboard.kw_count }}/{{ dashboard.max_keywords }} em uso{% endif %}</strong>
+    </article>
+    <article class="insight-pill insight-pill--accent">
+      <span>Revisão</span>
+      <strong>{{ dashboard.review_count }} em aberto</strong>
     </article>
   </section>
-
+  <p class="dashboard-status-note">{{ dashboard.monitoring.description }}</p>
   <div class="grid dashboard-grid">
     <div class="stack">
       <section class="card usage-card" id="daily-usage-card">
         <div class="section-head">
           <div>
-            <h3>Uso diário</h3>
-            <p class="help">Seu limite de alertas acompanha o plano atual.</p>
+            <h3>Uso do plano hoje</h3>
+            <p class="help">Limites do plano atual, sem estimativas.</p>
           </div>
           {% if dashboard.is_unlimited %}
             <span class="status-badge status-badge--ok">Ilimitado</span>
@@ -104,7 +96,40 @@
         {% endif %}
       </section>
 
-      <section class="card" id="keywords-card">
+      <section class="card opportunities-card--primary">
+        <div class="section-head">
+          <div>
+            <h3>Oportunidades recentes</h3>
+            <p class="help">{{ dashboard.review_count }} em aberto de {{ dashboard.projects_count }} oportunidade(s) encontradas.</p>
+          </div>
+          <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todas</a>
+        </div>
+
+        {% if dashboard.recent_projects %}
+          <div class="opportunity-list">
+            {% for p in dashboard.recent_projects %}
+              <article class="opportunity-item">
+                <div class="opportunity-item__body">
+                  <div class="opportunity-item__title">{{ p.title }}</div>
+                  <div class="opportunity-item__meta">
+                    <span>{{ p.matched_keyword }}</span>
+                    <span>{{ p.created_at|fmt_br }}</span>
+                    {% if p.won %}<span>Ganho</span>{% else %}<span>Em aberto</span>{% endif %}
+                  </div>
+                </div>
+                <a class="btn pill" target="_blank" rel="noopener" href="{{ p.link }}">Abrir</a>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state dashboard-empty">
+            <div class="empty-state__title">Nenhuma oportunidade por enquanto</div>
+            <div class="empty-state__desc">Quando novas oportunidades casarem com suas keywords, elas aparecem aqui.</div>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="card keywords-card--compact" id="keywords-card">
         <div class="section-head">
           <div>
             <h3>Palavras-chave</h3>
@@ -162,45 +187,12 @@
           {% endfor %}
         </ul>
       </section>
-
-      <section class="card">
-        <div class="section-head">
-          <div>
-            <h3>Oportunidades recentes</h3>
-            <p class="help">Projetos reais que casaram com suas palavras-chave.</p>
-          </div>
-          <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todos</a>
-        </div>
-
-        {% if dashboard.recent_projects %}
-          <div class="opportunity-list">
-            {% for p in dashboard.recent_projects %}
-              <article class="opportunity-item">
-                <div class="opportunity-item__body">
-                  <div class="opportunity-item__title">{{ p.title }}</div>
-                  <div class="opportunity-item__meta">
-                    <span>{{ p.matched_keyword }}</span>
-                    <span>{{ p.created_at|fmt_br }}</span>
-                    {% if p.won %}<span>Ganho</span>{% else %}<span>Em aberto</span>{% endif %}
-                  </div>
-                </div>
-                <a class="btn pill" target="_blank" rel="noopener" href="{{ p.link }}">Abrir</a>
-              </article>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state dashboard-empty">
-            <div class="empty-state__title">Nenhuma oportunidade por enquanto</div>
-            <div class="empty-state__desc">Quando novas oportunidades casarem com suas keywords, elas aparecem aqui.</div>
-          </div>
-        {% endif %}
-      </section>
     </div>
 
     <div class="stack">
-      <section class="card next-action-card">
-        <h3>Próxima melhor ação</h3>
-        <p class="next-action-card__title">{{ dashboard.next_action.title }}</p>
+      <section class="card next-action-card next-action-card--featured">
+        <span class="side-card-kicker">Próxima melhor ação</span>
+        <h3>{{ dashboard.next_action.title }}</h3>
         <p class="help">{{ dashboard.next_action.body }}</p>
         <a class="btn primary pill" href="{{ dashboard.next_action.href }}">{{ dashboard.next_action.label }}</a>
       </section>
@@ -339,20 +331,6 @@
       </section>
       {% endif %}
 
-      <section class="card compact-results-card">
-        <h3>Resultados</h3>
-        <div class="kpi-mini">
-          <div>
-            <div class="kpi-mini__label">Conversão</div>
-            <div class="kpi-mini__val" id="mini-conv">—</div>
-          </div>
-          <div>
-            <div class="kpi-mini__label">Ticket médio</div>
-            <div class="kpi-mini__val" id="mini-avg">—</div>
-          </div>
-        </div>
-        <p class="help" style="margin:12px 0 0">Os indicadores aparecem quando oportunidades são marcadas como ganho.</p>
-      </section>
     </div>
   </div>
 </div>
