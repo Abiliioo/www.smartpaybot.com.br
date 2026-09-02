@@ -163,6 +163,13 @@ class DashboardMarkupTest(unittest.TestCase):
         self.assertIn("Revisar oportunidades", html)
         self.assertNotIn("score", html.lower())
 
+    def test_dashboard_prioritizes_opportunities_over_keyword_management(self) -> None:
+        html = self._dashboard_html()
+
+        self.assertIn("1 em aberto de 1 oportunidade(s) encontradas.", html)
+        self.assertLess(html.index("Oportunidades recentes"), html.index("Palavras-chave"))
+        self.assertNotIn("Ticket médio", html)
+        self.assertNotIn("Conversão", html)
     def test_dashboard_next_action_for_telegram_disconnected(self) -> None:
         with self.Session() as db:
             user = db.get(User, self.user_id)

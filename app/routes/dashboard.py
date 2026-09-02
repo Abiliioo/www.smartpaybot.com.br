@@ -61,6 +61,7 @@ def _usage_pct(used: int, max_value: int) -> int:
 def _build_dashboard_view(*, plan: dict, is_linked: bool, bot_running: bool, keywords: list[str], projects: list) -> dict:
     kw_count = len(keywords)
     project_count = len(projects)
+    review_count = sum(1 for project in projects if not bool(getattr(project, "won", False)))
     is_unlimited = bool(plan.get("is_pro") or plan.get("is_admin_plan"))
     is_free = not is_unlimited
 
@@ -181,6 +182,7 @@ def _build_dashboard_view(*, plan: dict, is_linked: bool, bot_running: bool, key
     return {
         "kw_count": kw_count,
         "projects_count": project_count,
+        "review_count": review_count,
         "recent_projects": projects[:5],
         "is_free": is_free,
         "is_unlimited": is_unlimited,

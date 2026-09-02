@@ -1101,3 +1101,107 @@ input[type="text"], input[type="email"], input[type="password"]{
   .opportunity-item .btn { width: 100%; text-align: center }
   .compact-results-card .kpi-mini { flex-direction: column }
 }
+/* =======================
+   26) DASHBOARD REAL — SPB-251C
+   ======================= */
+.dashboard-hero { align-items: center; padding: 18px 20px }
+.dashboard-hero__copy { min-width: 0 }
+.dashboard-insight-strip {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.insight-pill {
+  min-width: 0;
+  padding: 12px 13px;
+  background: rgba(14,22,40,.78);
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 12px;
+}
+.insight-pill span {
+  display: block;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+.insight-pill strong {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: .94rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insight-pill--accent {
+  background: rgba(22,42,72,.8);
+  border-color: rgba(96,165,250,.32);
+}
+.dashboard-grid {
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, .75fr);
+  gap: 16px;
+}
+.dashboard-status-note {
+  margin: -6px 0 16px;
+  color: var(--muted);
+  font-size: .86rem;
+  line-height: 1.45;
+}
+.dashboard-plan-usage,
+.opportunities-card--primary {
+  border-color: rgba(148,163,184,.2);
+}
+.opportunities-card--primary {
+  background: linear-gradient(180deg, rgba(15,23,42,.98) 0%, rgba(12,19,33,.98) 100%);
+  box-shadow: 0 18px 45px rgba(2,6,23,.2);
+}
+.opportunities-card--primary .section-head h3 { font-size: 1.18rem }
+.opportunities-card--primary .opportunity-list { gap: 12px }
+.opportunities-card--primary .opportunity-item {
+  padding: 14px;
+  background: rgba(15,23,42,.82);
+}
+.opportunities-card--primary .opportunity-item__title { font-size: .98rem }
+.keywords-card--compact .form-inline { gap: 8px }
+.keywords-card--compact .chips { margin-top: 10px }
+.next-action-card--featured {
+  border-color: rgba(96,165,250,.3);
+  background:
+    radial-gradient(circle at top right, rgba(96,165,250,.16), transparent 34%),
+    linear-gradient(180deg, #111827 0%, #0e1726 100%);
+}
+.next-action-card--featured h3 {
+  margin: 6px 0 8px;
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  font-size: 1.12rem;
+}
+.next-action-card--featured .btn { width: 100%; justify-content: center; margin-top: 6px }
+.side-card-kicker {
+  color: #93c5fd;
+  font-size: .72rem;
+  font-weight: 850;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+@media (max-width: 1020px) {
+  .dashboard-insight-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .dashboard-grid { grid-template-columns: 1fr }
+}
+@media (max-width: 640px) {
+  .dashboard-hero { align-items: flex-start; padding: 16px }
+  .dashboard-insight-strip { grid-template-columns: 1fr 1fr; gap: 8px }
+  .insight-pill { padding: 11px }
+  .insight-pill--wide,
+  .insight-pill--accent { grid-column: span 2 }
+  .insight-pill strong { font-size: .88rem; white-space: normal }
+  .dashboard-grid { gap: 12px }
+  .opportunities-card--primary .opportunity-item__title { white-space: normal }
+  .keywords-card--compact .form-inline { flex-direction: column; align-items: stretch }
+  .keywords-card--compact .form-inline .btn { width: 100% }
+}
