@@ -448,9 +448,13 @@ def _is_deep_complete(
         and metrics.pages_failed == 0
         and metrics.parser_ok == plan.deep_pages
         and metrics.parser_failed == 0
-        and metrics.ingest_received is not None
+        and metrics.ingest_received == metrics.projects_unique
         and exit_code == EXIT_SUCCESS
     )
+
+
+def _arg_present(argv: Sequence[str], name: str) -> bool:
+    return any(arg == name or arg.startswith(f"{name}=") for arg in argv)
 
 
 def _build_next_state(
@@ -860,6 +864,7 @@ def _config_error(message: str) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    raw_args = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(
         description="Coleta projetos do 99Freelas e envia para a VPS SmartPayBot."
     )
@@ -893,13 +898,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=DEFAULT_STATE_PATH,
         help="Arquivo local descartável de estado do coletor.",
     )
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw_args)
+    fast_deep_args_present = _arg_present(raw_args, "--fast-pages") or _arg_present(
+        raw_args, "--deep-pages"
+    )
 
     if args.pages is not None and args.mode is not None:
         return _config_error("--pages não deve ser combinado com --mode")
-    if args.mode is None and (
-        args.fast_pages != DEFAULT_FAST_PAGES or args.deep_pages != DEFAULT_DEEP_PAGES
-    ):
+    if args.mode is None and fast_deep_args_present:
         return _config_error("--fast-pages/--deep-pages exigem --mode")
     if args.pages is not None and args.pages < 1:
         return _config_error("--pages deve ser maior ou igual a 1")

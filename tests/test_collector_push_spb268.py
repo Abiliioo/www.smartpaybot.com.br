@@ -254,6 +254,7 @@ class CollectorPushSpb268Tests(unittest.TestCase):
         self.assertEqual(collector.EXIT_SUCCESS, code)
         self.assertEqual(["deep1", "deep2"], written["recent_project_ids"])
         self.assertEqual({"first_project_id": "deep1", "last_project_id": "deep2"}, written["anchors"])
+        self.assertEqual(1000, written["watermark_published_ms"])
 
     def test_fast_shadow_is_unusable_with_explicit_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -316,13 +317,99 @@ class CollectorPushSpb268Tests(unittest.TestCase):
         self.assertNotIn("Titulo nao deve aparecer", output)
         self.assertNotIn("link-nao-deve-aparecer", output)
 
-    def test_pages_and_mode_together_fail_closed(self) -> None:
-        out = io.StringIO()
-        with redirect_stdout(out):
-            code = collector.main(["--pages", "10", "--mode", "auto"])
+    def test_deep_complete_requires_ingest_received_to_match_projects_unique(self) -> None:
+        old_deep = self._timestamp(self.started_at - timedelta(seconds=1000))
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self._write_deep_state(tmp, last_deep_started_at=old_deep)
+            code, output, _push, _state_path = self._run_main(
+                ["--mode", "deep", "--deep-pages", "2", "--state-file", str(state_path)],
+                parser_side_effect=[
+                    [self._project(1, "Primeiro")],
+                    [self._project(2, "Segundo")],
+                ],
+                push_result={"received": 1, "inserted": 1, "updated": 0, "skipped": 0},
+            )
+            telemetry = self._telemetry(output)
+            written = json.loads(state_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(collector.EXIT_SUCCESS, code)
+        self.assertFalse(telemetry["collector_deep_complete"])
+        self.assertEqual(old_deep, written["last_deep_started_at"])
+
+    def test_fast_pages_default_value_without_mode_fails_closed(self) -> None:
+        code, output = self._run_config_error(["--fast-pages", "2"])
 
         self.assertEqual(collector.EXIT_CONFIG, code)
-        self.assertIn("não deve ser combinado", out.getvalue())
+        self.assertIn("exigem --mode", output)
+
+    def test_deep_pages_default_value_without_mode_fails_closed(self) -> None:
+        code, output = self._run_config_error(["--deep-pages", "10"])
+
+        self.assertEqual(collector.EXIT_CONFIG, code)
+        self.assertIn("exigem --mode", output)
+
+    def test_fast_and_deep_default_values_without_mode_fail_closed(self) -> None:
+        code, output = self._run_config_error(["--fast-pages", "2", "--deep-pages", "10"])
+
+        self.assertEqual(collector.EXIT_CONFIG, code)
+        self.assertIn("exigem --mode", output)
+
+    def test_fast_or_deep_non_default_values_without_mode_fail_closed(self) -> None:
+        for args in (["--fast-pages", "3"], ["--deep-pages", "11"]):
+            with self.subTest(args=args):
+                code, output = self._run_config_error(args)
+
+            self.assertEqual(collector.EXIT_CONFIG, code)
+            self.assertIn("exigem --mode", output)
+
+    def test_no_fast_deep_arguments_keeps_legacy_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            code, output, _push, _state_path = self._run_main(
+                ["--state-file", str(Path(tmp) / "state.json")],
+                parser_side_effect=[
+                    [self._project(i, f"Projeto {i}")]
+                    for i in range(1, collector.settings.SCAN_PAGES + 1)
+                ],
+            )
+            telemetry = self._telemetry(output)
+
+        self.assertEqual(collector.EXIT_SUCCESS, code)
+        self.assertEqual(collector.settings.SCAN_PAGES, telemetry["pages_attempted"])
+        self.assertEqual("pages", telemetry["collector_mode_resolved"])
+
+    def test_pages_and_fast_or_deep_without_mode_fail_closed(self) -> None:
+        for args in (["--pages", "3", "--fast-pages", "2"], ["--pages", "3", "--deep-pages", "10"]):
+            with self.subTest(args=args):
+                code, output = self._run_config_error(args)
+
+            self.assertEqual(collector.EXIT_CONFIG, code)
+            self.assertIn("exigem --mode", output)
+
+    def test_mode_auto_with_explicit_fast_and_deep_defaults_is_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self._write_deep_state(tmp, last_deep_age_seconds=60)
+            code, output, _push, _state_path = self._run_main(
+                [
+                    "--mode", "auto",
+                    "--fast-pages", "2",
+                    "--deep-pages", "10",
+                    "--state-file", str(state_path),
+                ],
+                parser_side_effect=[
+                    [self._project(1, "Primeiro")],
+                    [self._project(2, "Segundo")],
+                ],
+            )
+            telemetry = self._telemetry(output)
+
+        self.assertEqual(collector.EXIT_SUCCESS, code)
+        self.assertEqual("fast", telemetry["collector_mode_resolved"])
+
+    def test_pages_and_mode_together_fail_closed(self) -> None:
+        code, output = self._run_config_error(["--pages", "10", "--mode", "auto"])
+
+        self.assertEqual(collector.EXIT_CONFIG, code)
+        self.assertIn("não deve ser combinado", output)
 
     def _run_main(
         self,
@@ -331,13 +418,15 @@ class CollectorPushSpb268Tests(unittest.TestCase):
         parser_side_effect: list[list[dict]],
         responses: list[object] | None = None,
         push_side_effect: BaseException | None = None,
+        push_result: dict | None = None,
         finished_at=None,
     ):
         pages_expected = self._expected_pages(args)
         FakeHttpClient.calls = 0
         FakeHttpClient.responses = list(responses or ([PROJECT_HTML] * pages_expected))
         out = io.StringIO()
-        push_result = {"received": 1, "inserted": 1, "updated": 0, "skipped": 0}
+        if push_result is None:
+            push_result = {"received": pages_expected, "inserted": 1, "updated": 0, "skipped": 0}
         push_patch = mock.patch.object(collector, "_push", return_value=push_result)
         if push_side_effect is not None:
             push_patch = mock.patch.object(collector, "_push", side_effect=push_side_effect)
@@ -357,6 +446,12 @@ class CollectorPushSpb268Tests(unittest.TestCase):
             code = collector.main(args)
         state_path = self._state_path_from_args(args)
         return code, out.getvalue(), push, state_path
+
+    def _run_config_error(self, args: list[str]) -> tuple[int, str]:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = collector.main(args)
+        return code, out.getvalue()
 
     def _assert_auto_state_content_resolves_deep(self, content: str) -> None:
         with tempfile.TemporaryDirectory() as tmp:
