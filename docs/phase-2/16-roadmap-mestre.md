@@ -44,11 +44,11 @@ Findings das auditorias sao priorizados pelo impacto nessa cadeia, nao apenas po
 SPB-264 (correcao: HTTP estrito, parser health, exit codes, retry, log seguro) -- CONCLUIDO em 20/08/2026
    -> SPB-265 (estado persistente + telemetria) -- CONCLUIDO em 21/08/2026
    -> SPB-266 (shadow mode — observacao, sem mudar comportamento real)
-   -> SPB-267 (early-stop ativo, condicionado ao gate do shadow)
-   -> SPB-268 (cadencia 10 -> 7 -> 5 min)
+   -> SPB-267 (early-stop ativo) -- BLOQUEADO
+   -> SPB-268 (fundacao Fast/Deep; cutover PT5M em gate separado)
 ```
 
-SPB-266 esta mergeado e em observacao operacional real desde 24/08/2026; Issue #13 permanece aberta ate o fechamento da janela. SPB-269 (medir trafego oculto do notifier) roda durante a janela do shadow (SPB-266) e e pre-requisito do gate de cadencia de 7 minutos.
+SPB-266 esta mergeado e em observacao operacional real desde 24/08/2026, mas `shadow_missed_new_if_active` nao deve ser tratado como prova de perda real nem como autorizacao para early-stop. SPB-267 permanece bloqueado. SPB-268 passa a preparar a estrategia Fast/Deep sem ativacao operacional: codigo e testes primeiro; mudanca da Scheduled Task para PT5M somente em cutover separado. SPB-269 segue relevante para medir o trafego oculto do notifier antes de cadencias mais agressivas.
 
 ### TRILHO B — homologacao / SPB-263
 
@@ -83,13 +83,14 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 **NOW**
 
-- SPB-266.
+- SPB-268 fundacao Fast/Deep, sem alterar Scheduled Task/cadencia.
 
 **NEXT**
 
 - SPB-271;
 - SPB-272;
 - SPB-269;
+- cutover SPB-268 para PT5M apos gate operacional;
 - Fase E / F / G;
 - SPB-250I Telegram IPv4 para destravar deploy da landing React;
 - SPB-250.
@@ -97,18 +98,17 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 **LATER**
 
 - SPB-267;
-- SPB-268;
 - redesign amplo de UI (SPB-255, 251, 256, 257, 258, 259, 252);
 - Fase H / I;
 - hardening residual (SPB-273, SPB-274).
 
 ## Proximos 5 passos
 
-1. SPB-266 — shadow mode do Collector (observacao, sem mudar comportamento real).
+1. SPB-268 — fundacao Fast/Deep do Collector, sem cutover operacional.
 2. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
 3. SPB-272 — hardening de isolamento pre-Fase E.
 4. SPB-269 — medir trafego oculto do notifier.
-5. Fase E / F / G — homologacao fisica apos os gates pendentes.
+5. Cutover SPB-268 para PT5M somente apos gate separado.
 
 ## Limite de WIP
 
@@ -127,9 +127,9 @@ Nao abrir o Trilho C amplo (a partir de SPB-255) enquanto o Trilho B critico res
 | `B4_PRODUCTION_DEPLOY_GATE` | **APPROVE** (final) — condicoes comprovadas em 18/08/2026: `FLASK_ENV=production`/`APP_ENV=production` confirmados; cookie de producao continua `session` (`Secure`/`HttpOnly`/`SameSite=Lax`/`Path=/`, sem `Domain`); nenhum banner de homologacao apareceu em producao; suite completa executada na VPS com `.env` real (204/204); banco integro; HTTP saudavel (`HOME`/`LOGIN`/`REGISTER`=200, `ADMIN`=302); Telegram saudavel (`telegram_ready()=True`, webhook OK); Collector com `LastTaskResult=0` apos restauracao |
 | `STRICT_HTTP_READY` | **PASS_LOCAL** — SPB-264 mergeado e validado no Collector local real em 20/08/2026 (`EXIT_CODE=0`, 10/10 paginas OK, parser OK 10/10, ingest OK); sem deploy VPS nesta etapa |
 | `SHADOW_MODE_READY` | READY — `STRICT_HTTP_READY` e SPB-265 concluidos; proximo passo funcional e SPB-266 em modo shadow, sem mudar comportamento real |
-| `EARLY_STOP_READY` | BLOCKED — observacao shadow iniciada em 24/08/2026; depende de `shadow_missed_new_if_active = 0` por pelo menos 7 dias, idealmente 14, incluindo fim de semana e ciclos com volume real |
-| `CADENCE_7MIN_READY` | BLOCKED — depende de early-stop estavel + SPB-269 concluido |
-| `CADENCE_5MIN_READY` | BLOCKED — depende de 7 min estavel por >= 7 dias |
+| `EARLY_STOP_READY` | BLOCKED — o shadow atual nao prova seguranca de early-stop; `shadow_missed_new_if_active` nao deve ser usado como evidencia de perda real nem como autorizacao para reduzir cobertura |
+| `FAST_DEEP_CUTOVER_READY` | BLOCKED — depende de merge/review da fundacao SPB-268, validacao operacional e decisao explicita para alterar a Scheduled Task de PT10M para PT5M |
+| `CADENCE_5MIN_READY` | BLOCKED — substituido operacionalmente pela proposta Fast/Deep PT5M; cutover continua separado da implementacao de codigo |
 | `PHASE_E_READINESS` | READY_AFTER_FIXES — SPB-270 implantado e validado em producao; ainda depende de SPB-272 + bot Telegram dedicado + procedimento de fingerprint de segredos |
 | `PHASE_F_READINESS` | BLOCKED — depende da Fase E + SPB-271 |
 | `PHASE_G_READINESS` | BLOCKED — depende da Fase F; ordem obrigatoria: TLS antes de Basic Auth |
@@ -162,8 +162,8 @@ Projecoes condicionadas ao resultado do shadow (NAO registradas como promessa ao
 
 ## O que NAO fazer
 
-- nao ativar early-stop sem o shadow mode ter fechado a janela de observacao com `missed_new_if_active = 0`;
-- nao reduzir a cadencia para 5 minutos antes de medir o trafego do notifier (SPB-269);
+- nao ativar early-stop; SPB-267 permanece bloqueado porque o shadow atual nao prova seguranca real;
+- nao alterar Scheduled Task/cadencia na fundacao SPB-268; cutover para PT5M exige gate separado;
 - nao fazer big bang de redesign de UI — um sprint, um PR, um criterio de aprovacao por vez;
 - nao criar a homologacao copiando o diretorio ou o `.env` de producao — sempre `git clone` limpo + `.env` gerado do zero;
 - nao usar o bot de producao em homologacao — o bot dedicado deve existir antes do provisionamento;
