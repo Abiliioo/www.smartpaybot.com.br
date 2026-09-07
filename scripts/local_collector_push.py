@@ -62,6 +62,9 @@ RETRY_BACKOFF_SECONDS = 0.2
 STATE_SCHEMA_VERSION = 1
 STATE_RECENT_IDS_LIMIT = 200
 DEFAULT_STATE_PATH = Path("data/collector/collector_state.json")
+DEFAULT_FAST_PAGES = 2
+DEFAULT_DEEP_PAGES = 10
+DEEP_DUE_SECONDS = 540
 
 
 @dataclass
@@ -92,6 +95,16 @@ class StateLoadResult:
     status: str
     data: dict = field(default_factory=dict)
     schema_version: int | None = None
+
+
+@dataclass
+class CollectorPlan:
+    requested_mode: str
+    resolved_mode: str
+    pages: int
+    fast_pages: int
+    deep_pages: int
+    deep_due_seconds: int = DEEP_DUE_SECONDS
 
 
 @dataclass
@@ -275,6 +288,19 @@ def _format_timestamp(value: datetime) -> str:
     return value.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _parse_timestamp(value) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        normalized = value.strip().replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
 def _load_collector_state(path: Path) -> StateLoadResult:
     try:
         raw = path.read_text(encoding="utf-8")
@@ -346,6 +372,87 @@ def _anchors(projects: list[dict]) -> dict[str, str | None]:
     }
 
 
+def _resolve_auto_mode(
+    state_load: StateLoadResult,
+    started_at: datetime,
+) -> str:
+    try:
+        if state_load.status != "loaded":
+            return "deep"
+
+        state = state_load.data
+        last_exit_code = _safe_int(state.get("last_exit_code"))
+        last_pages_failed = _safe_int(state.get("last_pages_failed"))
+        last_parser_failed = _safe_int(state.get("last_parser_failed"))
+        last_deep_started_at = _parse_timestamp(state.get("last_deep_started_at"))
+
+        if last_exit_code is None or last_exit_code != EXIT_SUCCESS:
+            return "deep"
+        if last_pages_failed is None or last_pages_failed > 0:
+            return "deep"
+        if last_parser_failed is None or last_parser_failed > 0:
+            return "deep"
+        if last_deep_started_at is None:
+            return "deep"
+
+        age_seconds = (started_at - last_deep_started_at).total_seconds()
+        if age_seconds < 0 or age_seconds >= DEEP_DUE_SECONDS:
+            return "deep"
+        return "fast"
+    except Exception:
+        return "deep"
+
+
+def _build_collector_plan(
+    *,
+    requested_mode: str | None,
+    pages: int | None,
+    fast_pages: int,
+    deep_pages: int,
+    state_load: StateLoadResult,
+    started_at: datetime,
+) -> CollectorPlan:
+    if requested_mode is None:
+        pages_to_collect = pages if pages is not None else settings.SCAN_PAGES
+        return CollectorPlan(
+            requested_mode="pages",
+            resolved_mode="pages",
+            pages=pages_to_collect,
+            fast_pages=fast_pages,
+            deep_pages=deep_pages,
+        )
+
+    resolved_mode = (
+        _resolve_auto_mode(state_load, started_at)
+        if requested_mode == "auto"
+        else requested_mode
+    )
+    return CollectorPlan(
+        requested_mode=requested_mode,
+        resolved_mode=resolved_mode,
+        pages=fast_pages if resolved_mode == "fast" else deep_pages,
+        fast_pages=fast_pages,
+        deep_pages=deep_pages,
+    )
+
+
+def _is_deep_complete(
+    plan: CollectorPlan,
+    metrics: CollectorMetrics,
+    exit_code: int,
+) -> bool:
+    return (
+        plan.resolved_mode == "deep"
+        and metrics.pages_attempted == plan.deep_pages
+        and metrics.pages_ok == plan.deep_pages
+        and metrics.pages_failed == 0
+        and metrics.parser_ok == plan.deep_pages
+        and metrics.parser_failed == 0
+        and metrics.ingest_received is not None
+        and exit_code == EXIT_SUCCESS
+    )
+
+
 def _build_next_state(
     previous: dict,
     projects: list[dict],
@@ -353,6 +460,8 @@ def _build_next_state(
     exit_code: int,
     started_at: datetime,
     finished_at: datetime,
+    plan: CollectorPlan | None = None,
+    deep_complete: bool = False,
 ) -> dict:
     state = {
         "schema_version": STATE_SCHEMA_VERSION,
@@ -377,12 +486,20 @@ def _build_next_state(
         "last_ingest_inserted": metrics.ingest_inserted,
         "last_ingest_updated": metrics.ingest_updated,
         "last_ingest_skipped": metrics.ingest_skipped,
+        "last_deep_started_at": previous.get("last_deep_started_at"),
+        "last_collector_mode": plan.resolved_mode if plan else "pages",
     }
 
     if exit_code == EXIT_SUCCESS:
+        state["last_success_at"] = _format_timestamp(finished_at)
+
+    if deep_complete:
+        state["last_deep_started_at"] = _format_timestamp(started_at)
+
+    can_refresh_snapshot = plan is None or plan.requested_mode == "pages" or deep_complete
+    if exit_code == EXIT_SUCCESS and can_refresh_snapshot:
         recent_ids = _recent_project_ids(projects)
         watermark = _watermark_published_ms(projects)
-        state["last_success_at"] = _format_timestamp(finished_at)
         if watermark is not None:
             state["watermark_published_ms"] = watermark
         if recent_ids:
@@ -440,7 +557,26 @@ def _compute_shadow_metrics(
     state_load: StateLoadResult,
     projects_by_page: list[list[dict]],
     metrics: CollectorMetrics,
+    collector_mode_resolved: str = "pages",
 ) -> ShadowMetrics:
+    if collector_mode_resolved == "fast":
+        previous_recent_ids = []
+        previous_watermark = None
+        if state_load.status == "loaded":
+            previous_recent_ids = state_load.data.get("recent_project_ids") or []
+            previous_watermark = _safe_int(state_load.data.get("watermark_published_ms"))
+        previous_recent_id_set = {
+            str(project_id)
+            for project_id in previous_recent_ids
+            if project_id is not None
+        }
+        return _shadow_blocked(
+            state_load,
+            previous_recent_ids_count=len(previous_recent_id_set),
+            previous_watermark_published_ms=previous_watermark,
+            reason="fast_cycle_not_full_scan",
+        )
+
     if state_load.status != "loaded":
         return _shadow_blocked(state_load, reason=f"state_{state_load.status}")
 
@@ -598,13 +734,28 @@ def _print_telemetry(
     watermark_published_ms: int | None,
     recent_ids_count: int,
     shadow_metrics: ShadowMetrics,
+    plan: CollectorPlan | None = None,
+    deep_complete: bool = False,
+    last_deep_started_at: str | None = None,
 ) -> None:
     duration_seconds = round((finished_at - started_at).total_seconds(), 3)
+    requested_mode = plan.requested_mode if plan else "pages"
+    resolved_mode = plan.resolved_mode if plan else "pages"
+    fast_pages = plan.fast_pages if plan else DEFAULT_FAST_PAGES
+    deep_pages = plan.deep_pages if plan else DEFAULT_DEEP_PAGES
+    deep_due_seconds = plan.deep_due_seconds if plan else DEEP_DUE_SECONDS
     payload = {
         "cycle_started_at": _format_timestamp(started_at),
         "cycle_finished_at": _format_timestamp(finished_at),
         "duration_seconds": duration_seconds,
         "exit_code": exit_code,
+        "collector_mode_requested": requested_mode,
+        "collector_mode_resolved": resolved_mode,
+        "collector_fast_pages": fast_pages,
+        "collector_deep_pages": deep_pages,
+        "collector_deep_due_seconds": deep_due_seconds,
+        "collector_deep_complete": deep_complete,
+        "collector_last_deep_started_at": last_deep_started_at,
         "pages_attempted": metrics.pages_attempted,
         "pages_ok": metrics.pages_ok,
         "pages_failed": metrics.pages_failed,
@@ -645,8 +796,10 @@ def _finish_cycle(
     state_path: Path,
     state_load: StateLoadResult,
     shadow_metrics: ShadowMetrics | None = None,
+    plan: CollectorPlan | None = None,
 ) -> int:
     finished_at = _utc_now()
+    deep_complete = _is_deep_complete(plan, metrics, exit_code) if plan else False
     final_shadow_metrics = _finalize_shadow_metrics(shadow_metrics, exit_code)
     previous_state = state_load.data if state_load.status == "loaded" else {}
     next_state = _build_next_state(
@@ -656,6 +809,8 @@ def _finish_cycle(
         exit_code,
         started_at,
         finished_at,
+        plan,
+        deep_complete,
     )
     state_write_status = _write_collector_state_atomic(state_path, next_state)
     _print_summary(metrics, exit_code)
@@ -669,6 +824,9 @@ def _finish_cycle(
         _safe_int(next_state.get("watermark_published_ms")),
         len(next_state.get("recent_project_ids") or []),
         final_shadow_metrics,
+        plan,
+        deep_complete,
+        next_state.get("last_deep_started_at"),
     )
     return exit_code
 
@@ -708,8 +866,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--pages",
         type=int,
-        default=settings.SCAN_PAGES,
+        default=None,
         help=f"Páginas a raspar (padrão: SCAN_PAGES={settings.SCAN_PAGES})",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("auto", "fast", "deep"),
+        default=None,
+        help="Modo de coleta Fast/Deep. Não combinar com --pages.",
+    )
+    parser.add_argument(
+        "--fast-pages",
+        type=int,
+        default=DEFAULT_FAST_PAGES,
+        help=f"Páginas do modo fast (padrão: {DEFAULT_FAST_PAGES})",
+    )
+    parser.add_argument(
+        "--deep-pages",
+        type=int,
+        default=DEFAULT_DEEP_PAGES,
+        help=f"Páginas do modo deep (padrão: {DEFAULT_DEEP_PAGES})",
     )
     parser.add_argument(
         "--state-file",
@@ -719,11 +895,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.pages < 1:
+    if args.pages is not None and args.mode is not None:
+        return _config_error("--pages não deve ser combinado com --mode")
+    if args.mode is None and (
+        args.fast_pages != DEFAULT_FAST_PAGES or args.deep_pages != DEFAULT_DEEP_PAGES
+    ):
+        return _config_error("--fast-pages/--deep-pages exigem --mode")
+    if args.pages is not None and args.pages < 1:
         return _config_error("--pages deve ser maior ou igual a 1")
+    if args.fast_pages < 1:
+        return _config_error("--fast-pages deve ser maior ou igual a 1")
+    if args.deep_pages < 1:
+        return _config_error("--deep-pages deve ser maior ou igual a 1")
+    if args.fast_pages > args.deep_pages:
+        return _config_error("--fast-pages deve ser menor ou igual a --deep-pages")
 
     started_at = _utc_now()
     state_load = _load_collector_state(args.state_file)
+    plan = _build_collector_plan(
+        requested_mode=args.mode,
+        pages=args.pages,
+        fast_pages=args.fast_pages,
+        deep_pages=args.deep_pages,
+        state_load=state_load,
+        started_at=started_at,
+    )
     empty_metrics = CollectorMetrics()
 
     ingest_url = os.getenv("SMARTPAYBOT_INGEST_URL", "").strip()
@@ -731,39 +927,43 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not ingest_url:
         _config_error("SMARTPAYBOT_INGEST_URL não configurado")
-        return _finish_cycle([], empty_metrics, EXIT_CONFIG, started_at, args.state_file, state_load)
+        return _finish_cycle([], empty_metrics, EXIT_CONFIG, started_at, args.state_file, state_load, plan=plan)
     if not _valid_ingest_url(ingest_url):
         _config_error("SMARTPAYBOT_INGEST_URL inválida")
-        return _finish_cycle([], empty_metrics, EXIT_CONFIG, started_at, args.state_file, state_load)
+        return _finish_cycle([], empty_metrics, EXIT_CONFIG, started_at, args.state_file, state_load, plan=plan)
     if not token:
         _config_error("INTERNAL_INGEST_TOKEN não configurado")
-        return _finish_cycle([], empty_metrics, EXIT_CONFIG, started_at, args.state_file, state_load)
+        return _finish_cycle([], empty_metrics, EXIT_CONFIG, started_at, args.state_file, state_load, plan=plan)
 
-    print(f"Coletando {args.pages} página(s) do 99Freelas (scraper rico)...")
-    collect_result = asyncio.run(_collect_pages(args.pages))
+    print(
+        f"Coletando {plan.pages} página(s) do 99Freelas "
+        f"(modo solicitado={plan.requested_mode}, resolvido={plan.resolved_mode})..."
+    )
+    collect_result = asyncio.run(_collect_pages(plan.pages))
     projects = collect_result.projects
     metrics = collect_result.metrics
     shadow_metrics = _compute_shadow_metrics(
         state_load,
         collect_result.projects_by_page,
         metrics,
+        plan.resolved_mode,
     )
     print(f"\nTotal coletado: {len(projects)} projetos únicos")
 
     if metrics.pages_ok == 0 and metrics.pages_failed > 0:
         exit_code = EXIT_COLLECT_FAILED
         print("ERRO: todas as páginas falharam antes de parser saudável.")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
 
     if metrics.parser_ok == 0 and metrics.parser_failed > 0:
         exit_code = EXIT_PARSER_HEALTH
         print("ERRO: nenhuma página HTTP saudável passou no parser health.")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
 
     if not projects:
         exit_code = EXIT_SUCCESS
         print("Nenhum projeto coletado em página saudável. Nada a enviar.")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
 
     # Prévia dos campos coletados no primeiro item
     p0 = projects[0]
@@ -785,21 +985,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         status = e.response.status_code if e.response is not None else "desconhecido"
         exit_code = EXIT_INGEST_FAILED
         print(f"ERRO DE INGEST: HTTP {status} em {_sanitize_url(ingest_url)}")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
     except ValueError:
         exit_code = EXIT_INGEST_FAILED
         print(f"ERRO DE INGEST: resposta JSON inválida em {_sanitize_url(ingest_url)}")
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
     except requests.RequestException as e:
         exit_code = EXIT_INGEST_FAILED
         print(
             "ERRO DE INGEST: "
             f"{e.__class__.__name__} em {_sanitize_url(ingest_url)}"
         )
-        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+        return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
 
     exit_code = EXIT_SUCCESS
-    return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics)
+    return _finish_cycle(projects, metrics, exit_code, started_at, args.state_file, state_load, shadow_metrics, plan)
 
 
 if __name__ == "__main__":

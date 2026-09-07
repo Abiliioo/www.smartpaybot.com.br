@@ -8,6 +8,8 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
+- Fundação Fast/Deep do Collector (SPB-268): `scripts/local_collector_push.py` preserva `--pages N` como contrato legado e adiciona `--mode auto|fast|deep`, `--fast-pages` e `--deep-pages` com decisão conservadora, telemetria segura e shadow inutilizável em ciclos FAST. Implementação de código apenas, sem alteração de `run_collector.bat`, Scheduled Task, cadência, VPS, Telegram, matcher, notifier, ingest server-side, banco ou early-stop; SPB-267 permanece bloqueado.
+
 - Refino estrutural do dashboard real (SPB-251C): oportunidades recentes ganham prioridade visual, o resumo de status fica mais compacto, a proxima melhor acao ganha mais peso, palavras-chave passam a ocupar papel secundario de gestao e o bloco redundante de resultados foi removido. Usa apenas dados ja disponiveis, sem metricas inventadas, sem React/marketing, sem deploy e sem collector.
 
 - Dashboard real reorganizado (SPB-251B): o painel logado passa a abrir com status operacional de monitoramento, Telegram, plano, uso diário, keywords, oportunidades recentes e próxima melhor ação, usando apenas dados já disponíveis no sistema. O status do monitoramento diferencia preferência pausada, pendência de Telegram e operação ativa, sem afirmar saúde de pipeline. Sem redesign de Landing/Pro, sem migração React, sem deploy e sem métricas inventadas.
