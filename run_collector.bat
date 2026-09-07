@@ -14,7 +14,7 @@ set "PYTHONIOENCODING=utf-8"
 >> "logs\collector.log" echo [%DATE% %TIME%] INICIO DO COLETOR
 >> "logs\collector.log" echo ============================================================
 
-".venv\Scripts\python.exe" -X utf8 -u "scripts\local_collector_push.py" --pages 10 >> "logs\collector.log" 2>&1
+".venv\Scripts\python.exe" -X utf8 -u "scripts\local_collector_push.py" --mode auto --fast-pages 2 --deep-pages 10 >> "logs\collector.log" 2>&1
 
 set "EXIT_CODE=%ERRORLEVEL%"
 
