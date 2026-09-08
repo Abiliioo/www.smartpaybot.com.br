@@ -16,6 +16,7 @@ from domain.models import User, UserKeyword, ProjectPerUser
 from domain.services.telegram_link_service import ensure_link_code
 from domain.services.keywords_service import parse_keywords_input, clean_keyword
 from domain.services.plan_service import can_add_keyword, get_plan_display, get_user_plan
+from domain.services.dashboard_metrics_service import build_dashboard_metrics
 from domain.repositories import (
     list_user_projects, delete_user_keyword,
     list_user_projects_paginated, mark_project_won
@@ -239,6 +240,12 @@ def home():
 
     with SessionLocal() as db:
         plan_info = get_plan_display(db, int(current_user.id))
+        metrics_user = db.get(User, int(current_user.id))
+        dashboard_metrics = build_dashboard_metrics(
+            db,
+            user=metrics_user,
+            plan=plan_info,
+        )
 
     dashboard_view = _build_dashboard_view(
         plan=plan_info,
@@ -267,6 +274,7 @@ def home():
         bot_running=bot_running,
         plan=plan_info,
         dashboard=dashboard_view,
+        dashboard_metrics=dashboard_metrics,
     )
 
 @bp.get("/projects")
