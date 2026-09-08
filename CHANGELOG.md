@@ -8,7 +8,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
-- Fundação Fast/Deep do Collector (SPB-268): `scripts/local_collector_push.py` preserva `--pages N` como contrato legado e adiciona `--mode auto|fast|deep`, `--fast-pages` e `--deep-pages` com decisão conservadora, telemetria segura e shadow inutilizável em ciclos FAST. Implementação de código apenas, sem alteração de `run_collector.bat`, Scheduled Task, cadência, VPS, Telegram, matcher, notifier, ingest server-side, banco ou early-stop; SPB-267 permanece bloqueado.
+- SPB-268 concluído, mergeado e homologado operacionalmente: PR #42 adicionou a fundação Fast/Deep do Collector e PR #43 ativou o runner versionado em `--mode auto --fast-pages 2 --deep-pages 10`. Cutover PT5M validado com sequência real `DEEP -> FAST -> DEEP`: páginas 1-2 passam a ser verificadas aproximadamente a cada 5 min e páginas 1-10 aproximadamente a cada 10 min, com ~12 GETs de listagem/10 min (+20% sobre o baseline anterior de ~10). FAST preserva snapshot/watermark DEEP, marca shadow como inutilizável (`shadow_reason=fast_cycle_not_full_scan`) e não avança `last_deep_started_at`; DEEP só avança após ciclo completo com ingest coerente. Early-stop não foi ativado, SPB-267 permanece bloqueado, PT2M não está autorizado e SPB-269 segue necessário antes de cadência mais agressiva.
 
 - Refino estrutural do dashboard real (SPB-251C): oportunidades recentes ganham prioridade visual, o resumo de status fica mais compacto, a proxima melhor acao ganha mais peso, palavras-chave passam a ocupar papel secundario de gestao e o bloco redundante de resultados foi removido. Usa apenas dados ja disponiveis, sem metricas inventadas, sem React/marketing, sem deploy e sem collector.
 

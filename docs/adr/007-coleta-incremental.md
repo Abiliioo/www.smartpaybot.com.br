@@ -4,11 +4,11 @@
 
 Proposta.
 
-Esta ADR permanece em Proposta ate que o algoritmo candidato seja validado empiricamente pelo shadow mode (SPB-266) em producao. Nenhuma parte desta decisao deve ser lida como implementada ou ativada.
+Esta ADR permanece em Proposta para early-stop real. SPB-268 implementou e homologou uma estrategia Fast/Deep que reduz latencia sem ativar early-stop: ciclos FAST nao substituem o snapshot DEEP e nao sao evidencia para SPB-267. Nenhuma parte desta ADR deve ser lida como autorizacao para parar paginas antecipadamente.
 
 ## Contexto
 
-O coletor local (`scripts/local_collector_push.py`) roda via Windows Scheduled Task, varrendo sempre as 10 primeiras paginas de `/projects` do 99Freelas a cada ciclo (~10 minutos), independentemente de quantos projetos ja sejam conhecidos.
+Historicamente, o coletor local (`scripts/local_collector_push.py`) rodava via Windows Scheduled Task, varrendo sempre as 10 primeiras paginas de `/projects` do 99Freelas a cada ciclo (~10 minutos), independentemente de quantos projetos ja fossem conhecidos. Apos SPB-268, o baseline operacional do Collector passou a ser Fast/Deep em `--mode auto --fast-pages 2 --deep-pages 10`, com Scheduled Task PT5M: paginas 1-2 sao verificadas aproximadamente a cada 5 minutos e paginas 1-10 continuam verificadas aproximadamente a cada 10 minutos.
 
 Uma auditoria forense sobre 832 ciclos reais registrados em `logs/collector.log` (periodo de 10 dias) confirmou:
 
@@ -49,6 +49,10 @@ Adotar uma arquitetura de coleta incremental **adaptive fail-open**, sujeita a v
 - se nenhum sinal de boundary for encontrado ate `max-pages`, emitir o sinal operacional `boundary_not_found_within_max_pages` — condicao que deve gerar alerta, nao passar despercebida.
 
 **Nota explicita**: a hipotese de que uma media de ~2 paginas por ciclo e suficiente para cobrir a coleta incremental na pratica **nao esta provada**. E uma hipotese derivada da distribuicao historica de `inserted` por ciclo (mediana 1, media 1,71, maximo 55 em 769 ciclos observados), nao uma garantia. O algoritmo final e os parametros exatos (tamanho da janela de `recent_ids`, limiar de idade do estado, numero minimo de paginas) dependem do resultado do shadow mode (SPB-266) e podem divergir do descrito aqui.
+
+### Estado operacional apos SPB-268
+
+SPB-268 foi concluido e homologado em AUTO+PT5M com sequencia real `DEEP -> FAST -> DEEP`. FAST coleta 2 paginas, preserva `recent_project_ids`, `anchors` e `watermark_published_ms` da fotografia DEEP, marca `shadow_cycle_usable=false` com `shadow_reason=fast_cycle_not_full_scan` e nao avanca `last_deep_started_at`. DEEP coleta 10 paginas e so avanca `last_deep_started_at` quando `collector_deep_complete=true`, incluindo ingest coerente (`ingest_received == projects_unique`). O baseline estimado passa de ~10 para ~12 GETs de listagem por 10 minutos (+20%). PT2M nao esta autorizado e SPB-269 segue necessario antes de qualquer cadencia mais agressiva.
 
 ### Gate de ativacao (shadow mode)
 
