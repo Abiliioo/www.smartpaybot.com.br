@@ -8,6 +8,8 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Added
 
+- SPB-251D Etapa 2 implementada e testada localmente: redesenha o dashboard Jinja em torno das metricas reais da Etapa 1, com hero compacto, 4 KPIs principais, grafico 7d/30d, desempenho de keywords, resultados registrados, ultimas 3 oportunidades historicas e configuracoes operacionais abaixo da area analitica. Preserva Telegram, monitoramento, keywords, plano/upgrade, CSRF e webhook admin condicionado. Sem push, sem PR, sem deploy, sem VPS, sem Collector, sem Scheduled Task, sem Telegram real e sem migration; aguardando validacao visual humana.
+
 - SPB-251D Etapa 1 implementada e testada localmente: adiciona a camada real de metricas do dashboard em servico de dominio, com oportunidades hoje/7d, serie diaria 7d/30d, mediana de tempo ate alerta quando ha published_at, keywords produtivas, ranking 30d, keywords maduras sem resultado, ganhos registrados e ultimas 3 oportunidades. A UI Jinja atual ainda nao foi redesenhada; `review_count` permanece apenas como legado temporario. Sem deploy, sem VPS, sem Collector, sem Telegram real e sem migration.
 
 - SPB-271 implementado e testado localmente: infrastructure/telegram.py:set_webhook agora valida estruturalmente webhook_url contra PUBLIC_BASE_URL antes de _guard()/getMe, exigindo HTTPS, mesma origem/porta efetiva e path canônico /webhook/telegram (incluindo base path quando houver), bloqueando URLs relativas, host parecido, userinfo, query, fragment, whitespace externo e porta inválida sem chamada real ao Telegram. Ainda não implantado em produção.

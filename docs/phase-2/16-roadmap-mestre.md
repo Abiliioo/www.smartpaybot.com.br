@@ -27,7 +27,7 @@ Atualizar este documento a cada gate atravessado.
 - SPB-250C (React + TypeScript + Vite acoplado ao Flask) avancou com dois marcos mergeados: fundacao/preview React via PR #19 e rota experimental publica `/ui-preview` via PR #21, commit `9e4e14ef30bffd9c18a1c213a1509237cb6af573`. O preview foi validado localmente no navegador via Flask em `127.0.0.1:5000/ui-preview`, com assets JS/CSS retornando 200 no Network. Nenhuma rota real foi substituida; `/`, `/pro`, auth, dashboard e admin continuam Jinja; sem deploy. SPB-250E concluiu o fluxo de build/deploy controlado do React dist; SPB-250F avançou com a primeira rota real controlada, permitindo `/` React atrás de `REACT_LANDING_ENABLED`, com fallback Jinja e sem tocar `/pro`, auth, dashboard ou admin; SPB-250G refinou o visual da landing, SPB-250H ajustou copy/conversão sem alterar backend/env/deploy e SPB-250J inicia o design system premium em React para Home/ProPreview, mantendo `/pro` real em Jinja nesta etapa; SPB-250K redesenha estruturalmente Home/ProPreview para corrigir a direção visual premium antes de nova publicação; SPB-250K-C refina a copy exposta, o FAQ Pro e os sinais do Painel sem backend/deploy; SPB-250K-D aplica o refino final de direção visual/copy antes da validação humana; SPB-250K-E reestrutura a UX funcional com foco no Painel de oportunidades acionável; SPB-250K-F suaviza o sistema de botões/CTAs para reduzir azul dominante. SPB-250I corrige o outbound Telegram de readiness para preferir IPv4 em `getMe`/`getWebhookInfo`, preservando fail-closed após rollback por timeout IPv6.
 - SPB-251B reorganiza o dashboard real como fonte de verdade da UX: status operacional de monitoramento, Telegram, plano, uso diario, keywords, oportunidades recentes e proxima melhor acao com dados ja disponiveis. O painel diferencia monitoramento pausado, pendente por falta de Telegram e ativo sem afirmar saude real de pipeline. Sem Landing/Pro, sem migracao React e sem deploy nesta etapa.
 - SPB-251C refina estruturalmente o dashboard real: oportunidades recentes passam a ser o nucleo do painel, o resumo de status fica compacto, a proxima melhor acao ganha destaque, palavras-chave viram gestao secundaria e o bloco de resultados redundante sai da tela. Sem React/marketing, sem deploy, sem collector e sem metricas inventadas.
-- SPB-251D Etapa 1 implementa a camada real de metricas do dashboard em servico de dominio, sem redesenhar HTML/CSS: oportunidades hoje/7d, serie diaria 7d/30d, mediana de tempo ate alerta com cobertura explicita, keywords produtivas, ranking 30d, keywords maduras sem resultado, ganhos registrados e ultimas 3 oportunidades. `review_count` fica somente como legado temporario ate a Etapa 2. Sem deploy, VPS, Collector, Telegram real ou migration.
+- SPB-251D Etapa 1 implementa a camada real de metricas do dashboard em servico de dominio. SPB-251D Etapa 2 redesenha o dashboard Jinja em torno desse contrato: hero compacto, 4 KPIs principais, grafico 7d/30d, desempenho de keywords, resultados registrados, ultimas 3 oportunidades e configuracoes operacionais preservadas fora da primeira dobra. `review_count` deixa de aparecer na UI analitica. Implementado/testado localmente, sem deploy, VPS, Collector, Scheduled Task, Telegram real ou migration; aguardando validacao visual humana.
 
 ## Principio de priorizacao
 
@@ -99,7 +99,8 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 **LATER**
 
 - SPB-267;
-- redesign amplo de UI (SPB-255, 251, 256, 257, 258, 259, 252);
+- validacao visual humana do SPB-251D Etapa 2 antes de push/PR/deploy;
+- redesign amplo de UI restante (SPB-255, 256, 257, 258, 259, 252);
 - Fase H / I;
 - hardening residual (SPB-273, SPB-274).
 

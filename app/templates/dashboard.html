@@ -1,184 +1,317 @@
 {% extends "base.html" %}
-{% block title %}Painel de oportunidades — SmartPayBot{% endblock %}
+{% block title %}Painel de oportunidades - SmartPayBot{% endblock %}
 
 {% block content %}
-<div class="dashboard-shell">
-  <div class="dashboard-hero">
-    <div class="dashboard-hero__copy">
-      <h1 class="dashboard-hero__title">Painel de oportunidades</h1>
-      <p class="dashboard-hero__sub">Acompanhe alertas, palavras-chave e próximos passos.</p>
-      <div class="dashboard-hero__badges">
-        {% if plan %}
-          {% if plan.is_admin_plan %}
-            <span class="plan-badge plan-badge--admin">Admin</span>
-          {% elif plan.is_pro %}
-            <span class="plan-badge plan-badge--pro">PRO</span>
-          {% else %}
-            <span class="plan-badge">Gratuito</span>
-          {% endif %}
-        {% endif %}
-        <span class="status-badge {% if is_linked %}status-badge--ok{% else %}status-badge--muted{% endif %}">
-          Telegram {{ 'conectado' if is_linked else 'desconectado' }}
-        </span>
-        <span class="status-badge {{ dashboard.monitoring.badge_class }}">
-          {{ dashboard.monitoring.label }}
-        </span>
-      </div>
-    </div>
-    <a class="btn primary pill" href="{{ dashboard.next_action.href }}">{{ dashboard.next_action.label }}</a>
-  </div>
+{% set metrics = dashboard_metrics %}
+{% set kpis = metrics.kpis %}
+{% set keyword_metrics = metrics.keywords %}
+{% set result_metrics = metrics.results %}
+{% set alerts = metrics.alerts %}
+{% set status = metrics.status %}
+{% set latency_seconds = kpis.alert_latency_median_seconds %}
+{% set latency_samples = kpis.alert_latency_sample_count %}
+{% set productive = kpis.productive_keywords %}
+{% set keywords_total = kpis.keywords_total %}
+{% set won_total_cents = result_metrics.won_value_total_cents or 0 %}
+{% set won_30d_cents = result_metrics.won_value_30d_cents or 0 %}
 
-  <section class="dashboard-insight-strip" aria-label="Resumo rapido da conta">
-    <article class="insight-pill insight-pill--wide">
-      <span>Monitoramento</span>
-      <strong>{{ dashboard.monitoring.label.replace('Monitoramento ', '')|capitalize }}</strong>
+<div class="dashboard-shell dashboard-shell--metrics">
+  <section class="dashboard-hero dashboard-hero--compact" aria-labelledby="dashboard-title">
+    <div class="dashboard-hero__copy">
+      <h1 id="dashboard-title" class="dashboard-hero__title">Painel de oportunidades</h1>
+      <p class="dashboard-hero__sub">Entenda como seu monitoramento está performando.</p>
+    </div>
+    <div class="dashboard-hero__badges" aria-label="Status da conta">
+      <span class="status-pill {% if status.monitoring_active %}status-pill--ok{% else %}status-pill--muted{% endif %}">
+        <span aria-hidden="true"></span>{{ 'Monitoramento ativo' if status.monitoring_active else 'Monitoramento pausado' }}
+      </span>
+      <span class="status-pill {% if status.telegram_connected %}status-pill--ok{% else %}status-pill--warn{% endif %}">
+        <span aria-hidden="true"></span>Telegram {{ 'conectado' if status.telegram_connected else 'desconectado' }}
+      </span>
+      <span class="status-pill status-pill--neutral">
+        {{ status.plan_name }}
+      </span>
+    </div>
+  </section>
+
+  <section class="metric-kpi-grid" aria-label="Indicadores principais">
+    <article class="metric-kpi-card">
+      <p class="metric-kpi-card__label">Hoje</p>
+      <div class="metric-kpi-card__value" id="count-today">{{ kpis.opportunities_today }}</div>
+      <p class="metric-kpi-card__unit">oportunidades</p>
+      <p class="metric-kpi-card__sub">Ontem: {{ kpis.opportunities_yesterday }}</p>
     </article>
-    <article class="insight-pill">
-      <span>Telegram</span>
-      <strong>{{ 'Conectado' if is_linked else 'Desconectado' }}</strong>
+
+    <article class="metric-kpi-card">
+      <p class="metric-kpi-card__label">7 dias</p>
+      <div class="metric-kpi-card__value" id="count-week">{{ kpis.opportunities_7d }}</div>
+      {% if kpis.opportunities_7d_pct is none %}
+        <p class="metric-kpi-card__sub">Sem comparação anterior</p>
+      {% else %}
+        <p class="metric-kpi-card__sub trend {% if kpis.opportunities_7d_pct < 0 %}trend--down{% elif kpis.opportunities_7d_pct > 0 %}trend--up{% endif %}">
+          {{ '+' if kpis.opportunities_7d_pct > 0 else '' }}{{ kpis.opportunities_7d_pct }}% vs. período anterior
+        </p>
+      {% endif %}
     </article>
-    <article class="insight-pill">
-      <span>Plano</span>
-      <strong>{% if plan and plan.is_admin_plan %}Admin{% elif plan and plan.is_pro %}Pro{% else %}Free{% endif %}</strong>
+
+    <article class="metric-kpi-card">
+      <p class="metric-kpi-card__label">Tempo até alerta</p>
+      <div class="metric-kpi-card__value metric-kpi-card__value--text">
+        {% if latency_seconds is none %}
+          Sem dados
+        {% elif latency_seconds < 60 %}
+          &lt; 1 min
+        {% else %}
+          {{ ((latency_seconds + 30) // 60)|int }} min
+        {% endif %}
+      </div>
+      <p class="metric-kpi-card__sub">mediana nos últimos 7 dias{% if latency_samples %} · baseado em {{ latency_samples }} alerta{{ '' if latency_samples == 1 else 's' }}{% endif %}</p>
     </article>
-    <article class="insight-pill">
-      <span>Alertas</span>
-      <strong>{% if dashboard.is_unlimited %}{{ dashboard.alerts_today }} hoje{% else %}{{ dashboard.alerts_today }}/{{ dashboard.max_alerts_day }} usados{% endif %}</strong>
-    </article>
-    <article class="insight-pill">
-      <span>Keywords</span>
-      <strong>{% if dashboard.max_keywords < 0 %}{{ dashboard.kw_count }} termos{% else %}{{ dashboard.kw_count }}/{{ dashboard.max_keywords }} em uso{% endif %}</strong>
-    </article>
-    <article class="insight-pill insight-pill--accent">
-      <span>Revisão</span>
-      <strong>{{ dashboard.review_count }} em aberto</strong>
+
+    <article class="metric-kpi-card">
+      <p class="metric-kpi-card__label">Keywords produtivas</p>
+      <div class="metric-kpi-card__value metric-kpi-card__value--ratio">
+        {% if keywords_total == 0 %}0{% else %}{{ productive }} / {{ keywords_total }}{% endif %}
+      </div>
+      <p class="metric-kpi-card__sub">{% if keywords_total == 0 %}Nenhuma keyword cadastrada{% else %}geraram oportunidades em 30 dias{% endif %}</p>
     </article>
   </section>
-  <p class="dashboard-status-note">{{ dashboard.monitoring.description }}</p>
-  <div class="grid dashboard-grid">
-    <div class="stack">
-      <section class="card usage-card" id="daily-usage-card">
-        <div class="section-head">
-          <div>
-            <h3>Uso do plano hoje</h3>
-            <p class="help">Limites do plano atual, sem estimativas.</p>
-          </div>
-          {% if dashboard.is_unlimited %}
-            <span class="status-badge status-badge--ok">Ilimitado</span>
-          {% else %}
-            <span id="al-count-display"
-                  data-al-max="{{ dashboard.max_alerts_day }}"
-                  class="usage-count {% if dashboard.alerts_state == 'danger' %}usage-count--danger{% elif dashboard.alerts_state == 'warn' %}usage-count--warn{% else %}usage-count--ok{% endif %}">
-              {{ dashboard.alerts_today }}&nbsp;/&nbsp;{{ dashboard.max_alerts_day }}
-            </span>
-          {% endif %}
+
+  <div class="dashboard-analytics-grid">
+    <section class="dashboard-panel dashboard-panel--overview" aria-labelledby="overview-title">
+      <div class="section-head section-head--metrics">
+        <div>
+          <h2 id="overview-title">Visão geral</h2>
+          <p class="help">Oportunidades encontradas ao longo do período.</p>
         </div>
-
-        {% if dashboard.is_unlimited %}
-          <p class="usage-message usage-message--ok">{{ dashboard.alerts_message }}</p>
-        {% else %}
-          <div class="usage-row">
-            <span class="help">Alertas usados hoje</span>
-            <span>{{ dashboard.alerts_today }} de {{ dashboard.max_alerts_day }}</span>
-          </div>
-          <div class="progress-track">
-            <div id="al-bar"
-                 class="progress-fill {% if dashboard.alerts_state == 'danger' %}progress-fill--danger{% elif dashboard.alerts_state == 'warn' %}progress-fill--warn{% else %}progress-fill--ok{% endif %}"
-                 data-pct="{{ dashboard.alerts_pct }}"></div>
-          </div>
-          <p class="usage-message usage-message--{{ dashboard.alerts_state }}">{{ dashboard.alerts_message }}</p>
-          <div id="al-limit-banner" class="limit-banner"{% if dashboard.alerts_today < dashboard.max_alerts_day %} style="display:none"{% endif %}>
-            <p>Limite de <strong>{{ dashboard.max_alerts_day }} alertas</strong> atingido hoje.
-               Novos projetos serão ignorados até amanhã.
-               <a href="{{ url_for('main.pro') }}">Fazer upgrade para Pro →</a>
-            </p>
-          </div>
-        {% endif %}
-      </section>
-
-      <section class="card opportunities-card--primary">
-        <div class="section-head">
-          <div>
-            <h3>Oportunidades recentes</h3>
-            <p class="help">{{ dashboard.review_count }} em aberto de {{ dashboard.projects_count }} oportunidade(s) encontradas.</p>
-          </div>
-          <a class="btn pill link-projetos" href="{{ url_for('dashboard.my_projects') }}">Ver todas</a>
+        <div class="segmented-control" role="tablist" aria-label="Período do gráfico">
+          <button type="button" class="segmented-control__item is-active" id="chart-tab-7d" data-dashboard-range="7d" role="tab" aria-selected="true" aria-controls="dashboard-chart">7 dias</button>
+          <button type="button" class="segmented-control__item" id="chart-tab-30d" data-dashboard-range="30d" role="tab" aria-selected="false" aria-controls="dashboard-chart">30 dias</button>
         </div>
+      </div>
+      <div class="dashboard-chart" id="dashboard-chart" role="img" aria-label="Série diária de oportunidades encontradas em 7 e 30 dias" data-series='{{ metrics.series|tojson }}'>
+        <div class="dashboard-chart__bars" data-chart-bars></div>
+      </div>
+      <p class="dashboard-chart__summary" data-chart-summary aria-live="polite"></p>
+    </section>
 
-        {% if dashboard.recent_projects %}
-          <div class="opportunity-list">
-            {% for p in dashboard.recent_projects %}
-              <article class="opportunity-item">
-                <div class="opportunity-item__body">
-                  <div class="opportunity-item__title">{{ p.title }}</div>
-                  <div class="opportunity-item__meta">
-                    <span>{{ p.matched_keyword }}</span>
-                    <span>{{ p.created_at|fmt_br }}</span>
-                    {% if p.won %}<span>Ganho</span>{% else %}<span>Em aberto</span>{% endif %}
-                  </div>
+    <section class="dashboard-panel dashboard-panel--keywords" aria-labelledby="keyword-performance-title">
+      <div class="section-head section-head--metrics">
+        <div>
+          <h2 id="keyword-performance-title">Desempenho das keywords</h2>
+          <p class="help">Ranking por oportunidades nos últimos 30 dias.</p>
+        </div>
+      </div>
+
+      {% if keyword_metrics.ranking_30d %}
+        <div class="keyword-ranking">
+          {% for item in keyword_metrics.ranking_30d[:5] %}
+            <div class="keyword-ranking__row">
+              <div>
+                <strong>{{ item.keyword }}</strong>
+                {% if not item.active %}<span>removida</span>{% endif %}
+              </div>
+              <em>{{ item.matches }} match{{ '' if item.matches == 1 else 'es' }}</em>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state dashboard-empty dashboard-empty--compact">
+          <div class="empty-state__title">Sem ranking por enquanto</div>
+          <div class="empty-state__desc">As keywords aparecem aqui quando gerarem oportunidades.</div>
+        </div>
+      {% endif %}
+
+      {% if keyword_metrics.zero_result_mature_count > 0 %}
+        <div class="keyword-insight">
+          {{ keyword_metrics.zero_result_mature_count }} termos estão ativos há pelo menos 7 dias e não geraram oportunidades nesse período.
+        </div>
+        <a class="btn ghost pill dashboard-panel__action" href="#configuracoes-keywords">Revisar keywords</a>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="dashboard-secondary-grid">
+    <section class="dashboard-panel" aria-labelledby="results-title">
+      <div class="section-head section-head--metrics">
+        <div>
+          <h2 id="results-title">Resultados registrados</h2>
+          <p class="help">Projetos marcados como ganhos em Oportunidades.</p>
+        </div>
+        <a class="btn ghost pill" href="{{ url_for('dashboard.my_projects') }}">Ver oportunidades</a>
+      </div>
+
+      {% if result_metrics.won_total > 0 %}
+        <div class="results-grid">
+          <div>
+            <span>Projetos ganhos registrados</span>
+            <strong>{{ result_metrics.won_total }}</strong>
+            <small>{{ result_metrics.won_30d }} nos últimos 30 dias</small>
+          </div>
+          <div>
+            <span>Valor registrado em projetos ganhos</span>
+            <strong>R$ {{ ('%.2f' % (won_total_cents / 100)).replace('.', ',') }}</strong>
+            <small>R$ {{ ('%.2f' % (won_30d_cents / 100)).replace('.', ',') }} nos últimos 30 dias</small>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state dashboard-empty dashboard-empty--compact">
+          <div class="empty-state__title">Nenhum resultado registrado ainda.</div>
+          <div class="empty-state__desc">Quando conquistar um projeto, marque-o como ganho em Oportunidades.</div>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="dashboard-panel" aria-labelledby="recent-title">
+      <div class="section-head section-head--metrics">
+        <div>
+          <h2 id="recent-title">Últimas oportunidades</h2>
+          <p class="help">As 3 oportunidades históricas mais recentes.</p>
+        </div>
+        <a class="btn ghost pill" href="{{ url_for('dashboard.my_projects') }}">Ver todas</a>
+      </div>
+
+      {% if metrics.recent_projects %}
+        <div class="opportunity-list opportunity-list--compact">
+          {% for p in metrics.recent_projects[:3] %}
+            <article class="opportunity-item opportunity-item--metric">
+              <div class="opportunity-item__body">
+                <div class="opportunity-item__title">{{ p.title }}</div>
+                <div class="opportunity-item__meta">
+                  <span>{{ p.matched_keyword or 'sem keyword' }}</span>
+                  <span>{{ p.created_at|fmt_br }}</span>
                 </div>
-                <a class="btn pill" target="_blank" rel="noopener" href="{{ p.link }}">Abrir</a>
-              </article>
-            {% endfor %}
+              </div>
+              <a class="btn pill" target="_blank" rel="noopener" href="{{ p.link }}">Abrir</a>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state dashboard-empty dashboard-empty--compact">
+          <div class="empty-state__title">Nenhuma oportunidade por enquanto</div>
+          <div class="empty-state__desc">Quando novas oportunidades casarem com suas keywords, elas aparecem aqui.</div>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="settings-area" id="configuracoes" aria-labelledby="settings-title">
+    <div class="settings-area__head">
+      <h2 id="settings-title">Configurações</h2>
+      <p class="help">Controles operacionais do monitoramento, sem poluir sua leitura diária de métricas.</p>
+    </div>
+
+    <div class="settings-grid">
+      <section class="settings-card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}" aria-labelledby="telegram-title">
+        <div class="section-head section-head--metrics">
+          <div>
+            <h3 id="telegram-title">Telegram / Monitoramento</h3>
+            <p class="help">Canal de entrega dos alertas e preferência de monitoramento.</p>
           </div>
+        </div>
+
+        <div id="tg-card-body">
+        {% if is_linked %}
+          <div class="tg-status-row tg-status-row--compact">
+            <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
+            <strong>Telegram conectado</strong>
+            <span>Alertas prontos para entrega.</span>
+          </div>
+          <form method="post" action="{{ url_for('dashboard.unlink') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn ghost pill" onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">Desvincular Telegram</button>
+          </form>
         {% else %}
-          <div class="empty-state dashboard-empty">
-            <div class="empty-state__title">Nenhuma oportunidade por enquanto</div>
-            <div class="empty-state__desc">Quando novas oportunidades casarem com suas keywords, elas aparecem aqui.</div>
+          <div class="telegram-onboarding">
+            <div class="step-row">
+              <span class="step-num">1</span>
+              <div>
+                <p>Abra o bot no Telegram</p>
+                {% if deep_link %}
+                  <a class="btn primary pill" href="{{ deep_link }}" target="_blank" rel="noopener">Abrir @{{ bot_username }}</a>
+                {% else %}
+                  <p class="help">Pesquise <span class="code">@{{ bot_username or 'O_Freela_bot' }}</span> no Telegram.</p>
+                {% endif %}
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="step-num">2</span>
+              <div>
+                <p>Envie este comando ao bot</p>
+                <div class="copy-row">
+                  <span id="tg-link-code" class="code" data-code="{{ link_code }}">/start {{ link_code }}</span>
+                  <button type="button" id="tg-copy-btn" data-code="{{ link_code }}" class="btn ghost pill">Copiar código</button>
+                </div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="step-num step-num--done">3</span>
+              <div>
+                <p>Pronto</p>
+                <p class="help">O bot confirma o vínculo e os alertas começam a chegar.</p>
+              </div>
+            </div>
           </div>
+          <form method="post" action="{{ url_for('dashboard.regen_code') }}" class="settings-form-footer">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn ghost pill">Gerar novo código</button>
+          </form>
         {% endif %}
+        </div>
+
+        <div class="tg-monitoring-section" id="monitoring-control">
+          <label class="switch" title="Ativar/pausar monitoramento">
+            <input id="bot-toggle" type="checkbox" {% if bot_running %}checked{% endif %} {% if not is_linked %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+          <div class="tg-monitoring-copy">
+            <div class="tg-monitoring-label">Monitoramento</div>
+            {% if not is_linked %}
+              <p id="bot-link-hint" class="help">Vincule seu Telegram para ativar.</p>
+            {% else %}
+              <p id="bot-link-hint" class="help">Alertas automáticos ativados.</p>
+            {% endif %}
+          </div>
+          <span id="bot-status" class="bot-status-text">{{ 'Ativado' if bot_running else 'Parado' }}</span>
+        </div>
       </section>
 
-      <section class="card keywords-card--compact" id="keywords-card">
-        <div class="section-head">
+      <section class="settings-card" id="configuracoes-keywords" aria-labelledby="keywords-title">
+        <div class="section-head section-head--metrics">
           <div>
-            <h3>Palavras-chave</h3>
+            <h3 id="keywords-title">Keywords</h3>
             <p class="help">Termos usados para casar novos projetos com o seu perfil.</p>
           </div>
           {% if dashboard.max_keywords < 0 %}
             <span class="status-badge status-badge--ok">{{ dashboard.kw_count }} termos</span>
           {% else %}
-            <span id="kw-count-display"
-                  data-kw-max="{{ dashboard.max_keywords }}"
-                  class="usage-count {% if dashboard.keywords_state == 'warn' %}usage-count--warn{% elif dashboard.keywords_state == 'muted' %}usage-count--muted{% else %}usage-count--ok{% endif %}">
-              {{ dashboard.kw_count }}&nbsp;/&nbsp;{{ dashboard.max_keywords }}
-            </span>
+            <span id="kw-count-display" data-kw-max="{{ dashboard.max_keywords }}" class="usage-count {% if dashboard.keywords_state == 'warn' %}usage-count--warn{% elif dashboard.keywords_state == 'muted' %}usage-count--muted{% else %}usage-count--ok{% endif %}">{{ dashboard.kw_count }} / {{ dashboard.max_keywords }}</span>
           {% endif %}
         </div>
 
-        <form id="keywords-form" class="form-inline" method="post"
-              action="{{ url_for('dashboard.save_keywords') }}"
-              style="margin-bottom:14px">
+        <form id="keywords-form" class="form-inline form-inline--settings" method="post" action="{{ url_for('dashboard.save_keywords') }}">
           {{ form.hidden_tag() }}
-          {{ form.keywords(class="input", id="keywords",
-                           placeholder="Ex.: Excel, Python, WordPress — separados por vírgula",
-                           style="flex:1") }}
+          {{ form.keywords(class="input", id="keywords", placeholder="Ex.: Excel, Python, WordPress") }}
           {{ form.submit(class="btn primary pill", value="Adicionar") }}
         </form>
 
         {% if dashboard.max_keywords > 0 %}
-          <div class="progress-track keyword-progress">
-            <div id="kw-bar"
-                 class="progress-fill {% if dashboard.keywords_state == 'warn' %}progress-fill--warn{% endif %}"
-                 data-pct="{{ dashboard.kw_pct }}"></div>
-          </div>
+          <div class="progress-track keyword-progress"><div id="kw-bar" class="progress-fill {% if dashboard.keywords_state == 'warn' %}progress-fill--warn{% endif %}" data-pct="{{ dashboard.kw_pct }}"></div></div>
         {% endif %}
         <p class="usage-message usage-message--{{ dashboard.keywords_state }}">{{ dashboard.keywords_message }}</p>
 
         {% if dashboard.is_free and dashboard.max_keywords > 0 and dashboard.kw_count >= dashboard.max_keywords %}
-          <div class="limit-banner">
-            <p>O Pro libera mais termos para monitorar áreas diferentes sem remover suas keywords atuais.</p>
-          </div>
+          <div class="limit-banner"><p>O Pro libera mais termos para monitorar áreas diferentes sem remover suas keywords atuais.</p></div>
         {% endif %}
 
-        <div id="keywords-empty" {% if keywords and keywords|length > 0 %}style="display:none"{% endif %}>
-          <div class="empty-state dashboard-empty">
-            <div class="empty-state__title">Nenhuma palavra-chave cadastrada</div>
-            <div class="empty-state__desc">Adicione termos acima para começar a receber alertas de projetos relevantes.</div>
+        <div id="keywords-empty" {% if keywords and keywords|length > 0 %}hidden{% endif %}>
+          <div class="empty-state dashboard-empty dashboard-empty--compact">
+            <div class="empty-state__title">Nenhuma keyword cadastrada</div>
+            <div class="empty-state__desc">Adicione termos para começar a receber alertas relevantes.</div>
           </div>
         </div>
 
-        <ul id="keywords-list" class="chips">
+        <ul id="keywords-list" class="chips chips--settings">
           {% for k in keywords %}
             <li class="chip {{ loop.cycle('chip--blue','chip--red','chip--green','chip--amber','chip--pink','chip--indigo','chip--purple','chip--teal','chip--cyan') }}" data-kw="{{ k|e }}">
               <span class="chip-text">{{ k }}</span>
@@ -187,134 +320,29 @@
           {% endfor %}
         </ul>
       </section>
-    </div>
-
-    <div class="stack">
-      <section class="card next-action-card next-action-card--featured">
-        <span class="side-card-kicker">Próxima melhor ação</span>
-        <h3>{{ dashboard.next_action.title }}</h3>
-        <p class="help">{{ dashboard.next_action.body }}</p>
-        <a class="btn primary pill" href="{{ dashboard.next_action.href }}">{{ dashboard.next_action.label }}</a>
-      </section>
-
-      <section class="card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}">
-        <h3>Telegram</h3>
-        <div id="tg-card-body">
-        {% if is_linked %}
-          <div class="tg-status-row">
-            <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
-            <span style="font-weight:600; color:var(--success); font-size:.88rem">Ativo</span>
-            <span class="help" style="margin-left:auto; font-size:.78rem">Monitorando</span>
-          </div>
-
-          <div class="tg-bot-card">
-            <div class="tg-bot-avatar">🤖</div>
-            <div class="tg-bot-info">
-              <div class="tg-bot-name">SmartPayBot</div>
-            </div>
-            <span class="tg-check-badge">✓</span>
-          </div>
-
-          <p class="help" style="font-size:.83rem; line-height:1.55; margin:0 0 14px">
-            Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.
-          </p>
-
-          <form method="post" action="{{ url_for('dashboard.unlink') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn ghost pill"
-                    style="font-size:.78rem; color:var(--muted)"
-                    onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
-              Desvincular Telegram
-            </button>
-          </form>
-        {% else %}
-          <p class="help" style="margin-bottom:16px">Siga os passos abaixo para começar a receber alertas no Telegram:</p>
-
-          <div class="step-row">
-            <span class="step-num">1</span>
-            <div>
-              <p style="margin:0 0 6px; font-weight:600">Abra o bot no Telegram</p>
-              {% if deep_link %}
-                <a class="btn primary pill" href="{{ deep_link }}" target="_blank" style="font-size:.9rem">
-                  Abrir @{{ bot_username }}
-                </a>
-              {% else %}
-                <p class="help" style="margin:0">
-                  Pesquise <span class="code" style="font-size:.8rem">@{{ bot_username or 'O_Freela_bot' }}</span> no Telegram.
-                </p>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="step-row">
-            <span class="step-num">2</span>
-            <div>
-              <p style="margin:0 0 6px; font-weight:600">Envie este comando ao bot</p>
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
-                <span id="tg-link-code" class="code" data-code="{{ link_code }}" style="font-size:.88rem; letter-spacing:.3px">/start {{ link_code }}</span>
-                <button type="button" id="tg-copy-btn" data-code="{{ link_code }}" class="btn ghost pill" style="font-size:.75rem; padding:3px 10px">
-                  Copiar código
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-row" style="margin-bottom:18px">
-            <span class="step-num step-num--done">3</span>
-            <div>
-              <p style="margin:0; font-weight:600; color:var(--muted)">Pronto!</p>
-              <p class="help" style="margin:4px 0 0; font-size:.82rem">O bot confirmará o vínculo e você começará a receber alertas.</p>
-            </div>
-          </div>
-
-          <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px">
-            <p class="help" style="font-size:.82rem; margin-bottom:8px">O código acima é de uso único. Se não funcionar, gere um novo:</p>
-            <form method="post" action="{{ url_for('dashboard.regen_code') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn ghost pill" style="font-size:.82rem">Gerar novo código</button>
-            </form>
-          </div>
-        {% endif %}
-        </div>
-
-        <div class="tg-monitoring-section" id="monitoring-control">
-          <label class="switch" title="Ativar/pausar monitoramento">
-            <input id="bot-toggle" type="checkbox"
-                   {% if bot_running %}checked{% endif %}
-                   {% if not is_linked %}disabled{% endif %}>
-            <span class="slider"></span>
-          </label>
-          <div style="flex:1; min-width:0">
-            <div class="tg-monitoring-label">Monitoramento</div>
-            {% if not is_linked %}
-              <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Vincule seu Telegram para ativar.</p>
-            {% else %}
-              <p id="bot-link-hint" class="help" style="margin:0;font-size:.82rem">Alertas automáticos ativados.</p>
-            {% endif %}
-          </div>
-          <span id="bot-status" style="font-weight:600; font-size:.82rem">{{ 'Ativado' if bot_running else 'Parado' }}</span>
-        </div>
-      </section>
 
       {% if plan %}
-      <section class="card">
-        <h3>Seu Plano</h3>
+      <section class="settings-card" aria-labelledby="plan-title">
+        <div class="section-head section-head--metrics">
+          <div>
+            <h3 id="plan-title">Plano</h3>
+            <p class="help">Limites e upgrade quando fizer sentido.</p>
+          </div>
+          {% if plan.is_admin_plan %}
+            <span class="plan-badge plan-badge--admin">Admin</span>
+          {% elif plan.is_pro %}
+            <span class="plan-badge plan-badge--pro">PRO</span>
+          {% else %}
+            <span class="plan-badge">Gratuito</span>
+          {% endif %}
+        </div>
 
         {% if plan.is_admin_plan %}
-          <span class="plan-badge plan-badge--admin">Admin</span>
-          <p class="help" style="margin:12px 0 0; font-size:.86rem; line-height:1.5">
-            Acesso administrativo — sem limites de palavras-chave ou alertas diários.
-          </p>
+          <p class="help">Acesso administrativo sem limites de keywords ou alertas diários.</p>
         {% elif plan.is_pro %}
-          <span class="plan-badge plan-badge--pro">PRO</span>
-          <p class="help" style="margin:12px 0 0; font-size:.86rem; line-height:1.5">
-            Plano Pro ativo — palavras-chave e alertas ilimitados.
-          </p>
+          <p class="help">Plano Pro ativo: keywords e alertas ilimitados.</p>
         {% else %}
-          <span class="plan-badge">Gratuito</span>
-          <p class="help" style="margin:12px 0 12px; font-size:.86rem; line-height:1.5">
-            Free inclui {{ dashboard.max_keywords }} palavras-chave e {{ dashboard.max_alerts_day }} alertas por dia.
-          </p>
+          <p class="help">Free inclui {{ dashboard.max_keywords }} keywords e {{ dashboard.max_alerts_day }} alertas por dia.</p>
           {% if dashboard.pro_reason %}
             <div class="upgrade-cta upgrade-cta--contextual">
               <div class="upgrade-cta__header">
@@ -322,108 +350,54 @@
                   <p class="upgrade-cta__title">SmartPayBot Pro</p>
                   <p class="upgrade-cta__sub">{{ dashboard.pro_reason }}</p>
                 </div>
-                <div class="upgrade-cta__price">R$&nbsp;47<span>/mês</span></div>
+                <div class="upgrade-cta__price">R$ 47<span>/mês</span></div>
               </div>
-              <a href="{{ url_for('main.pro') }}" class="upgrade-cta__btn">Remover limites →</a>
+              <a href="{{ url_for('main.pro') }}" class="upgrade-cta__btn">Remover limites</a>
             </div>
           {% endif %}
         {% endif %}
       </section>
       {% endif %}
 
+      {% if show_webhook_panel %}
+      <section class="settings-card settings-card--admin" aria-labelledby="webhook-title">
+        <div class="section-head section-head--metrics">
+          <div>
+            <h3 id="webhook-title">Admin webhook</h3>
+            <p class="help">Painel administrativo condicionado por configuração.</p>
+          </div>
+        </div>
+        <dl class="webhook-status-list">
+          <div><dt>Webhook atual</dt><dd>{{ webhook_url or 'não configurado' }}</dd></div>
+          <div><dt>Pendentes</dt><dd>{{ webhook_pending }}</dd></div>
+          <div><dt>Último erro</dt><dd>{{ webhook_last_error or 'nenhum' }}</dd></div>
+        </dl>
+        <form method="post" action="{{ url_for('dashboard.webhook_set') }}" class="form-inline form-inline--settings">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" type="text" name="url" value="{{ webhook_default or '' }}" placeholder="https://.../webhook/telegram">
+          <button class="btn primary pill" type="submit">Configurar webhook</button>
+        </form>
+        <form method="post" action="{{ url_for('dashboard.webhook_delete') }}" class="settings-form-footer">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn danger pill" type="submit">Remover webhook</button>
+        </form>
+      </section>
+      {% endif %}
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <template id="tg-linked-tpl">
-  <div class="tg-status-row">
+  <div class="tg-status-row tg-status-row--compact">
     <div class="tg-pulse-wrapper"><span class="tg-pulse-dot"></span></div>
-    <span style="font-weight:600;color:var(--success);font-size:.88rem">Ativo</span>
-    <span class="help" style="margin-left:auto;font-size:.78rem">Monitorando</span>
+    <strong>Telegram conectado</strong>
+    <span>Alertas prontos para entrega.</span>
   </div>
-  <div class="tg-bot-card">
-    <div class="tg-bot-avatar">🤖</div>
-    <div class="tg-bot-info">
-      <div class="tg-bot-name">SmartPayBot</div>
-    </div>
-    <span class="tg-check-badge">&#10003;</span>
-  </div>
-  <p class="help" style="font-size:.83rem;line-height:1.55;margin:0 0 14px">
-    Alertas chegam aqui assim que novas oportunidades compatíveis forem encontradas.
-  </p>
   <form method="post" action="/dashboard/unlink">
     <input type="hidden" name="csrf_token" data-csrf-placeholder>
-    <button type="submit" class="btn ghost pill"
-            style="font-size:.78rem;color:var(--muted)"
-            onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">
-      Desvincular Telegram
-    </button>
+    <button type="submit" class="btn ghost pill" onclick="return confirm('Desvincular o Telegram? Você não receberá mais alertas até vincular novamente.')">Desvincular Telegram</button>
   </form>
 </template>
-
-<script>
-(function () {
-  'use strict';
-
-  document.querySelectorAll('[data-pct]').forEach(function (el) {
-    var pct = Number(el.dataset.pct || 0);
-    var safe = Math.max(0, Math.min(100, pct));
-    el.style.width = safe + '%';
-  });
-
-  var copyBtn = document.getElementById('tg-copy-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', function () {
-      var code = this.dataset.code;
-      navigator.clipboard.writeText('/start ' + code).then(function () {
-        copyBtn.textContent = '✓ Copiado!';
-        copyBtn.style.color = '#22c55e';
-        setTimeout(function () {
-          copyBtn.textContent = 'Copiar código';
-          copyBtn.style.color = '';
-        }, 2000);
-      }).catch(function () {
-        copyBtn.textContent = 'Copie manualmente';
-      });
-    });
-  }
-
-  var tgCard = document.getElementById('tg-card');
-  if (!tgCard || tgCard.dataset.linked === 'true') return;
-
-  var tgCardBody = document.getElementById('tg-card-body');
-
-  function swapToLinked() {
-    var csrf = '';
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta) csrf = meta.getAttribute('content');
-    var tpl = document.getElementById('tg-linked-tpl');
-    var clone = tpl.content.cloneNode(true);
-    var csrfInput = clone.querySelector('[data-csrf-placeholder]');
-    if (csrfInput) csrfInput.value = csrf;
-    tgCardBody.innerHTML = '';
-    tgCardBody.appendChild(clone);
-  }
-
-  var pollTimer = setInterval(function () {
-    fetch('/dashboard/api/summary', {
-      headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
-    })
-    .then(function (resp) { return resp.ok ? resp.json() : null; })
-    .then(function (data) {
-      if (!data || !data.ok || !data.linked) return;
-      clearInterval(pollTimer);
-      tgCard.dataset.linked = 'true';
-      swapToLinked();
-      var toggle = document.getElementById('bot-toggle');
-      if (toggle) toggle.removeAttribute('disabled');
-      var hint = document.getElementById('bot-link-hint');
-      if (hint) hint.textContent = 'Alertas automáticos ativados.';
-    })
-    .catch(function () { /* ignora erros de rede */ });
-  }, 5000);
-}());
-</script>
 {% endblock %}
