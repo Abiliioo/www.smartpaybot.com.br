@@ -23,6 +23,7 @@ Atualizar este documento a cada gate atravessado.
 - SPB-266 (Collector: shadow mode de coleta incremental) **MERGEADO e com primeiro ciclo operacional real PASS em 24/08/2026**, PR #14, Issue #13 ainda aberta, merge commit `523920f7e92e5e2c8f4911e4fa232118bca94391`: Scheduled Task `SmartPayBot Collector` retornou `LastTaskResult=0` e `NumberOfMissedRuns=0`; telemetria `COLLECTOR_TELEMETRY` confirmou coleta real preservada (10/10 paginas OK, parser OK, 100 projetos unicos, ingest `received=100`) e shadow utilizavel (`shadow_enabled=true`, `shadow_hypothetical_stop_page=2`, `shadow_pages_saved_hypothetical=8`, `shadow_missed_new_if_active=0`, `shadow_known_ratio=0.99`, `shadow_cycle_usable=true`, `shadow_reason=stop_found`). Janela de observacao iniciada; sem deploy VPS, sem alteracao de Scheduled Task/cadencia/`--pages 10`, sem early-stop real.
 - SPB-268 (Collector Fast/Deep) **CONCLUIDO — MERGEADO e HOMOLOGADO operacionalmente em AUTO+PT5M**: PR #42 adicionou a fundacao Fast/Deep; PR #43 ativou o runner versionado `--mode auto --fast-pages 2 --deep-pages 10`; homologacao C3 em AUTO+PT10M comprovou DEEP completo; homologacao C4 em AUTO+PT5M comprovou `DEEP -> FAST -> DEEP`. Scheduled Task atual: `Interval=PT5M`, `Duration=P3650D`, `MultipleInstances=IgnoreNew`, `ExecutionTimeLimit=PT15M`. Baseline: paginas 1-2 ~a cada 5 min, paginas 1-10 ~a cada 10 min, ~12 GETs/10 min (+20%). SPB-267 continua bloqueado, PT2M nao autorizado e SPB-269 permanece necessario antes de cadencia mais agressiva.
 - SPB-270 (F-01: alinhar ingest/DEBUG a `APP_ENV`) **CONCLUIDO — IMPLANTADO e VALIDADO em producao em 21/08/2026**, PR #7, PR #8, Issue #6 fechada: `DEBUG` e ingest sensivel agora seguem `APP_ENV`; `homologation` e `production` sao fail-closed para `DEBUG=true` e ingest sem `INTERNAL_INGEST_TOKEN`. Deploy controlado via `scripts/deploy-production.ps1` atualizou producao de `588b86167f633faab812f23e3fbe0be0d534918c` para `15378dda90840579060e81be7cef3f47939ec6e9`: `DEPLOY_STATUS=SUCCESS`, `LOCAL_DEPLOY_EXIT_CODE=0`, testes remotos 241/241, smoke HTTP OK (`HOME=200`, `LOGIN=200`, `REGISTER=200`, `ADMIN=302`), cookie `session` preservado, banner de homologacao ausente, Telegram read-only OK, banco integro, `JOURNAL_ERROR_HITS=0`, rollback nao executado, Collector restaurado e ciclo automatico pos-deploy com `LastTaskResult=0`.
+- SPB-271 (guardrail de URL em `set_webhook`) **IMPLEMENTADO e TESTADO LOCALMENTE, ainda NAO implantado em producao**: `set_webhook` valida `webhook_url` contra `PUBLIC_BASE_URL` antes de `_guard()`/`getMe`, com parsing estrutural, HTTPS, mesma origem/porta efetiva, path canonico e bloqueio fail-closed sem chamada real ao Telegram para URL invalida.
 - SPB-250C (React + TypeScript + Vite acoplado ao Flask) avancou com dois marcos mergeados: fundacao/preview React via PR #19 e rota experimental publica `/ui-preview` via PR #21, commit `9e4e14ef30bffd9c18a1c213a1509237cb6af573`. O preview foi validado localmente no navegador via Flask em `127.0.0.1:5000/ui-preview`, com assets JS/CSS retornando 200 no Network. Nenhuma rota real foi substituida; `/`, `/pro`, auth, dashboard e admin continuam Jinja; sem deploy. SPB-250E concluiu o fluxo de build/deploy controlado do React dist; SPB-250F avançou com a primeira rota real controlada, permitindo `/` React atrás de `REACT_LANDING_ENABLED`, com fallback Jinja e sem tocar `/pro`, auth, dashboard ou admin; SPB-250G refinou o visual da landing, SPB-250H ajustou copy/conversão sem alterar backend/env/deploy e SPB-250J inicia o design system premium em React para Home/ProPreview, mantendo `/pro` real em Jinja nesta etapa; SPB-250K redesenha estruturalmente Home/ProPreview para corrigir a direção visual premium antes de nova publicação; SPB-250K-C refina a copy exposta, o FAQ Pro e os sinais do Painel sem backend/deploy; SPB-250K-D aplica o refino final de direção visual/copy antes da validação humana; SPB-250K-E reestrutura a UX funcional com foco no Painel de oportunidades acionável; SPB-250K-F suaviza o sistema de botões/CTAs para reduzir azul dominante. SPB-250I corrige o outbound Telegram de readiness para preferir IPv4 em `getMe`/`getWebhookInfo`, preservando fail-closed após rollback por timeout IPv6.
 - SPB-251B reorganiza o dashboard real como fonte de verdade da UX: status operacional de monitoramento, Telegram, plano, uso diario, keywords, oportunidades recentes e proxima melhor acao com dados ja disponiveis. O painel diferencia monitoramento pausado, pendente por falta de Telegram e ativo sem afirmar saude real de pipeline. Sem Landing/Pro, sem migracao React e sem deploy nesta etapa.
 - SPB-251C refina estruturalmente o dashboard real: oportunidades recentes passam a ser o nucleo do painel, o resumo de status fica compacto, a proxima melhor acao ganha destaque, palavras-chave viram gestao secundaria e o bloco de resultados redundante sai da tela. Sem React/marketing, sem deploy, sem collector e sem metricas inventadas.
@@ -56,7 +57,7 @@ SPB-266 esta mergeado e em observacao operacional real desde 24/08/2026, mas `sh
 ```
 B4 publish (push -> main -> deploy -> closeout) -- CONCLUIDO em 18/08/2026
    -> SPB-270 (F-01: alinhar ingest/DEBUG a APP_ENV) -- CONCLUIDO em producao
-   -> SPB-271 (guardrail de URL em set_webhook)
+   -> SPB-271 (guardrail de URL em set_webhook) -- IMPLEMENTADO/TESTADO LOCALMENTE, aguardando review/deploy
    -> SPB-272 (hardening de isolamento pre-Fase E)
    -> Fase E -> Fase F -> Fase G -> Fase H -> Fase I
 ```
@@ -84,7 +85,7 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 **NOW**
 
-- SPB-271 — guardrail de URL em `set_webhook`.
+- SPB-271 — guardrail de URL em `set_webhook` implementado/testado localmente; pendente review, merge e deploy controlado.
 
 **NEXT**
 
@@ -103,7 +104,7 @@ O shadow mode (SPB-266) consome tempo de calendario, nao capacidade de desenvolv
 
 ## Proximos 5 passos
 
-1. SPB-271 — guardrail de URL em `set_webhook` (continua o Trilho B apos SPB-270).
+1. SPB-271 — review, merge e deploy controlado do guardrail de URL em `set_webhook`.
 2. SPB-272 — hardening de isolamento pre-Fase E.
 3. SPB-269 — medir trafego oculto do notifier antes de cadencia mais agressiva.
 4. Fase E / F / G — homologacao fisica apos os gates pendentes.
