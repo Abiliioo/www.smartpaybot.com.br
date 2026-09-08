@@ -22,6 +22,7 @@ _ENV_KEYS = (
     "TELEGRAM_TOKEN",
     "TELEGRAM_EXPECTED_BOT_ID",
     "TELEGRAM_WEBHOOK_SECRET",
+    "PUBLIC_BASE_URL",
     "TELEGRAM_BOT_USERNAME",
     "SECRET_KEY",
     "DATABASE_URL",
@@ -64,6 +65,7 @@ def _settings_stub(**overrides):
         "TELEGRAM_TOKEN": _SYNTHETIC_TOKEN,
         "TELEGRAM_EXPECTED_BOT_ID": _SYNTHETIC_BOT_ID,
         "TELEGRAM_WEBHOOK_SECRET": _SYNTHETIC_SECRET,
+        "PUBLIC_BASE_URL": "https://example.test",
     }
     base.update(overrides)
     return mock.Mock(**base)
@@ -470,7 +472,7 @@ class AllOperationsRespectGuardTest(unittest.TestCase):
              mock.patch("requests.get") as get_mock, mock.patch("requests.post") as post_mock:
             self.assertFalse(telegram_module.send_message("chat-1", "x"))
             self.assertIsNone(telegram_module.get_webhook_info())
-            self.assertFalse(telegram_module.set_webhook("https://example.test/webhook"))
+            self.assertFalse(telegram_module.set_webhook("https://example.test/webhook/telegram"))
             self.assertFalse(telegram_module.delete_webhook())
             self.assertIsNone(telegram_module.get_updates())
 
@@ -526,7 +528,7 @@ class AllOperationsRespectGuardTest(unittest.TestCase):
              mock.patch("requests.get", return_value=_get_me_response()), \
              mock.patch("requests.post") as post_mock:
             post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
-            ok = telegram_module.set_webhook("https://example.test/webhook")
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         self.assertTrue(ok)
         post_mock.assert_called_once()
@@ -535,7 +537,7 @@ class AllOperationsRespectGuardTest(unittest.TestCase):
         with mock.patch.object(telegram_module, "get_settings", return_value=_settings_stub()), \
              mock.patch("requests.get", return_value=_get_me_response(bot_id=1)), \
              mock.patch("requests.post") as post_mock:
-            ok = telegram_module.set_webhook("https://example.test/webhook")
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         self.assertFalse(ok)
         post_mock.assert_not_called()
@@ -580,6 +582,150 @@ class AllOperationsRespectGuardTest(unittest.TestCase):
         self.assertIsNone(data)
         get_mock.assert_called_once()  # so o getMe (que falhou), nunca o getUpdates real
 
+class SetWebhookUrlGuardrailTest(unittest.TestCase):
+    """SPB-271 -- set_webhook valida URL antes de qualquer chamada ao Telegram."""
+
+    def setUp(self) -> None:
+        telegram_module._validated_token_fingerprints.clear()
+
+    def tearDown(self) -> None:
+        telegram_module._validated_token_fingerprints.clear()
+
+    def _assert_set_webhook_blocked_before_network(
+        self,
+        webhook_url,
+        *,
+        public_base_url="https://smartpaybot.test",
+    ) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL=public_base_url)
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get") as get_mock, \
+             mock.patch("requests.post") as post_mock:
+            ok = telegram_module.set_webhook(webhook_url)
+
+        self.assertFalse(ok)
+        get_mock.assert_not_called()
+        post_mock.assert_not_called()
+
+    def test_valid_canonical_url_allows_getme_and_setwebhook(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()) as get_mock, \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://smartpaybot.test/webhook/telegram")
+
+        self.assertTrue(ok)
+        get_mock.assert_called_once()
+        post_mock.assert_called_once()
+        sent_data = post_mock.call_args.kwargs["data"]
+        self.assertEqual(sent_data["url"], "https://smartpaybot.test/webhook/telegram")
+        self.assertEqual(sent_data["secret_token"], _SYNTHETIC_SECRET)
+        self.assertEqual(sent_data["drop_pending_updates"], "false")
+
+    def test_valid_trailing_slash_public_base_url(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test/")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://smartpaybot.test/webhook/telegram")
+
+        self.assertTrue(ok)
+        post_mock.assert_called_once()
+
+    def test_valid_hostname_casing_differs(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://SMARTPAYBOT.TEST/webhook/telegram")
+
+        self.assertTrue(ok)
+        post_mock.assert_called_once()
+
+    def test_valid_default_https_port_equivalence(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://smartpaybot.test:443/webhook/telegram")
+
+        self.assertTrue(ok)
+        post_mock.assert_called_once()
+
+    def test_valid_public_base_path(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test/app")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://smartpaybot.test/app/webhook/telegram")
+
+        self.assertTrue(ok)
+        post_mock.assert_called_once()
+
+    def test_valid_matching_non_default_https_port(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test:8443")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook("https://smartpaybot.test:8443/webhook/telegram")
+
+        self.assertTrue(ok)
+        post_mock.assert_called_once()
+
+    def test_invalid_urls_are_blocked_before_getme_and_setwebhook(self) -> None:
+        cases = [
+            ("https://smartpaybot.test/webhook/telegram", None),
+            ("https://smartpaybot.test/webhook/telegram", ""),
+            ("https://smartpaybot.test/webhook/telegram", "not-a-url"),
+            ("https://smartpaybot.test/webhook/telegram", "http://smartpaybot.test"),
+            ("https://smartpaybot.test/webhook/telegram", "https://user@smartpaybot.test"),
+            ("https://smartpaybot.test/webhook/telegram", "https://smartpaybot.test?x=1"),
+            ("https://smartpaybot.test/webhook/telegram", "https://smartpaybot.test#fragment"),
+            ("https://smartpaybot.test/webhook/telegram", "https://smartpaybot.test:bad"),
+            ("/webhook/telegram", "https://smartpaybot.test"),
+            ("http://smartpaybot.test/webhook/telegram", "https://smartpaybot.test"),
+            ("https://other.test/webhook/telegram", "https://smartpaybot.test"),
+            ("https://smartpaybot.test.evil.example/webhook/telegram", "https://smartpaybot.test"),
+            ("https://sub.smartpaybot.test/webhook/telegram", "https://smartpaybot.test"),
+            ("https://smartpaybot.test:444/webhook/telegram", "https://smartpaybot.test"),
+            ("https://user@smartpaybot.test/webhook/telegram", "https://smartpaybot.test"),
+            ("https://user:pass@smartpaybot.test/webhook/telegram", "https://smartpaybot.test"),
+            ("https://smartpaybot.test/foo", "https://smartpaybot.test"),
+            ("https://smartpaybot.test/webhook/telegram/", "https://smartpaybot.test"),
+            ("https://smartpaybot.test/webhook/telegram/extra", "https://smartpaybot.test"),
+            ("https://smartpaybot.test/%77ebhook/telegram", "https://smartpaybot.test"),
+            ("https://smartpaybot.test/webhook/telegram?x=1", "https://smartpaybot.test"),
+            ("https://smartpaybot.test/webhook/telegram#fragment", "https://smartpaybot.test"),
+            (" https://smartpaybot.test/webhook/telegram", "https://smartpaybot.test"),
+            ("https://smartpaybot.test:bad/webhook/telegram", "https://smartpaybot.test"),
+        ]
+        for webhook_url, public_base_url in cases:
+            with self.subTest(webhook_url=webhook_url, public_base_url=public_base_url):
+                self._assert_set_webhook_blocked_before_network(
+                    webhook_url,
+                    public_base_url=public_base_url,
+                )
+
+    def test_drop_pending_updates_preserved_for_valid_url(self) -> None:
+        settings = _settings_stub(PUBLIC_BASE_URL="https://smartpaybot.test")
+        with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
+             mock.patch("requests.get", return_value=_get_me_response()), \
+             mock.patch("requests.post") as post_mock:
+            post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
+            ok = telegram_module.set_webhook(
+                "https://smartpaybot.test/webhook/telegram",
+                drop_pending=True,
+            )
+
+        self.assertTrue(ok)
+        self.assertEqual(post_mock.call_args.kwargs["data"]["drop_pending_updates"], "true")
+
 
 class SetWebhookSecretHandlingTest(unittest.TestCase):
     """
@@ -601,7 +747,7 @@ class SetWebhookSecretHandlingTest(unittest.TestCase):
              mock.patch("requests.get", return_value=_get_me_response()), \
              mock.patch("requests.post") as post_mock:
             post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
-            ok = telegram_module.set_webhook("https://example.test/webhook")
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         self.assertTrue(ok)
         sent_data = post_mock.call_args.kwargs["data"]
@@ -613,7 +759,7 @@ class SetWebhookSecretHandlingTest(unittest.TestCase):
              mock.patch("requests.get", return_value=_get_me_response()), \
              mock.patch("requests.post") as post_mock:
             post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
-            ok = telegram_module.set_webhook("https://example.test/webhook")
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         self.assertTrue(ok)
         sent_data = post_mock.call_args.kwargs["data"]
@@ -625,7 +771,7 @@ class SetWebhookSecretHandlingTest(unittest.TestCase):
              mock.patch("requests.get", return_value=_get_me_response()), \
              mock.patch("requests.post") as post_mock:
             post_mock.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"ok": True}))
-            ok = telegram_module.set_webhook("https://example.test/webhook", secret_token=_SYNTHETIC_SECRET)
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram", secret_token=_SYNTHETIC_SECRET)
 
         self.assertTrue(ok)
         sent_data = post_mock.call_args.kwargs["data"]
@@ -636,7 +782,7 @@ class SetWebhookSecretHandlingTest(unittest.TestCase):
         with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
              mock.patch("requests.get", return_value=_get_me_response()), \
              mock.patch("requests.post") as post_mock:
-            ok = telegram_module.set_webhook("https://example.test/webhook")
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         self.assertFalse(ok)
         post_mock.assert_not_called()
@@ -657,7 +803,7 @@ class SetWebhookSecretHandlingTest(unittest.TestCase):
         settings = _settings_stub(TELEGRAM_MODE="disabled")
         with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
              mock.patch("requests.get") as get_mock, mock.patch("requests.post") as post_mock:
-            ok = telegram_module.set_webhook("https://example.test/webhook")
+            ok = telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         self.assertFalse(ok)
         get_mock.assert_not_called()
@@ -667,7 +813,7 @@ class SetWebhookSecretHandlingTest(unittest.TestCase):
         settings = _settings_stub(TELEGRAM_WEBHOOK_SECRET=None)
         with self.assertLogs("infrastructure.telegram", level="WARNING") as captured:
             with mock.patch.object(telegram_module, "get_settings", return_value=settings):
-                telegram_module.set_webhook("https://example.test/webhook", secret_token="some-value")
+                telegram_module.set_webhook("https://example.test/webhook/telegram", secret_token="some-value")
         full_log = "\n".join(captured.output)
         self.assertNotIn(_SYNTHETIC_SECRET, full_log)
         self.assertNotIn("some-value", full_log)
@@ -782,7 +928,7 @@ class LoggingDoesNotLeakSecretsTest(unittest.TestCase):
             with mock.patch.object(telegram_module, "get_settings", return_value=settings), \
                  mock.patch("requests.get", return_value=_get_me_response()), \
                  mock.patch("requests.post", side_effect=exc):
-                telegram_module.set_webhook("https://example.test/webhook")
+                telegram_module.set_webhook("https://example.test/webhook/telegram")
 
         full_log = "\n".join(captured.output)
         self.assertNotIn(_SYNTHETIC_TOKEN, full_log)

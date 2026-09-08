@@ -6,6 +6,7 @@ import hashlib
 import socket
 import threading
 import time
+from urllib.parse import urlsplit
 import requests
 import urllib3.util.connection as urllib3_connection
 from .config import get_settings
@@ -159,6 +160,43 @@ def telegram_ready(token: Optional[str] = None) -> bool:
         return False
 
 
+
+def _safe_https_parts(value: Optional[str]):
+    if not isinstance(value, str) or not value or value != value.strip():
+        return None
+
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return None
+
+    if parsed.scheme != "https" or not parsed.netloc or not parsed.hostname:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    if parsed.query or parsed.fragment:
+        return None
+
+    return parsed, port or 443
+
+
+def _webhook_url_allowed(webhook_url: Optional[str], public_base_url: Optional[str]) -> bool:
+    base_parts = _safe_https_parts(public_base_url)
+    webhook_parts = _safe_https_parts(webhook_url)
+    if base_parts is None or webhook_parts is None:
+        return False
+
+    base, base_port = base_parts
+    webhook, webhook_port = webhook_parts
+    if base.hostname.lower() != webhook.hostname.lower() or base_port != webhook_port:
+        return False
+
+    base_path = base.path.rstrip("/")
+    expected_path = f"{base_path}/webhook/telegram" if base_path else "/webhook/telegram"
+    return webhook.path == expected_path
+
+
 def _post(method: str, payload: Dict[str, Any], token: str, timeout: int = 15) -> requests.Response:
     """Chamada HTTP crua (POST), sem guard -- usada internamente apos _guard() ja ter validado."""
     url = _TELEGRAM_API.format(token=token, method=method)
@@ -241,13 +279,18 @@ def set_webhook(
     tambem bloqueia antes de qualquer requisicao (evita registrar um
     webhook com secret diferente do que o proprio endpoint valida).
     """
+    settings = get_settings()
+    if not _webhook_url_allowed(webhook_url, settings.PUBLIC_BASE_URL):
+        logger.warning("set_webhook bloqueado: URL fora do endpoint canonico do PUBLIC_BASE_URL.")
+        return False
+
     try:
         resolved_token = _guard(token)
     except TelegramGuardError as e:
         logger.warning("set_webhook bloqueado pelo guardrail: %s", e)
         return False
 
-    configured_secret = get_settings().TELEGRAM_WEBHOOK_SECRET
+    configured_secret = settings.TELEGRAM_WEBHOOK_SECRET
     if not configured_secret:
         logger.warning(
             "set_webhook bloqueado: TELEGRAM_WEBHOOK_SECRET nao configurado -- "
