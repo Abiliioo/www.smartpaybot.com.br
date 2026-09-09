@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 import unittest
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -19,6 +20,7 @@ from domain.models import Plan, ProjectGlobal, ProjectPerUser, Subscription, Use
 from infrastructure.db import Base
 
 NOW = datetime(2026, 9, 8, 15, 0, tzinfo=timezone.utc)
+JS_PATH = Path(__file__).resolve().parent.parent / 'app' / 'static' / 'js' / 'script.js'
 
 
 class DashboardMetricsUiSPB251DTest(unittest.TestCase):
@@ -257,6 +259,30 @@ class DashboardMetricsUiSPB251DTest(unittest.TestCase):
         self.assertIn('name="csrf_token"', html)
         self.assertIn('meta name="csrf-token"', html)
 
+    def test_dashboard_product_shell_is_conditional(self) -> None:
+        html = self._dashboard_html()
+        self.assertRegex(html, r'<body class="[^"]*spb-product-shell')
+        projects = self.client.get("/dashboard/projects")
+        self.assertEqual(projects.status_code, 200)
+        self.assertIn("spb-product-shell", projects.get_data(as_text=True))
+
+        login = self.app.test_client().get("/auth/login")
+        self.assertEqual(login.status_code, 200)
+        self.assertNotIn("spb-product-shell", login.get_data(as_text=True))
+
+    def test_metrics_dashboard_isolated_from_legacy_polling(self) -> None:
+        html = self._dashboard_html()
+        self.assertIn('class="dashboard-shell dashboard-shell--metrics"', html)
+        self.assertIn('id="dashboard-monitoring-status"', html)
+        self.assertIn('id="dashboard-telegram-status"', html)
+        self.assertIn('role="group"', html)
+        self.assertNotIn('id="dashboard-chart" role="img"', html)
+
+        script = JS_PATH.read_text(encoding="utf-8")
+        self.assertIn("const isMetricsDashboard = !!document.querySelector('.dashboard-shell--metrics');", script)
+        self.assertRegex(script, r"if \(!isMetricsDashboard\) \{\s+startPolling\(\);")
+        self.assertIn("setDashboardMonitoringStatus(data.running);", script)
+        self.assertIn("setDashboardTelegramStatus(true);", script)
     def test_empty_dashboard_renders(self) -> None:
         html = self._dashboard_html()
         self.assertIn("Painel de oportunidades", html)

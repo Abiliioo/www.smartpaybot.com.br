@@ -1225,14 +1225,14 @@ input[type="text"], input[type="email"], input[type="password"]{
   --spb-danger:#E36464;
 }
 
-body{ background:var(--spb-bg); color:var(--spb-text) }
-.header{ background:rgba(13,15,18,.92); border-bottom-color:var(--spb-border); backdrop-filter:blur(14px) }
-.nav{ min-height:66px }
-.nav-links{ overflow-x:auto; scrollbar-width:none }
-.nav-links::-webkit-scrollbar{ display:none }
-.nav-link{ border-radius:7px; color:var(--spb-muted) }
-.nav-link:hover{ background:rgba(255,255,255,.05); color:var(--spb-text) }
-.nav-link--active{ background:var(--spb-accent-soft); color:var(--spb-text) }
+.spb-product-shell{ background:var(--spb-bg); color:var(--spb-text) }
+.spb-product-shell .header{ background:rgba(13,15,18,.92); border-bottom-color:var(--spb-border); backdrop-filter:blur(14px) }
+.spb-product-shell .nav{ min-height:66px }
+.spb-product-shell .nav-links{ overflow-x:auto; scrollbar-width:none }
+.spb-product-shell .nav-links::-webkit-scrollbar{ display:none }
+.spb-product-shell .nav-link{ border-radius:7px; color:var(--spb-muted) }
+.spb-product-shell .nav-link:hover{ background:rgba(255,255,255,.05); color:var(--spb-text) }
+.spb-product-shell .nav-link--active{ background:var(--spb-accent-soft); color:var(--spb-text) }
 .notification-link{
   width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
   border:1px solid var(--spb-border); border-radius:999px; background:rgba(255,255,255,.03);
@@ -1254,11 +1254,11 @@ body{ background:var(--spb-bg); color:var(--spb-text) }
   border:1px solid var(--spb-border); border-radius:999px; background:rgba(255,255,255,.03);
   color:var(--spb-muted); font-size:.76rem; font-weight:750; white-space:nowrap;
 }
-.status-pill span{ width:7px; height:7px; border-radius:999px; background:var(--spb-tertiary) }
+.status-pill > span[aria-hidden="true"]{ width:7px; height:7px; border-radius:999px; background:var(--spb-tertiary) }
 .status-pill--ok{ color:#B8F4D9; border-color:rgba(50,196,141,.22); background:rgba(50,196,141,.07) }
-.status-pill--ok span{ background:var(--spb-success) }
+.status-pill--ok > span[aria-hidden="true"]{ background:var(--spb-success) }
 .status-pill--warn{ color:#F1D38A; border-color:rgba(216,164,65,.24); background:rgba(216,164,65,.08) }
-.status-pill--warn span{ background:var(--spb-warning) }
+.status-pill--warn > span[aria-hidden="true"]{ background:var(--spb-warning) }
 .status-pill--neutral{ color:var(--spb-text) }
 
 .metric-kpi-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:0 0 16px }
@@ -1367,9 +1367,9 @@ body{ background:var(--spb-bg); color:var(--spb-text) }
   .section-head--metrics{ flex-direction:column; align-items:stretch }
   .segmented-control{ align-self:flex-start }
   .results-grid{ grid-template-columns:1fr }
-  .nav{ flex-wrap:wrap; gap:8px; padding-top:8px; padding-bottom:8px }
-  .nav-links{ order:3; width:100%; margin-left:0; padding-bottom:2px }
-  .user-area{ margin-left:auto }
+  .spb-product-shell .nav{ flex-wrap:wrap; gap:8px; padding-top:8px; padding-bottom:8px }
+  .spb-product-shell .nav-links{ order:3; width:100%; margin-left:0; padding-bottom:2px }
+  .spb-product-shell .user-area{ margin-left:auto }
 }
 @media (max-width:430px){
   .metric-kpi-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px }
@@ -1391,13 +1391,13 @@ body{ background:var(--spb-bg); color:var(--spb-text) }
   .form-inline--settings .input{ min-width:0 }
   .form-inline--settings .btn{ width:100% }
   .notification-link{ width:30px; height:30px; font-size:1.1rem }
-  .nav{ min-width:0; gap:6px }
-  .brand-area{ min-width:0; gap:7px }
-  .brand-text{ min-width:0 }
-  .brand-sub{ display:none }
-  .nav-links{ min-width:0; gap:0; padding-right:0 }
-  .nav-link{ padding-left:8px; padding-right:8px; font-size:.78rem }
-  .user-area{ min-width:0; gap:5px }
-  .user-area .btn{ display:inline-flex; padding-left:8px; padding-right:8px; font-size:.74rem }
+  .spb-product-shell .nav{ min-width:0; gap:6px }
+  .spb-product-shell .brand-area{ min-width:0; gap:7px }
+  .spb-product-shell .brand-text{ min-width:0 }
+  .spb-product-shell .brand-sub{ display:none }
+  .spb-product-shell .nav-links{ min-width:0; gap:0; padding-right:0 }
+  .spb-product-shell .nav-link{ padding-left:8px; padding-right:8px; font-size:.78rem }
+  .spb-product-shell .user-area{ min-width:0; gap:5px }
+  .spb-product-shell .user-area .btn{ display:inline-flex; padding-left:8px; padding-right:8px; font-size:.74rem }
   .trend{ font-size:.72rem; font-weight:600 }
 }

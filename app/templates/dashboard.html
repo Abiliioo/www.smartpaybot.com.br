@@ -22,11 +22,11 @@
       <p class="dashboard-hero__sub">Entenda como seu monitoramento está performando.</p>
     </div>
     <div class="dashboard-hero__badges" aria-label="Status da conta">
-      <span class="status-pill {% if status.monitoring_active %}status-pill--ok{% else %}status-pill--muted{% endif %}">
-        <span aria-hidden="true"></span>{{ 'Monitoramento ativo' if status.monitoring_active else 'Monitoramento pausado' }}
+      <span id="dashboard-monitoring-status" class="status-pill {% if status.monitoring_active %}status-pill--ok{% else %}status-pill--muted{% endif %}">
+        <span aria-hidden="true"></span><span data-dashboard-status-label>{{ 'Monitoramento ativo' if status.monitoring_active else 'Monitoramento pausado' }}</span>
       </span>
-      <span class="status-pill {% if status.telegram_connected %}status-pill--ok{% else %}status-pill--warn{% endif %}">
-        <span aria-hidden="true"></span>Telegram {{ 'conectado' if status.telegram_connected else 'desconectado' }}
+      <span id="dashboard-telegram-status" class="status-pill {% if status.telegram_connected %}status-pill--ok{% else %}status-pill--warn{% endif %}">
+        <span aria-hidden="true"></span><span data-dashboard-status-label>Telegram {{ 'conectado' if status.telegram_connected else 'desconectado' }}</span>
       </span>
       <span class="status-pill status-pill--neutral">
         {{ status.plan_name }}
@@ -89,10 +89,10 @@
           <button type="button" class="segmented-control__item" id="chart-tab-30d" data-dashboard-range="30d" role="tab" aria-selected="false" aria-controls="dashboard-chart">30 dias</button>
         </div>
       </div>
-      <div class="dashboard-chart" id="dashboard-chart" role="img" aria-label="Série diária de oportunidades encontradas em 7 e 30 dias" data-series='{{ metrics.series|tojson }}'>
+      <div class="dashboard-chart" id="dashboard-chart" role="group" aria-labelledby="overview-title" aria-describedby="dashboard-chart-summary" data-series='{{ metrics.series|tojson }}'>
         <div class="dashboard-chart__bars" data-chart-bars></div>
       </div>
-      <p class="dashboard-chart__summary" data-chart-summary aria-live="polite"></p>
+      <p id="dashboard-chart-summary" class="dashboard-chart__summary" data-chart-summary aria-live="polite"></p>
     </section>
 
     <section class="dashboard-panel dashboard-panel--keywords" aria-labelledby="keyword-performance-title">
