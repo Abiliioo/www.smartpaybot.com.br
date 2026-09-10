@@ -5,65 +5,51 @@
   </div>
   {% endif %}
   <nav class="nav container" aria-label="Navegação principal">
-
-    {# ── Marca ─────────────────────────────────────────────────────────── #}
-    <a href="{{ url_for('main.index') }}"
-       class="brand-area" aria-label="SmartPayBot — início">
-      <img
-        class="brand-logo"
-        src="{{ url_for('static', filename='images/logo.svg') }}"
-        alt="SmartPayBot logo"
-        width="32" height="32"
-      >
+    <a href="{{ url_for('main.index') }}" class="brand-area" aria-label="SmartPayBot — início">
+      <img class="brand-logo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="SmartPayBot logo" width="32" height="32">
       <span class="brand-text">
         <span class="brand-name">SmartPay<b>Bot</b></span>
         <span class="brand-sub">Monitor de oportunidades</span>
       </span>
     </a>
 
-    {% set is_dash       = request.endpoint and request.endpoint.startswith('dashboard.') %}
+    {% set is_dashboard_home = request.endpoint == 'dashboard.home' %}
+    {% set is_projects = request.endpoint == 'dashboard.my_projects' %}
     {% set is_admin_page = request.endpoint and request.endpoint.startswith('admin.') %}
-    {% set is_login      = request.endpoint == 'auth.login' %}
-    {% set is_register   = request.endpoint == 'auth.register' %}
+    {% set is_login = request.endpoint == 'auth.login' %}
+    {% set is_register = request.endpoint == 'auth.register' %}
 
     {% if current_user.is_authenticated %}
-      {# ── Links de navegação ─────────────────────────────────────────── #}
-      <div class="nav-links">
-        <a href="{{ url_for('dashboard.home') }}"
-           class="nav-link{% if is_dash %} nav-link--active{% endif %}">
-          Dashboard
-        </a>
+      <div class="nav-links" aria-label="Áreas do produto">
+        <a href="{{ url_for('dashboard.home') }}" class="nav-link{% if is_dashboard_home %} nav-link--active{% endif %}">Dashboard</a>
+        <a href="{{ url_for('dashboard.my_projects') }}" class="nav-link{% if is_projects %} nav-link--active{% endif %}">Oportunidades</a>
+        <a href="{{ url_for('dashboard.home') }}#configuracoes" class="nav-link">Configurações</a>
         {% if current_user.is_admin %}
-          <a href="{{ url_for('admin.index') }}"
-             class="nav-link{% if is_admin_page %} nav-link--active{% endif %}">
-            Admin
-          </a>
+          <a href="{{ url_for('admin.index') }}" class="nav-link{% if is_admin_page %} nav-link--active{% endif %}">Admin</a>
         {% endif %}
       </div>
 
       <span class="ml-auto"></span>
 
-      {# ── Área do usuário ────────────────────────────────────────────── #}
       <div class="user-area">
+        <a class="notification-link" href="{{ url_for('dashboard.my_projects') }}" aria-label="Ver oportunidades" title="Ver oportunidades">
+          <span aria-hidden="true">&#128276;</span>
+        </a>
         <span class="nav-sep" aria-hidden="true"></span>
         <span class="user-avatar" aria-hidden="true">{{ current_user.username[0]|upper }}</span>
         <span class="user-name">{{ current_user.username }}</span>
         <a class="btn ghost pill" href="{{ url_for('auth.logout') }}">Sair</a>
       </div>
-
     {% else %}
-      {# ── Ações para visitantes ──────────────────────────────────────── #}
       <span class="ml-auto"></span>
-
       {% if is_login %}
         <a class="btn ghost pill" href="{{ url_for('auth.register') }}">Criar conta</a>
       {% elif is_register %}
         <a class="btn primary pill" href="{{ url_for('auth.login') }}">Entrar</a>
       {% else %}
         <a class="btn primary pill" href="{{ url_for('auth.login') }}">Entrar</a>
-        <a class="btn ghost pill"   href="{{ url_for('auth.register') }}">Criar conta</a>
+        <a class="btn ghost pill" href="{{ url_for('auth.register') }}">Criar conta</a>
       {% endif %}
     {% endif %}
-
   </nav>
 </header>

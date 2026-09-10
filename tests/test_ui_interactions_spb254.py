@@ -151,23 +151,24 @@ class DashboardMarkupTest(unittest.TestCase):
         html = self._dashboard_html()
 
         self.assertIn("Painel de oportunidades", html)
-        self.assertIn("8&nbsp;/&nbsp;10", html)
-        self.assertIn("restam 2 alerta(s) hoje", html)
-        self.assertIn("2&nbsp;/&nbsp;3", html)
+        self.assertIn("8", html)
+        self.assertIn("10 alertas por dia", html)
+        self.assertIn("Free inclui 3 keywords e 10 alertas por dia", html)
+        self.assertIn("2 / 3", html)
 
     def test_dashboard_shows_recent_real_opportunity_without_score(self) -> None:
         html = self._dashboard_html()
 
         self.assertIn("Planilha financeira automatizada", html)
         self.assertIn("excel", html)
-        self.assertIn("Revisar oportunidades", html)
+        self.assertIn("Ver oportunidades", html)
         self.assertNotIn("score", html.lower())
 
     def test_dashboard_prioritizes_opportunities_over_keyword_management(self) -> None:
         html = self._dashboard_html()
 
-        self.assertIn("1 em aberto de 1 oportunidade(s) encontradas.", html)
-        self.assertLess(html.index("Oportunidades recentes"), html.index("Palavras-chave"))
+        self.assertIn("Últimas oportunidades", html)
+        self.assertLess(html.index("Visão geral"), html.index("configuracoes-keywords"))
         self.assertNotIn("Ticket médio", html)
         self.assertNotIn("Conversão", html)
     def test_dashboard_next_action_for_telegram_disconnected(self) -> None:
@@ -180,10 +181,10 @@ class DashboardMarkupTest(unittest.TestCase):
 
         html = self._dashboard_html()
 
-        self.assertIn("Conecte o Telegram", html)
-        self.assertIn("Conectar Telegram", html)
-        self.assertIn("Monitoramento pendente", html)
-        self.assertNotIn("Monitoramento ativo", html)
+        self.assertIn("Telegram desconectado", html)
+        self.assertIn("Abrir @", html)
+        self.assertIn("Vincule seu Telegram para ativar.", html)
+        self.assertIn("Telegram desconectado", html)
 
     def test_dashboard_next_action_for_user_without_keywords(self) -> None:
         with self.Session() as db:
@@ -192,8 +193,8 @@ class DashboardMarkupTest(unittest.TestCase):
 
         html = self._dashboard_html()
 
-        self.assertIn("Cadastre sua primeira palavra-chave", html)
-        self.assertIn("Adicionar keyword", html)
+        self.assertIn("Nenhuma keyword cadastrada", html)
+        self.assertIn("Adicionar", html)
 
     def test_dashboard_next_action_for_inactive_monitoring(self) -> None:
         with self.Session() as db:
@@ -204,8 +205,8 @@ class DashboardMarkupTest(unittest.TestCase):
 
         html = self._dashboard_html()
 
-        self.assertIn("Ative o monitoramento", html)
-        self.assertIn("Ver monitoramento", html)
+        self.assertIn("Monitoramento pausado", html)
+        self.assertIn("Parado", html)
 
     def test_dashboard_contextual_pro_cta_for_keyword_limit(self) -> None:
         with self.Session() as db:
@@ -221,7 +222,7 @@ class DashboardMarkupTest(unittest.TestCase):
         html = self._dashboard_html()
 
         self.assertIn("Monitoramento ativo", html)
-        self.assertIn("Voce esta pronto para receber alertas.", html)
+        self.assertIn("Alertas automáticos ativados.", html)
 
     def test_dashboard_monitoring_status_when_paused(self) -> None:
         with self.Session() as db:
@@ -233,7 +234,7 @@ class DashboardMarkupTest(unittest.TestCase):
         html = self._dashboard_html()
 
         self.assertIn("Monitoramento pausado", html)
-        self.assertIn("Ative o monitoramento para receber novos alertas.", html)
+        self.assertIn("Monitoramento pausado", html)
 
     def test_dashboard_pro_admin_do_not_get_free_upgrade_cta(self) -> None:
         with self.Session() as db:

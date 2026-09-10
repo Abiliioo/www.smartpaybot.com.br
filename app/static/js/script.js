@@ -47,6 +47,26 @@ function setBotStatus(text) {
   if (el) el.textContent = text;
 }
 
+function setDashboardMonitoringStatus(active) {
+  const el = $('#dashboard-monitoring-status');
+  if (!el) return;
+  const label = el.querySelector('[data-dashboard-status-label]');
+  if (label) label.textContent = active ? 'Monitoramento ativo' : 'Monitoramento pausado';
+  el.classList.toggle('status-pill--ok', !!active);
+  el.classList.toggle('status-pill--muted', !active);
+  el.classList.remove('status-pill--warn');
+}
+
+function setDashboardTelegramStatus(linked) {
+  const el = $('#dashboard-telegram-status');
+  if (!el) return;
+  const label = el.querySelector('[data-dashboard-status-label]');
+  if (label) label.textContent = linked ? 'Telegram conectado' : 'Telegram desconectado';
+  el.classList.toggle('status-pill--ok', !!linked);
+  el.classList.toggle('status-pill--warn', !linked);
+  el.classList.remove('status-pill--muted');
+}
+
 // converte valor em inteiro, aceitando "1.234", "1,234" ou "1234"
 function toInt(v) {
   if (typeof v === 'string') {
@@ -164,7 +184,10 @@ function renderKeywords(list = []) {
     ul.appendChild(li);
   });
 
-  if (empty) empty.style.display = list.length ? 'none' : '';
+  if (empty) {
+    empty.hidden = !!list.length;
+    empty.style.display = list.length ? 'none' : '';
+  }
   updateKwCounter();
 }
 
@@ -198,7 +221,10 @@ function appendKeywordsOptimistic(newOnes = []) {
     ul.appendChild(li);
   });
 
-  if (empty) empty.style.display = 'none';
+  if (empty) {
+    empty.hidden = true;
+    empty.style.display = 'none';
+  }
   updateKwCounter();
 }
 
@@ -282,6 +308,7 @@ async function refreshBotStatus() {
       const t = $('#bot-toggle');
       if (t) t.checked = !!data.running;
       setBotStatus(data.running ? 'Ativado' : 'Parado');
+      setDashboardMonitoringStatus(data.running);
     }
   } catch {/* ignore */}
 }
@@ -309,6 +336,7 @@ async function toggleBot(el) {
     if (data.ok === false) {
       el.checked = !!data.running;
       setBotStatus(data.running ? 'Ativado' : 'Parado');
+      setDashboardMonitoringStatus(data.running);
       if (data.error === 'link_required') {
         flashClient('Vincule seu Telegram para habilitar o controle.', 'warning');
       } else {
@@ -319,6 +347,7 @@ async function toggleBot(el) {
 
     el.checked = !!data.running;
     setBotStatus(data.running ? 'Ativado' : 'Parado');
+    setDashboardMonitoringStatus(data.running);
 
     if (data.running !== targetChecked) {
       flashClient(`Estado atual: ${data.running ? 'Ativado' : 'Parado'}.`, 'warning');
@@ -557,24 +586,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // sincroniza UI inicial
+  const isMetricsDashboard = !!document.querySelector('.dashboard-shell--metrics');
+  const telegramCard = document.getElementById('tg-card');
+  const botToggle = document.getElementById('bot-toggle');
+  setDashboardTelegramStatus(telegramCard?.dataset.linked === 'true');
+  if (botToggle) setDashboardMonitoringStatus(!!botToggle.checked);
   refreshBotStatus();
-  startPolling();
 
-  // debounce para visibilidade (evita liga/desliga rápido ao alternar abas)
-  document.addEventListener('visibilitychange', () => {
-    clearTimeout(visTimer);
-    visTimer = setTimeout(() => {
-      if (document.hidden) stopPolling(); else startPolling();
-    }, 150);
-  });
+  if (!isMetricsDashboard) {
+    startPolling();
 
-  // re-render do gráfico em resize
-  let resizeTO;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTO);
-    resizeTO = setTimeout(updateDailyChart, 150);
-  });
+    // debounce para visibilidade (evita liga/desliga rápido ao alternar abas)
+    document.addEventListener('visibilitychange', () => {
+      clearTimeout(visTimer);
+      visTimer = setTimeout(() => {
+        if (document.hidden) stopPolling(); else startPolling();
+      }, 150);
+    });
+
+    // re-render do gráfico legado em resize
+    let resizeTO;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTO);
+      resizeTO = setTimeout(updateDailyChart, 150);
+    });
+  }
 });
 
 // --- Projects page handlers (mark won) ---
@@ -631,3 +667,108 @@ document.addEventListener('DOMContentLoaded', () => {
     if (unBtn)  { e.preventDefault(); mark(unBtn.closest('tr'),  false); }
   });
 })();
+
+// ====== Dashboard real metrics chart (SPB-251D Etapa 2) ======
+function labelForDate(iso) {
+  const parts = String(iso || '').split('-');
+  if (parts.length !== 3) return String(iso || '');
+  return `${parts[2]}/${parts[1]}`;
+}
+
+function renderDashboardMetricsChart(range = '7d') {
+  const chart = document.getElementById('dashboard-chart');
+  if (!chart) return;
+  const bars = chart.querySelector('[data-chart-bars]');
+  const summary = document.querySelector('[data-chart-summary]');
+  if (!bars) return;
+
+  let series = {};
+  try { series = JSON.parse(chart.dataset.series || '{}'); } catch { series = {}; }
+  const rows = Array.isArray(series[range]) ? series[range] : [];
+  const max = Math.max(0, ...rows.map(row => Number(row.count || 0)));
+  const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+
+  bars.textContent = '';
+  rows.forEach((row, index) => {
+    const count = Number(row.count || 0);
+    const height = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 2;
+    const bar = document.createElement('button');
+    bar.type = 'button';
+    bar.className = 'dashboard-chart__bar';
+    bar.style.setProperty('--bar-height', height + '%');
+    bar.setAttribute('aria-label', `${labelForDate(row.date)}: ${count} oportunidade${count === 1 ? '' : 's'}`);
+
+    const tooltip = document.createElement('em');
+    tooltip.textContent = `${count} oportunidade${count === 1 ? '' : 's'}`;
+    bar.appendChild(tooltip);
+
+    if (range === '7d' || index % 4 === 0 || index === rows.length - 1) {
+      const label = document.createElement('span');
+      label.textContent = labelForDate(row.date);
+      bar.appendChild(label);
+    }
+    bars.appendChild(bar);
+  });
+
+  if (summary) {
+    const label = range === '7d' ? '7 dias' : '30 dias';
+    summary.textContent = max === 0
+      ? `Nenhuma oportunidade encontrada nos últimos ${label}.`
+      : `${total} oportunidade${total === 1 ? '' : 's'} nos últimos ${label}. Maior dia: ${max}.`;
+  }
+}
+
+function initDashboardMetricsChart() {
+  const chart = document.getElementById('dashboard-chart');
+  if (!chart) return;
+  const buttons = document.querySelectorAll('[data-dashboard-range]');
+  buttons.forEach(button => {
+    button.addEventListener('click', () => {
+      buttons.forEach(item => {
+        item.classList.toggle('is-active', item === button);
+        item.setAttribute('aria-selected', item === button ? 'true' : 'false');
+      });
+      renderDashboardMetricsChart(button.dataset.dashboardRange || '7d');
+    });
+  });
+  renderDashboardMetricsChart('7d');
+}
+
+function initTelegramLinkPolling() {
+  const tgCard = document.getElementById('tg-card');
+  if (!tgCard || tgCard.dataset.linked === 'true') return;
+  const tgCardBody = document.getElementById('tg-card-body');
+  const tpl = document.getElementById('tg-linked-tpl');
+  if (!tgCardBody || !tpl) return;
+
+  function swapToLinked() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    const clone = tpl.content.cloneNode(true);
+    const csrfInput = clone.querySelector('[data-csrf-placeholder]');
+    if (csrfInput && meta) csrfInput.value = meta.getAttribute('content') || '';
+    tgCardBody.innerHTML = '';
+    tgCardBody.appendChild(clone);
+  }
+
+  const timer = setInterval(() => {
+    fetch('/dashboard/api/summary', { headers: { Accept: 'application/json', 'X-Requested-With': 'fetch' } })
+      .then(resp => resp.ok ? resp.json() : null)
+      .then(data => {
+        if (!data || !data.ok || !data.linked) return;
+        clearInterval(timer);
+        tgCard.dataset.linked = 'true';
+        setDashboardTelegramStatus(true);
+        swapToLinked();
+        const toggle = document.getElementById('bot-toggle');
+        if (toggle) toggle.removeAttribute('disabled');
+        const hint = document.getElementById('bot-link-hint');
+        if (hint) hint.textContent = 'Alertas automáticos ativados.';
+      })
+      .catch(() => {});
+  }, 5000);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initDashboardMetricsChart();
+  initTelegramLinkPolling();
+});
