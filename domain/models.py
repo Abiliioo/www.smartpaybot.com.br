@@ -41,6 +41,8 @@ class User(Base):
     chat_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     telegram_link_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
+    theme_preference: Mapped[str] = mapped_column(String(10), nullable=False, server_default="dark", default="dark")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

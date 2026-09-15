@@ -557,6 +557,25 @@ def bot_toggle():
     return jsonify({"ok": bool(ok), "running": sched_is_running()})
 
 
+# ---------------------- Preferência de tema (claro/escuro) ----------------------
+
+@bp.post("/theme")
+@login_required
+def set_theme():
+    data = request.get_json(silent=True) or {}
+    theme = data.get("theme")
+    if theme not in ("light", "dark"):
+        return jsonify({"ok": False, "error": "invalid_theme"}), 400
+
+    with SessionLocal() as db:
+        user = db.get(User, int(current_user.id))
+        user.theme_preference = theme
+        db.add(user)
+        db.commit()
+
+    return jsonify({"ok": True, "theme": theme})
+
+
 # ---------------------- Rotas API ----------------------
 
 @bp.get("/api/summary")

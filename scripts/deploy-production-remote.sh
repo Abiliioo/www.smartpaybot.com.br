@@ -36,6 +36,12 @@
 #   - sudo sempre nao-interativo (`sudo -n`); se nao disponivel, aborta
 #     antes de qualquer alteracao.
 #   - emite, ao final, linhas maquina-legiveis fixas (ver emit_result()).
+#   - migracoes de schema (SPB-251E) sao SEMPRE aditivas e rodam ANTES do
+#     fast-forward, com o codigo antigo ainda ativo -- nunca depois. Em
+#     qualquer rollback (recover_or_die/rollback_and_exit), a coluna
+#     adicionada NAO e revertida: e aditiva, o codigo antigo a ignora, e
+#     reintroduzi-la de novo em um proximo deploy so re-executaria um
+#     no-op idempotente. Nao ha (nem deve haver) migration "down".
 #
 # Codigos de saida:
 #   0 = DEPLOY_STATUS=SUCCESS
@@ -86,6 +92,7 @@ REACT_DIST_TEMP_ROOT=""
 REACT_DIST_BACKUP_DIR=""
 REACT_DIST_CHANGED="false"
 REACT_DIST_HAD_PREVIOUS="false"
+MIGRATION_STATUS="NOT_RUN"
 
 emit_result() {
     local status="$1"
@@ -98,6 +105,7 @@ emit_result() {
     echo "HOMOLOGATION_BANNER_PRESENT=${HOMOLOGATION_BANNER_PRESENT}"
     echo "JOURNAL_ERROR_HITS=${JOURNAL_ERROR_HITS}"
     echo "REACT_DIST_STATUS=${REACT_DIST_STATUS}"
+    echo "MIGRATION_STATUS=${MIGRATION_STATUS}"
 }
 
 abort() {
@@ -468,6 +476,45 @@ if [ "$BACKUP_INTEGRITY" != "ok" ] || [ -n "$BACKUP_FK" ]; then
     abort "backup criado mas reprovou na validacao propria (integrity=$BACKUP_INTEGRITY, fk_check_presente=$([ -n "$BACKUP_FK" ] && echo yes || echo no))."
 fi
 echo "backup validado: $BACKUP_NAME ($(stat -c%s "$BACKUP_NAME") bytes)"
+
+echo
+echo "=== 4B. MIGRATION: theme_preference (SPB-251E) ==="
+# Roda ENQUANTO o codigo antigo (PRE_DEPLOY_HEAD) ainda esta ativo, ANTES
+# do fast-forward. Isso e seguro porque a coluna e aditiva e o codigo
+# antigo simplesmente a ignora -- o inverso (codigo novo de pe antes da
+# coluna existir) NAO e seguro: toda query autenticada quebraria
+# (CODE_BEFORE_MIGRATION_SAFE=false, ver auditoria SPB-251D/251E). Por
+# isso a migracao fica antes do "=== 5. UPDATE ===", nunca depois.
+#
+# scripts/migrate_add_theme_preference.py so existe em TARGET_SHA (o
+# fast-forward ainda nao aconteceu) -- por isso e extraido via `git show`,
+# nunca via checkout antecipado do working tree de producao.
+MIGRATION_REL_PATH="scripts/migrate_add_theme_preference.py"
+MIGRATION_TMP="$(mktemp --suffix=.py)"
+if ! git show "${TARGET_SHA}:${MIGRATION_REL_PATH}" > "$MIGRATION_TMP" 2>/dev/null; then
+    rm -f "$MIGRATION_TMP"
+    abort "nao foi possivel extrair $MIGRATION_REL_PATH de TARGET_SHA via 'git show' -- migracao nao executada, codigo nao avancado."
+fi
+if [ ! -s "$MIGRATION_TMP" ]; then
+    rm -f "$MIGRATION_TMP"
+    abort "$MIGRATION_REL_PATH extraido de TARGET_SHA esta vazio -- abortando antes de qualquer alteracao de codigo."
+fi
+
+echo "Executando migracao extraida de TARGET_SHA ($MIGRATION_REL_PATH)..."
+PYTHONPATH="$APP_DIR" "$APP_DIR/.venv/bin/python" "$MIGRATION_TMP"
+MIGRATION_RC=$?
+rm -f "$MIGRATION_TMP"
+
+if [ "$MIGRATION_RC" -ne 0 ]; then
+    abort "migracao theme_preference falhou (exit=$MIGRATION_RC) -- codigo NAO avancado, servico antigo nunca tocado."
+fi
+
+MIGRATION_COLUMN_CHECK="$(sqlite3 app.db "PRAGMA table_info(users);" | grep -c '|theme_preference|' || true)"
+if [ "$MIGRATION_COLUMN_CHECK" -lt 1 ]; then
+    abort "migracao reportou sucesso mas 'theme_preference' nao aparece em PRAGMA table_info(users) -- schema inconsistente, codigo NAO avancado."
+fi
+MIGRATION_STATUS="OK"
+echo "coluna 'theme_preference' confirmada via PRAGMA table_info(users)."
 
 echo
 echo "=== 5. UPDATE (fast-forward) ==="
