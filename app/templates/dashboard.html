@@ -17,25 +17,32 @@
 
 <div class="dashboard-shell dashboard-shell--metrics">
   <section class="dashboard-hero dashboard-hero--compact" aria-labelledby="dashboard-title">
-    <div class="dashboard-hero__copy">
-      <h1 id="dashboard-title" class="dashboard-hero__title">Painel de oportunidades</h1>
-      <p class="dashboard-hero__sub">Entenda como seu monitoramento está performando.</p>
-    </div>
-    <div class="dashboard-hero__badges" aria-label="Status da conta">
-      <span id="dashboard-monitoring-status" class="status-pill {% if status.monitoring_active %}status-pill--ok{% else %}status-pill--muted{% endif %}">
-        <span aria-hidden="true"></span><span data-dashboard-status-label>{{ 'Monitoramento ativo' if status.monitoring_active else 'Monitoramento pausado' }}</span>
-      </span>
-      <span id="dashboard-telegram-status" class="status-pill {% if status.telegram_connected %}status-pill--ok{% else %}status-pill--warn{% endif %}">
-        <span aria-hidden="true"></span><span data-dashboard-status-label>Telegram {{ 'conectado' if status.telegram_connected else 'desconectado' }}</span>
-      </span>
-      <span class="status-pill status-pill--neutral">
-        {{ status.plan_name }}
-      </span>
+    <div class="dashboard-hero__row">
+      <div class="dashboard-hero__copy">
+        <h1 id="dashboard-title" class="dashboard-hero__title">Painel de oportunidades</h1>
+        <p class="dashboard-hero__sub">Entenda como seu monitoramento está performando.</p>
+        <div class="dashboard-hero__badges" aria-label="Status da conta">
+          <span id="dashboard-monitoring-status" class="status-pill {% if status.monitoring_active %}status-pill--ok{% else %}status-pill--muted{% endif %}">
+            <span aria-hidden="true"></span><span data-dashboard-status-label>{{ 'Monitoramento ativo' if status.monitoring_active else 'Monitoramento pausado' }}</span>
+          </span>
+          <span id="dashboard-telegram-status" class="status-pill {% if status.telegram_connected %}status-pill--ok{% else %}status-pill--warn{% endif %}">
+            <span aria-hidden="true"></span><span data-dashboard-status-label>Telegram {{ 'conectado' if status.telegram_connected else 'desconectado' }}</span>
+          </span>
+          <span class="status-pill status-pill--neutral">
+            {{ status.plan_name }}
+          </span>
+        </div>
+      </div>
+      <a class="cta-primary" href="{{ url_for('dashboard.my_projects') }}">
+        Abrir oportunidades
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
     </div>
   </section>
 
   <section class="metric-kpi-grid" aria-label="Indicadores principais">
     <article class="metric-kpi-card">
+      <span class="metric-kpi-card__bar" aria-hidden="true"></span>
       <p class="metric-kpi-card__label">Hoje</p>
       <div class="metric-kpi-card__value" id="count-today">{{ kpis.opportunities_today }}</div>
       <p class="metric-kpi-card__unit">oportunidades</p>
@@ -43,6 +50,7 @@
     </article>
 
     <article class="metric-kpi-card">
+      <span class="metric-kpi-card__bar" aria-hidden="true"></span>
       <p class="metric-kpi-card__label">7 dias</p>
       <div class="metric-kpi-card__value" id="count-week">{{ kpis.opportunities_7d }}</div>
       {% if kpis.opportunities_7d_pct is none %}
@@ -55,6 +63,7 @@
     </article>
 
     <article class="metric-kpi-card">
+      <span class="metric-kpi-card__bar" aria-hidden="true"></span>
       <p class="metric-kpi-card__label">Tempo até alerta</p>
       <div class="metric-kpi-card__value metric-kpi-card__value--text">
         {% if latency_seconds is none %}
@@ -69,11 +78,24 @@
     </article>
 
     <article class="metric-kpi-card">
+      <span class="metric-kpi-card__bar" aria-hidden="true"></span>
       <p class="metric-kpi-card__label">Keywords produtivas</p>
-      <div class="metric-kpi-card__value metric-kpi-card__value--ratio">
-        {% if keywords_total == 0 %}0{% else %}{{ productive }} / {{ keywords_total }}{% endif %}
-      </div>
-      <p class="metric-kpi-card__sub">{% if keywords_total == 0 %}Nenhuma keyword cadastrada{% else %}geraram oportunidades em 30 dias{% endif %}</p>
+      {% if keywords_total == 0 %}
+        <div class="metric-kpi-card__value metric-kpi-card__value--ratio">0</div>
+        <p class="metric-kpi-card__sub">Nenhuma keyword cadastrada</p>
+      {% else %}
+        {% set kw_ratio = (productive / keywords_total) if keywords_total else 0 %}
+        {% set kw_circumference = 131.9 %}
+        {% set kw_ratio_clamped = 1 if kw_ratio > 1 else (0 if kw_ratio < 0 else kw_ratio) %}
+        <div class="metric-kpi-card__gauge">
+          <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" focusable="false">
+            <circle cx="26" cy="26" r="21" fill="none" stroke="var(--spb-surface-2)" stroke-width="6"/>
+            <circle cx="26" cy="26" r="21" fill="none" stroke="var(--spb-cat-4)" stroke-width="6" stroke-linecap="round"
+              stroke-dasharray="{{ kw_circumference }}" stroke-dashoffset="{{ (kw_circumference * (1 - kw_ratio_clamped))|round(1) }}" transform="rotate(-90 26 26)"/>
+          </svg>
+          <div class="metric-kpi-card__gauge-text">{{ productive }}/{{ keywords_total }}<small>geraram oportunidade em 30 dias</small></div>
+        </div>
+      {% endif %}
     </article>
   </section>
 
@@ -90,7 +112,7 @@
         </div>
       </div>
       <div class="dashboard-chart" id="dashboard-chart" role="group" aria-labelledby="overview-title" aria-describedby="dashboard-chart-summary" data-series='{{ metrics.series|tojson }}'>
-        <div class="dashboard-chart__bars" data-chart-bars></div>
+        <svg data-chart-svg viewBox="0 0 640 210" preserveAspectRatio="none" aria-hidden="true" focusable="false"></svg>
       </div>
       <p id="dashboard-chart-summary" class="dashboard-chart__summary" data-chart-summary aria-live="polite"></p>
     </section>
@@ -99,19 +121,23 @@
       <div class="section-head section-head--metrics">
         <div>
           <h2 id="keyword-performance-title">Desempenho das keywords</h2>
-          <p class="help">Ranking por oportunidades nos últimos 30 dias.</p>
+          <p class="help">Oportunidades encontradas por palavra-chave nos últimos 30 dias.</p>
         </div>
       </div>
 
       {% if keyword_metrics.ranking_30d %}
-        <div class="keyword-ranking">
+        {% set top_matches = keyword_metrics.ranking_30d[0].matches or 1 %}
+        <div class="rank-list">
           {% for item in keyword_metrics.ranking_30d[:5] %}
-            <div class="keyword-ranking__row">
-              <div>
-                <strong>{{ item.keyword }}</strong>
-                {% if not item.active %}<span>removida</span>{% endif %}
-              </div>
-              <em>{{ item.matches }} match{{ '' if item.matches == 1 else 'es' }}</em>
+            {% set cat = loop.cycle('var(--spb-cat-1)','var(--spb-cat-3)','var(--spb-cat-2)','var(--spb-cat-4)','var(--spb-cat-7)') %}
+            <div class="rank-row">
+              <span class="rank-badge" style="background:color-mix(in srgb, {{ cat }} 16%, transparent); color:{{ cat }}">{{ '%02d' % loop.index }}</span>
+              <span class="rank-name-wrap">
+                <span class="rank-name">{{ item.keyword }}</span>
+                {% if not item.active %}<span class="rank-removed-badge">removida</span>{% endif %}
+              </span>
+              <span class="rank-count"><b>{{ item.matches }}</b> oportunidade{{ '' if item.matches == 1 else 's' }}</span>
+              <div class="rank-bar-track"><div class="rank-bar-fill" style="width:{{ ((item.matches / top_matches) * 100)|round(1) }}%;background:{{ cat }}"></div></div>
             </div>
           {% endfor %}
         </div>
@@ -143,12 +169,12 @@
 
       {% if result_metrics.won_total > 0 %}
         <div class="results-grid">
-          <div>
+          <div class="result-tile" style="--bar:var(--spb-cat-1)">
             <span>Projetos ganhos registrados</span>
             <strong>{{ result_metrics.won_total }}</strong>
             <small>{{ result_metrics.won_30d }} nos últimos 30 dias</small>
           </div>
-          <div>
+          <div class="result-tile" style="--bar:var(--spb-cat-2)">
             <span>Valor registrado em projetos ganhos</span>
             <strong>R$ {{ ('%.2f' % (won_total_cents / 100)).replace('.', ',') }}</strong>
             <small>R$ {{ ('%.2f' % (won_30d_cents / 100)).replace('.', ',') }} nos últimos 30 dias</small>
@@ -204,9 +230,14 @@
     <div class="settings-grid">
       <section class="settings-card" id="tg-card" data-linked="{{ 'true' if is_linked else 'false' }}" aria-labelledby="telegram-title">
         <div class="section-head section-head--metrics">
-          <div>
-            <h3 id="telegram-title">Telegram / Monitoramento</h3>
-            <p class="help">Canal de entrega dos alertas e preferência de monitoramento.</p>
+          <div class="card-icon-row">
+            <span class="card-icon card-icon--blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </span>
+            <div>
+              <h3 id="telegram-title">Telegram / Monitoramento</h3>
+              <p class="help">Canal de entrega dos alertas e preferência de monitoramento.</p>
+            </div>
           </div>
         </div>
 
@@ -278,9 +309,14 @@
 
       <section class="settings-card" id="configuracoes-keywords" aria-labelledby="keywords-title">
         <div class="section-head section-head--metrics">
-          <div>
-            <h3 id="keywords-title">Keywords</h3>
-            <p class="help">Termos usados para casar novos projetos com o seu perfil.</p>
+          <div class="card-icon-row">
+            <span class="card-icon card-icon--violet" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 009.59 3.24L3 3v6.59a2 2 0 00.59 1.41l9.58 9.59a2 2 0 002.83 0l4.59-4.59a2 2 0 000-2.83z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+            </span>
+            <div>
+              <h3 id="keywords-title">Keywords</h3>
+              <p class="help">Termos usados para casar novos projetos com o seu perfil.</p>
+            </div>
           </div>
           {% if dashboard.max_keywords < 0 %}
             <span class="status-badge status-badge--ok">{{ dashboard.kw_count }} termos</span>
@@ -324,9 +360,14 @@
       {% if plan %}
       <section class="settings-card" aria-labelledby="plan-title">
         <div class="section-head section-head--metrics">
-          <div>
-            <h3 id="plan-title">Plano</h3>
-            <p class="help">Limites e upgrade quando fizer sentido.</p>
+          <div class="card-icon-row">
+            <span class="card-icon card-icon--amber" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 6.5H21l-5 4 2 6.5-6-4-6 4 2-6.5-5-4h6.5z"/></svg>
+            </span>
+            <div>
+              <h3 id="plan-title">Plano</h3>
+              <p class="help">Limites e upgrade quando fizer sentido.</p>
+            </div>
           </div>
           {% if plan.is_admin_plan %}
             <span class="plan-badge plan-badge--admin">Admin</span>
@@ -362,9 +403,14 @@
       {% if show_webhook_panel %}
       <section class="settings-card settings-card--admin" aria-labelledby="webhook-title">
         <div class="section-head section-head--metrics">
-          <div>
-            <h3 id="webhook-title">Admin webhook</h3>
-            <p class="help">Painel administrativo condicionado por configuração.</p>
+          <div class="card-icon-row">
+            <span class="card-icon card-icon--green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6.5l4 4L9 19l-4.5 1L6 15.5z"/><path d="M17 3l4 4"/></svg>
+            </span>
+            <div>
+              <h3 id="webhook-title">Admin webhook</h3>
+              <p class="help">Painel administrativo condicionado por configuração.</p>
+            </div>
           </div>
         </div>
         <dl class="webhook-status-list">

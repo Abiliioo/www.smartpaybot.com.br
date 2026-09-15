@@ -168,7 +168,14 @@ class DashboardMetricsUiSPB251DTest(unittest.TestCase):
         self._project(1, keyword="excel")
         html = self._dashboard_html()
         self.assertIn("Keywords produtivas", html)
-        self.assertIn("1 / 2", html)
+        # SPB-251E: o KPI virou um gauge em SVG; o par productive/keywords_total
+        # continua exposto como texto (sem o espaçamento legado "1 / 2").
+        self.assertIn("1/2", html)
+        self.assertIn('class="metric-kpi-card__gauge"', html)
+        gauge_svg = re.search(r'<svg width="52" height="52"[^>]*>', html)
+        self.assertIsNotNone(gauge_svg, "svg do gauge de keywords produtivas nao encontrado")
+        self.assertIn('aria-hidden="true"', gauge_svg.group(0))
+        self.assertIn('focusable="false"', gauge_svg.group(0))
 
     def test_chart_has_real_7d_and_30d_data(self) -> None:
         self._project(1, created_at=NOW)
@@ -179,6 +186,37 @@ class DashboardMetricsUiSPB251DTest(unittest.TestCase):
         self.assertEqual(len(data["7d"]), 7)
         self.assertEqual(len(data["30d"]), 30)
         self.assertEqual(data["7d"][-1]["count"], 1)
+
+    def _chart_series(self, html: str) -> dict:
+        match = re.search(r"data-series='([^']+)'", html)
+        self.assertIsNotNone(match, "atributo data-series nao encontrado no HTML")
+        return json.loads(match.group(1))
+
+    def test_chart_series_all_zero_when_no_opportunities(self) -> None:
+        # SPB-251E (secao 6 da auditoria): o grafico em SVG nao pode inventar
+        # dado nenhum quando nao ha oportunidade -- as series devem vir
+        # zeradas, com o tamanho correto, e o container do SVG deve existir
+        # (o JS decide nao desenhar linha, mas o container precisa estar la).
+        html = self._dashboard_html()
+        data = self._chart_series(html)
+        self.assertEqual(len(data["7d"]), 7)
+        self.assertEqual(len(data["30d"]), 30)
+        self.assertTrue(all(row["count"] == 0 for row in data["7d"]))
+        self.assertTrue(all(row["count"] == 0 for row in data["30d"]))
+        self.assertIn('data-chart-svg', html)
+        self.assertIn('Nenhuma oportunidade por enquanto', html)
+
+    def test_chart_series_single_positive_value_not_inflated(self) -> None:
+        # Um unico dia com 1 oportunidade nao pode "contaminar" os outros
+        # dias da serie -- prova de que nao ha interpolacao/invencao de dado
+        # entre os pontos reais.
+        self._project(1, created_at=NOW - timedelta(days=3))
+        html = self._dashboard_html()
+        data = self._chart_series(html)
+        seven_day_counts = [row["count"] for row in data["7d"]]
+        self.assertEqual(sum(seven_day_counts), 1)
+        self.assertEqual(seven_day_counts.count(1), 1)
+        self.assertEqual(seven_day_counts.count(0), 6)
 
     def test_results_use_registered_wording(self) -> None:
         self._project(1, won=True, won_cents=12345, won_at=NOW)
@@ -308,6 +346,28 @@ class DashboardMetricsUiSPB251DTest(unittest.TestCase):
     def test_user_without_projects_renders(self) -> None:
         html = self._dashboard_html()
         self.assertIn("Nenhuma oportunidade por enquanto", html)
+
+    def test_ranking_uses_opportunity_wording_not_matches(self) -> None:
+        self._project(1, keyword="excel", created_at=NOW)
+        html = self._dashboard_html()
+        self.assertIn("Oportunidades encontradas por palavra-chave nos últimos 30 dias.", html)
+        self.assertIn("1</b> oportunidade<", html)
+        self.assertNotIn("match", html.lower())
+
+    def test_ranking_removed_keyword_badge_survives_long_name_truncation(self) -> None:
+        # SPB-251E (secao 7 da auditoria): "removida" precisa ficar em um
+        # elemento separado do nome truncavel, senao uma keyword longa some
+        # com o rotulo junto no ellipsis do CSS.
+        long_keyword = "integracao-erp-faturamento-com-bling-tiny-e-omie-completa"
+        self._project(1, keyword=long_keyword, created_at=NOW)  # nao esta em ["excel", "python"] -> inativa
+        html = self._dashboard_html()
+        self.assertIn('<span class="rank-name">integracao-erp-faturamento-com-bling-tiny-e-omie-completa</span>', html)
+        self.assertIn('<span class="rank-removed-badge">removida</span>', html)
+        # nome e badge sao elementos irmaos dentro do wrapper, nao um dentro do outro
+        wrap_match = re.search(r'<span class="rank-name-wrap">.*?</span>\s*</span>', html, re.DOTALL)
+        self.assertIsNotNone(wrap_match, "rank-name-wrap nao encontrado")
+        self.assertIn("rank-name", wrap_match.group(0))
+        self.assertIn("rank-removed-badge", wrap_match.group(0))
 
     def test_free_limit_and_upgrade_are_preserved(self) -> None:
         with self.Session() as db:

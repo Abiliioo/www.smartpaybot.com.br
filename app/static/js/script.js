@@ -678,44 +678,80 @@ function labelForDate(iso) {
 function renderDashboardMetricsChart(range = '7d') {
   const chart = document.getElementById('dashboard-chart');
   if (!chart) return;
-  const bars = chart.querySelector('[data-chart-bars]');
+  const svg = chart.querySelector('[data-chart-svg]');
   const summary = document.querySelector('[data-chart-summary]');
-  if (!bars) return;
+  if (!svg) return;
 
   let series = {};
   try { series = JSON.parse(chart.dataset.series || '{}'); } catch { series = {}; }
   const rows = Array.isArray(series[range]) ? series[range] : [];
-  const max = Math.max(0, ...rows.map(row => Number(row.count || 0)));
-  const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
-
-  bars.textContent = '';
-  rows.forEach((row, index) => {
-    const count = Number(row.count || 0);
-    const height = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 2;
-    const bar = document.createElement('button');
-    bar.type = 'button';
-    bar.className = 'dashboard-chart__bar';
-    bar.style.setProperty('--bar-height', height + '%');
-    bar.setAttribute('aria-label', `${labelForDate(row.date)}: ${count} oportunidade${count === 1 ? '' : 's'}`);
-
-    const tooltip = document.createElement('em');
-    tooltip.textContent = `${count} oportunidade${count === 1 ? '' : 's'}`;
-    bar.appendChild(tooltip);
-
-    if (range === '7d' || index % 4 === 0 || index === rows.length - 1) {
-      const label = document.createElement('span');
-      label.textContent = labelForDate(row.date);
-      bar.appendChild(label);
-    }
-    bars.appendChild(bar);
-  });
+  const values = rows.map(row => Number(row.count || 0));
+  const peak = Math.max(0, ...values);
+  const total = values.reduce((sum, v) => sum + v, 0);
 
   if (summary) {
     const label = range === '7d' ? '7 dias' : '30 dias';
-    summary.textContent = max === 0
+    summary.textContent = peak === 0
       ? `Nenhuma oportunidade encontrada nos últimos ${label}.`
-      : `${total} oportunidade${total === 1 ? '' : 's'} nos últimos ${label}. Maior dia: ${max}.`;
+      : `${total} oportunidade${total === 1 ? '' : 's'} nos últimos ${label}. Maior dia: ${peak}.`;
   }
+
+  if (rows.length === 0) {
+    svg.innerHTML = '';
+    return;
+  }
+
+  const W = 640, H = 210, padL = 8, padR = 8, padT = 18, padB = 30;
+  const n = rows.length;
+  const scaleMax = Math.max(1, peak * 1.15);
+  const stepX = n > 1 ? (W - padL - padR) / (n - 1) : 0;
+  const pts = values.map((v, i) => {
+    const x = padL + i * stepX;
+    const y = padT + (H - padT - padB) * (1 - v / scaleMax);
+    return [x, y];
+  });
+
+  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const area = pts.length > 1
+    ? `${line} L${pts[pts.length - 1][0].toFixed(1)},${H - padB} L${pts[0][0].toFixed(1)},${H - padB} Z`
+    : '';
+  const gridLines = [0.25, 0.5, 0.75, 1].map(f => {
+    const y = padT + (H - padT - padB) * f;
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--spb-border)" stroke-width="1"/>`;
+  }).join('');
+
+  const labelEvery = range === '7d' ? 1 : Math.max(1, Math.ceil(n / 8));
+  const labels = rows.map((row, i) => (i % labelEvery === 0 || i === n - 1)
+    ? `<text x="${pts[i][0].toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10.5" fill="var(--spb-faint)" font-family="Plus Jakarta Sans, sans-serif">${labelForDate(row.date)}</text>`
+    : ''
+  ).join('');
+  const dots = pts.map((p, i) => i === pts.length - 1
+    ? ''
+    : `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--spb-surface)" stroke="var(--spb-accent)" stroke-width="1.6"/>`
+  ).join('');
+  const last = pts[pts.length - 1];
+  const lastValue = values[values.length - 1];
+  const lastLabel = `${lastValue}`;
+  const tooltipWidth = 18 + lastLabel.length * 8;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="spbAreaFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--spb-accent)" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="var(--spb-accent)" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    ${area ? `<path d="${area}" fill="url(#spbAreaFill)"/>` : ''}
+    <path d="${line}" fill="none" stroke="var(--spb-accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+    ${labels}
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4.5" fill="var(--spb-accent)" stroke="var(--spb-surface)" stroke-width="2"/>
+    <g>
+      <rect x="${(last[0] - tooltipWidth / 2).toFixed(1)}" y="${(last[1] - 32).toFixed(1)}" width="${tooltipWidth}" height="22" rx="7" fill="var(--spb-surface-2)" stroke="var(--spb-border-strong)"/>
+      <text x="${last[0].toFixed(1)}" y="${(last[1] - 17.5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--spb-text)" font-family="Plus Jakarta Sans, sans-serif">${lastLabel}</text>
+    </g>
+  `;
 }
 
 function initDashboardMetricsChart() {
@@ -768,7 +804,32 @@ function initTelegramLinkPolling() {
   }, 5000);
 }
 
+function initThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try {
+      const res = await apiFetch('/dashboard/theme', {
+        method: 'POST',
+        body: JSON.stringify({ theme: next })
+      });
+      if (!res.ok) {
+        root.setAttribute('data-theme', current);
+        flashClient('Não foi possível salvar a preferência de tema.', 'danger');
+      }
+    } catch {
+      root.setAttribute('data-theme', current);
+      flashClient('Não foi possível salvar a preferência de tema.', 'danger');
+    }
+  });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   initDashboardMetricsChart();
   initTelegramLinkPolling();
+  initThemeToggle();
 });
