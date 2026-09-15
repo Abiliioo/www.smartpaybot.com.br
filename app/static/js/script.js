@@ -813,12 +813,17 @@ function initThemeToggle() {
     const next = current === 'dark' ? 'light' : 'dark';
     root.setAttribute('data-theme', next);
     try {
-      await apiFetch('/dashboard/theme', {
+      const res = await apiFetch('/dashboard/theme', {
         method: 'POST',
         body: JSON.stringify({ theme: next })
       });
+      if (!res.ok) {
+        root.setAttribute('data-theme', current);
+        flashClient('Não foi possível salvar a preferência de tema.', 'danger');
+      }
     } catch {
-      /* tema já aplicado na tela; próxima troca tenta salvar novamente */
+      root.setAttribute('data-theme', current);
+      flashClient('Não foi possível salvar a preferência de tema.', 'danger');
     }
   });
 }
